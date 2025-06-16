@@ -280,6 +280,34 @@ static SQRESULT ServerScript_UnbanPlayer(HSQUIRRELVM v)
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
 }
 
+static SQRESULT ServerScript_BroadcastServerTextMessage(HSQUIRRELVM v)
+{
+    const SQChar* szPrefix = nullptr;
+    const SQChar* szMessage = nullptr;
+    SQBool bAdminMsg = false;
+
+    sq_getstring(v, 2, &szPrefix);
+    sq_getstring(v, 3, &szMessage);
+    sq_getbool(v, 4, &bAdminMsg);
+
+    if (!VALID_CHARSTAR(szPrefix))
+    {
+        v_SQVM_ScriptError("Null prefix string");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+
+    if (!VALID_CHARSTAR(szMessage))
+    {
+        v_SQVM_ScriptError("Null message string");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+
+    SVC_SystemSayText message(szPrefix, szMessage, bAdminMsg);
+    
+    g_pServer->BroadcastMessage(&message, true, false);
+    SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: gets the number of real players on this server
 //-----------------------------------------------------------------------------
@@ -703,6 +731,8 @@ void Script_RegisterAdminServerFunctions(CSquirrelVM* s)
     DEFINE_SERVER_SCRIPTFUNC_NAMED(s, BanPlayerById, "Bans a player from the server by handle or nucleus id", "void", "string id, string reason", false);
 
     DEFINE_SERVER_SCRIPTFUNC_NAMED(s, UnbanPlayer, "Unbans a player from the server by nucleus id or ip address", "void", "string handle", false);
+
+    DEFINE_SERVER_SCRIPTFUNC_NAMED(s, BroadcastServerTextMessage, "Broadcasts a chatmessage to all clients", "void", "string prefix, string message, bool adminMsg", false);
 }
 
 //---------------------------------------------------------------------------------

@@ -15,6 +15,10 @@
 #include "common/callback.h"
 #include "game/shared/usermessages.h"
 
+#ifndef DEDICATED
+#include "game/client/hud_basechat.h"
+#endif
+
 ///////////////////////////////////////////////////////////////////////////////////
 // re-implementation of 'SVC_Print::Process'
 ///////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +97,31 @@ bool SVC_SetClassVar::Process(void)
 	CCommand command((int)V_ARRAYSIZE(pArgs), pArgs, cmd_source_t::kCommandSrcCode);
 	v__setClassVarClient_f(command);
 
+	return true;
+}
+
+bool SVC_SystemSayText::ReadFromBuffer(bf_read* buffer)
+{
+	buffer->ReadString(m_szPrefix, sizeof(m_szPrefix));
+	buffer->ReadString(m_szMessage, sizeof(m_szMessage));
+	m_bAdminMsg = buffer->ReadOneBit();
+	return !buffer->IsOverflowed();
+}
+
+bool SVC_SystemSayText::WriteToBuffer(bf_write* buffer)
+{
+	buffer->WriteString(m_szPrefix);
+	buffer->WriteString(m_szMessage);
+	buffer->WriteOneBit(m_bAdminMsg);
+	return !buffer->IsOverflowed();
+}
+
+bool SVC_SystemSayText::Process(void)
+{
+#ifndef DEDICATED
+	if (*g_ppHudChat)
+		(*g_ppHudChat)->PrintSystemMsg(m_szPrefix, m_szMessage, m_bAdminMsg);
+#endif
 	return true;
 }
 

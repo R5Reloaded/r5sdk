@@ -163,6 +163,7 @@
 #include "game/client/cliententitylist.h"
 #include "game/client/c_player.h"
 #include "game/client/c_baseentity.h"
+#include "game/client/hud_basechat.h"
 #endif // !DEDICATED
 #include "public/edict.h"
 #ifndef DEDICATED
@@ -732,6 +733,8 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(VClientEntityList);
 	REGISTER(V_Player);
 	REGISTER(VC_BaseEntity);
+	REGISTER(VHudChat);
+
 #endif // !DEDICATED
 
 	// Public

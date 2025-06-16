@@ -121,6 +121,10 @@ extern ConVar* gamepad_look_curve;
 extern ConVar* particle_overlay;
 extern ConVar* particle_overlay_old;
 extern ConVar* particle_overlay_list_tally;
+
+extern ConVar* hudchat_visibility;
+extern ConVar* hudchat_new_message_fade_duration;
+extern ConVar* hudchat_new_message_shown_duration;
 #endif // !DEDICATED
 //-------------------------------------------------------------------------
 // FILESYSTEM                                                             |

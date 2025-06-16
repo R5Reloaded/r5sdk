@@ -136,6 +136,10 @@ ConVar* gamepad_look_curve                 = nullptr;
 ConVar* particle_overlay                   = nullptr;
 ConVar* particle_overlay_old               = nullptr;
 ConVar* particle_overlay_list_tally        = nullptr;
+
+ConVar* hudchat_visibility				   = nullptr;
+ConVar* hudchat_new_message_fade_duration  = nullptr;
+ConVar* hudchat_new_message_shown_duration = nullptr;
 #endif // !DEDICATED
 //-----------------------------------------------------------------------------
 // FILESYSTEM                                                                 |
@@ -228,6 +232,10 @@ void ConVar_InitShipped(void)
 	particle_overlay                 = g_pCVar->FindVar("particle_overlay");
 	particle_overlay_old             = g_pCVar->FindVar("particle_overlay_old");
 	particle_overlay_list_tally      = g_pCVar->FindVar("particle_overlay_list_tally");
+
+	hudchat_visibility				 = g_pCVar->FindVar("hudchat_visibility");
+	hudchat_new_message_fade_duration = g_pCVar->FindVar("hudchat_new_message_fade_duration");
+	hudchat_new_message_shown_duration = g_pCVar->FindVar("hudchat_new_message_shown_duration");
 #endif // !DEDICATED
 	mp_gamemode                      = g_pCVar->FindVar("mp_gamemode");
 	ip_cvar                          = g_pCVar->FindVar("ip");
