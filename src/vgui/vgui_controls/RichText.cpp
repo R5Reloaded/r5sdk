@@ -8,15 +8,15 @@
 #include <core/stdafx.h>
 #include <tier1/cvar.h>
 #include <engine/sys_utils.h>
-#include <vgui/vgui_controls/RichText.h>
+#include <vgui_controls/RichText.h>
 #include <vguimatsurface/MatSystemSurface.h>
 
-void RichText_SetText(vgui::RichText* thisptr, const char* text)
+void RichTextCommon_SetText(vgui::RichText* thisptr, const char* text)
 {
 	thisptr->SetText(text);
 }
 
-void vgui::RichText::SetText(const char* text)
+void vgui::RichTextCommon::SetText(const char* text)
 {
     // Originally 4096, increased to 8192
     WCHAR unicode[VGUI_RICHTEXT_MAX_LEN];
@@ -25,27 +25,27 @@ void vgui::RichText::SetText(const char* text)
 	{
         if (text[0] == '#')
         {
-            this->__vftable->ResolveLocalizedTextAndVariables(this, text, unicode, sizeof(unicode));
-            this->__vftable->SetText(this, unicode);
+            this->ResolveLocalizedTextAndVariables(text, unicode, sizeof(unicode));
+            this->SetText(unicode);
         }
         else
         {
             unicode[0] = 0;
             MultiByteToWideChar(CP_UTF8, 0, text, -1, unicode, VGUI_RICHTEXT_MAX_LEN);
             unicode[VGUI_RICHTEXT_MAX_LEN - 1] = 0;
-            this->__vftable->SetText(this, unicode);
+            this->SetText(unicode);
         }
 	}
 	else
 	{
-		this->__vftable->SetText(this, NULL);
+		this->SetText((const char*)nullptr);
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void VVGUIRichText::Detour(const bool bAttach) const
+void VVGUIRichTextCommon::Detour(const bool bAttach) const
 {
-	DetourSetup(&vgui__RichText__SetText, &RichText_SetText, bAttach);
+	DetourSetup(&vgui__RichTextCommon__SetText, &RichTextCommon_SetText, bAttach);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

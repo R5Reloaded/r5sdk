@@ -50,7 +50,7 @@
 #include "vgui/vgui_baseui_interface.h"
 #include "vgui/vgui_debugpanel.h"
 #include "vgui/vgui_fpspanel.h"
-#include "vgui/vgui_controls/RichText.h"
+#include "vgui_controls/RichText.h"
 #include "vguimatsurface/MatSystemSurface.h"
 #include "particles/particles.h"
 #include "particles/particle_overlay.h"
@@ -584,7 +584,7 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	// VGui
 	REGISTER(VEngineVGui); // REGISTER CLIENT ONLY!
 	REGISTER(VFPSPanel); // REGISTER CLIENT ONLY!
-	REGISTER(VVGUIRichText); // REGISTER CLIENT ONLY!
+	REGISTER(VVGUIRichTextCommon); // REGISTER CLIENT ONLY!
 	REGISTER(VMatSystemSurface);
 
 	// Particles
