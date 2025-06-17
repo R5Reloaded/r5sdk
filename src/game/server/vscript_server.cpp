@@ -308,6 +308,43 @@ static SQRESULT ServerScript_BroadcastServerTextMessage(HSQUIRRELVM v)
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
 }
 
+static SQRESULT ServerScript_SendServerTextMessage(HSQUIRRELVM v)
+{
+    CPlayer* pPlayer = nullptr;
+    const SQChar* szPrefix = nullptr;
+    const SQChar* szMessage = nullptr;
+    SQBool bAdminMsg = false;
+
+    if (!v_sq_getentity(v, reinterpret_cast<SQEntity*>(&pPlayer)))
+        return SQ_ERROR;
+
+    sq_getstring(v, 2, &szPrefix);
+    sq_getstring(v, 3, &szMessage);
+    sq_getbool(v, 4, &bAdminMsg);
+
+    if (!VALID_CHARSTAR(szPrefix))
+    {
+        v_SQVM_ScriptError("Null prefix string");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+
+    if (!VALID_CHARSTAR(szMessage))
+    {
+        v_SQVM_ScriptError("Null message string");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+    
+    CClient* const pClient = g_pServer->GetClient(pPlayer->GetEdict() - 1);
+    
+    if (!pClient)
+        return SQ_ERROR;
+
+    SVC_SystemSayText message(szPrefix, szMessage, bAdminMsg);
+    
+    sq_pushbool(v, pClient->SendNetMsgEx(&message, false, true, false));
+    SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: gets the number of real players on this server
 //-----------------------------------------------------------------------------
@@ -766,6 +803,14 @@ static void Script_RegisterServerPlayerClassFuncs()
         "string key, string value",
         false,
         ServerScript_ScriptSetClassVar);
+
+    g_serverScriptPlayerStruct->AddFunction("SendServerTextMessage",
+        "ScriptSendServerTextMessage",
+        "Sends a chat message to a player",
+        "bool",
+        "string prefix, string message, bool adminMsg",
+        false,
+        ServerScript_SendServerTextMessage);
 }
 //---------------------------------------------------------------------------------
 static void Script_RegisterServerAIClassFuncs()
