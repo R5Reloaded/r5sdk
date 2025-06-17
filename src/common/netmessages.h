@@ -510,6 +510,8 @@ public:
 
 		V_strncpy(m_szMessage, pszMessage, sizeof(m_szMessage));
 		m_szMessage[sizeof(m_szMessage) - 1] = '\0';
+
+		m_nGroup = NetMessageGroup::NoReplay;
 	}
 
 	virtual bool			ReadFromBuffer(bf_read* buffer);
