@@ -304,7 +304,7 @@ static SQRESULT ServerScript_BroadcastServerTextMessage(HSQUIRRELVM v)
 
     SVC_SystemSayText message(szPrefix, szMessage, bAdminMsg);
     
-    g_pServer->BroadcastMessage(&message, true, false);
+    g_pServer->BroadcastMessage(&message, true, true);
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
 }
 
