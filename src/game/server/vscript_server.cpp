@@ -282,27 +282,27 @@ static SQRESULT ServerScript_UnbanPlayer(HSQUIRRELVM v)
 
 static SQRESULT ServerScript_BroadcastServerTextMessage(HSQUIRRELVM v)
 {
-    const SQChar* szPrefix = nullptr;
-    const SQChar* szMessage = nullptr;
+    const SQChar* pszPrefix = nullptr;
+    const SQChar* pszMessage = nullptr;
     SQBool bAdminMsg = false;
 
-    sq_getstring(v, 2, &szPrefix);
-    sq_getstring(v, 3, &szMessage);
+    sq_getstring(v, 2, &pszPrefix);
+    sq_getstring(v, 3, &pszMessage);
     sq_getbool(v, 4, &bAdminMsg);
 
-    if (!VALID_CHARSTAR(szPrefix))
+    if (!VALID_CHARSTAR(pszPrefix))
     {
         v_SQVM_ScriptError("Null prefix string");
         SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
     }
 
-    if (!VALID_CHARSTAR(szMessage))
+    if (!VALID_CHARSTAR(pszMessage))
     {
         v_SQVM_ScriptError("Null message string");
         SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
     }
 
-    SVC_SystemSayText message(szPrefix, szMessage, bAdminMsg);
+    SVC_SystemSayText message(pszPrefix, pszMessage, bAdminMsg);
     
     g_pServer->BroadcastMessage(&message, true, true);
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
@@ -311,24 +311,24 @@ static SQRESULT ServerScript_BroadcastServerTextMessage(HSQUIRRELVM v)
 static SQRESULT ServerScript_SendServerTextMessage(HSQUIRRELVM v)
 {
     CPlayer* pPlayer = nullptr;
-    const SQChar* szPrefix = nullptr;
-    const SQChar* szMessage = nullptr;
+    const SQChar* pszPrefix = nullptr;
+    const SQChar* pszMessage = nullptr;
     SQBool bAdminMsg = false;
 
     if (!v_sq_getentity(v, reinterpret_cast<SQEntity*>(&pPlayer)))
         return SQ_ERROR;
 
-    sq_getstring(v, 2, &szPrefix);
-    sq_getstring(v, 3, &szMessage);
+    sq_getstring(v, 2, &pszPrefix);
+    sq_getstring(v, 3, &pszMessage);
     sq_getbool(v, 4, &bAdminMsg);
 
-    if (!VALID_CHARSTAR(szPrefix))
+    if (!VALID_CHARSTAR(pszPrefix))
     {
         v_SQVM_ScriptError("Null prefix string");
         SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
     }
 
-    if (!VALID_CHARSTAR(szMessage))
+    if (!VALID_CHARSTAR(pszMessage))
     {
         v_SQVM_ScriptError("Null message string");
         SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
@@ -339,7 +339,7 @@ static SQRESULT ServerScript_SendServerTextMessage(HSQUIRRELVM v)
     if (!pClient)
         return SQ_ERROR;
 
-    SVC_SystemSayText message(szPrefix, szMessage, bAdminMsg);
+    SVC_SystemSayText message(pszPrefix, pszMessage, bAdminMsg);
     
     sq_pushbool(v, pClient->SendNetMsgEx(&message, false, true, false));
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
