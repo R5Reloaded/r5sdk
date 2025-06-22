@@ -1381,6 +1381,39 @@ const char* V_GetFileExtension(const char* path, const bool keepDot)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: Returns a pointer to the file extension within a file name string
+// Input:	in - file name 
+// Output:	pointer to beginning of extension (after the "."), or the passed
+//				in string if there is no extension
+//-----------------------------------------------------------------------------
+const wchar_t* V_GetFileExtension(const wchar_t* path, const bool keepDot)
+{
+	Assert(path);
+
+	const wchar_t* out = nullptr;
+
+	while (*path)
+	{
+		if (*path == L'.')
+		{
+			out = path;
+
+			if (!keepDot)
+				out++;
+		}
+		else if (PATHSEPARATORW(*path))
+		{
+			// didn't reach the file name yet, reset
+			out = nullptr;
+		}
+
+		path++;
+	}
+
+	return out ? out : path;
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: 
 // Input  : *path - 
 //			*dest - 
