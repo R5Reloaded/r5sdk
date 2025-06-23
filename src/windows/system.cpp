@@ -85,19 +85,20 @@ enum ModuleBlockAction_e
 
 struct DllBlock_t
 {
-	ModuleBlockAction_e m_eAction;
+	const wchar_t* m_pwszModuleName;
 	const char* m_pszFriendlyName;
-	bool m_bNotified = false;
+	ModuleBlockAction_e m_eAction;
+	std::atomic_bool m_bNotified{ false };
 };
 
-std::unordered_map<std::wstring, DllBlock_t> s_DllBlockList = { 
-	{ L"apex-internal",  { ERROR,  "blitz.gg" } }
+static DllBlock_t s_DllBlockList[] = {
+	{L"apex-internal",  "blitz.gg",  ERROR}
 };
 
 bool ValidateModuleLoadAllowedAndNotify(const wchar_t* const pwszModulePath)
 {
-	wchar_t lowerBuff[MAX_OSPATH];
-	char szModuleNameBuff[MAX_OSPATH];
+	wchar_t wszModuleNameLower[MAX_OSPATH];
+	char szModuleName[MAX_OSPATH];
 
 	const wchar_t* const pwszFileName = V_UnqualifiedFileName(pwszModulePath);
 	const wchar_t* const pwszExtensionStart = V_GetFileExtension(pwszFileName);
@@ -107,58 +108,65 @@ bool ValidateModuleLoadAllowedAndNotify(const wchar_t* const pwszModulePath)
 	if (!nStringLength)
 		return true;
 
-	const size_t nCopyLen = min(nStringLength, SDK_ARRAYSIZE(lowerBuff));
-	memcpy(lowerBuff, pwszFileName, nCopyLen * sizeof(wchar_t));
-	lowerBuff[nCopyLen - 1] = L'\0';
+	const size_t nCopyLen = min(nStringLength, SDK_ARRAYSIZE(wszModuleNameLower));
+	memcpy(wszModuleNameLower, pwszFileName, nCopyLen * sizeof(wchar_t));
+	wszModuleNameLower[nCopyLen - 1] = L'\0';
 
-	const auto it = s_DllBlockList.find(lowerBuff);
-	if (it == s_DllBlockList.end())
+	DllBlock_t* pDllBlock = nullptr;
+	for (size_t i = 0; i < SDK_ARRAYSIZE(s_DllBlockList); i++)
+	{
+		if (wcscmp(wszModuleNameLower, s_DllBlockList[i].m_pwszModuleName) == 0)
+		{
+			pDllBlock = &s_DllBlockList[i];
+			break;
+		}
+	}
+	
+	if (!pDllBlock)
 		return true;
 
-	V_UnicodeToUTF8(pwszFileName, szModuleNameBuff, sizeof(szModuleNameBuff));
+	V_UnicodeToUTF8(pwszFileName, szModuleName, sizeof(szModuleName));
 
-	DllBlock_t& block = it->second;
-
-	switch (block.m_eAction)
+	switch (pDllBlock->m_eAction)
 	{
 	case ModuleBlockAction_e::ERROR:
 	{
-		if (!block.m_bNotified)
+		if (!pDllBlock->m_bNotified)
 		{
-			std::string moduleName = szModuleNameBuff;
-			std::string friendlyName = block.m_pszFriendlyName;
+			std::string moduleName = szModuleName;
+			std::string friendlyName = pDllBlock->m_pszFriendlyName;
 
-			g_TaskQueue.Dispatch([moduleName, friendlyName] {
+			g_TaskQueue.Dispatch([moduleName = std::move(moduleName), friendlyName = std::move(friendlyName)] {
 				Error(eDLL_T::SYSTEM_ERROR, EXIT_FAILURE, "Unsupported module loaded: %s (%s)\nPlease exit this program and restart the game.\n",
 					moduleName.c_str(), friendlyName.c_str());
 				}, 0);
 
-			block.m_bNotified = true;
+			pDllBlock->m_bNotified = true;
 		}
 
 		return false;
 	}
 	case ModuleBlockAction_e::WARN:
 	{
-		if (!block.m_bNotified)
+		if (!pDllBlock->m_bNotified)
 		{
-			std::string moduleName = szModuleNameBuff;
-			std::string friendlyName = block.m_pszFriendlyName;
+			std::string moduleName = szModuleName;
+			std::string friendlyName = pDllBlock->m_pszFriendlyName;
 
-			g_TaskQueue.Dispatch([moduleName, friendlyName] {
+			g_TaskQueue.Dispatch([moduleName  = std::move(moduleName), friendlyName = std::move(friendlyName)] {
 				MessageBoxA(NULL, Format("Known problematic module loaded, you may encounter issues\n%s (%s)", moduleName.c_str(),
 					friendlyName.c_str()).c_str(), "Problematic module", MB_OK | MB_ICONEXCLAMATION);
 			}, 0);
 
-			Warning(eDLL_T::SYSTEM_WARNING, "Known problematic module %s (%s)\n", szModuleNameBuff, block.m_pszFriendlyName);
-			block.m_bNotified = true;
+			Warning(eDLL_T::SYSTEM_WARNING, "Known problematic module %s (%s)\n", szModuleName, pDllBlock->m_pszFriendlyName);
+			pDllBlock->m_bNotified = true;
 		}
 
 		return true;
 	}
 	case ModuleBlockAction_e::BLOCK:
 	{
-		Warning(eDLL_T::SYSTEM_WARNING, "Module '%s' load blocked\n", szModuleNameBuff);
+		Warning(eDLL_T::SYSTEM_WARNING, "Module '%s' load blocked\n", szModuleName);
 		return false;
 	}
 	default:
