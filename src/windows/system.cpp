@@ -2,7 +2,6 @@
 #include "core/init.h"
 #include "windows/system.h"
 #include "engine/host_state.h"
-#include "engine/sys_mainwind.h"
 #include "tier0/frametask.h"
 
 #pragma warning(push)
