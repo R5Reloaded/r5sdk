@@ -168,6 +168,7 @@ void V_StripExtension(const char* in, char* out, size_t outLen);
 
 // Returns a pointer to the file extension or NULL if one doesn't exist
 const char* V_GetFileExtension(const char* path, const bool keepDot = false);
+const wchar_t* V_GetFileExtension(const wchar_t* path, const bool keepDot = false);
 
 // Copy out the file extension into dest
 void V_ExtractFileExtension(const char* path, char* dest, size_t destSize);
