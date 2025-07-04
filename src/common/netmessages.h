@@ -512,6 +512,7 @@ public:
 		m_szMessage[sizeof(m_szMessage) - 1] = '\0';
 
 		m_nGroup = NetMessageGroup::NoReplay;
+		m_bReliable = true;
 	}
 
 	virtual bool			ReadFromBuffer(bf_read* buffer);

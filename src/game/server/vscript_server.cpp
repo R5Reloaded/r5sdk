@@ -303,8 +303,8 @@ static SQRESULT ServerScript_BroadcastServerTextMessage(HSQUIRRELVM v)
     }
 
     SVC_SystemSayText message(pszPrefix, pszMessage, bAdminMsg);
-    
-    g_pServer->BroadcastMessage(&message, true, true);
+
+    g_pServer->BroadcastMessage(&message, true, false);
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
 }
 
@@ -341,7 +341,7 @@ static SQRESULT ServerScript_SendServerTextMessage(HSQUIRRELVM v)
 
     SVC_SystemSayText message(pszPrefix, pszMessage, bAdminMsg);
     
-    sq_pushbool(v, pClient->SendNetMsgEx(&message, false, true, false));
+    sq_pushbool(v, pClient->SendNetMsgEx(&message, false, false, false));
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
 }
 
