@@ -171,6 +171,7 @@ enum NetMessageType
 	// --------------------------------------------------------------------
 	// From here on, SDK netmessages are enumerated.
 	svc_SetClassVar                 = 66,
+	svc_SystemSayText				= 67,
 };
 
 //-------------------------------------------------------------------------
@@ -495,6 +496,45 @@ public:
 
 	char m_szKey[128];
 	char m_szValue[128];
+};
+
+class SVC_SystemSayText : public CNetMessage
+{
+public:
+	SVC_SystemSayText() = default;
+	SVC_SystemSayText(const char* const pszPrefix, const char* const pszMessage, const bool bAdminMsg = false) :
+		m_bAdminMsg(bAdminMsg)
+	{
+		V_strncpy(m_szPrefix, pszPrefix, sizeof(m_szPrefix));
+		m_szPrefix[sizeof(m_szPrefix) - 1] = '\0';
+
+		V_strncpy(m_szMessage, pszMessage, sizeof(m_szMessage));
+		m_szMessage[sizeof(m_szMessage) - 1] = '\0';
+
+		m_nGroup = NetMessageGroup::NoReplay;
+		m_bReliable = true;
+	}
+
+	virtual bool			ReadFromBuffer(bf_read* buffer);
+	virtual bool			WriteToBuffer(bf_write* buffer);
+
+	virtual bool			Process(void);
+
+	virtual int				GetType(void) const { return svc_SystemSayText; }
+	virtual const char*		GetName(void) const { return "svc_SystemSayText"; }
+
+	virtual const char*		ToString(void) const 
+	{
+		static char szBuf[256];
+		V_snprintf(szBuf, sizeof(szBuf), "%s: %s", m_szPrefix, m_szMessage);
+		return szBuf;
+	}
+
+	virtual size_t			GetSize(void) const { return sizeof(SVC_SystemSayText); }
+
+	char m_szPrefix[32];
+	char m_szMessage[128];
+	bool m_bAdminMsg;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////

@@ -280,6 +280,71 @@ static SQRESULT ServerScript_UnbanPlayer(HSQUIRRELVM v)
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
 }
 
+static SQRESULT ServerScript_BroadcastServerTextMessage(HSQUIRRELVM v)
+{
+    const SQChar* pszPrefix = nullptr;
+    const SQChar* pszMessage = nullptr;
+    SQBool bAdminMsg = false;
+
+    sq_getstring(v, 2, &pszPrefix);
+    sq_getstring(v, 3, &pszMessage);
+    sq_getbool(v, 4, &bAdminMsg);
+
+    if (!VALID_CHARSTAR(pszPrefix))
+    {
+        v_SQVM_ScriptError("Null prefix string");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+
+    if (!VALID_CHARSTAR(pszMessage))
+    {
+        v_SQVM_ScriptError("Null message string");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+
+    SVC_SystemSayText message(pszPrefix, pszMessage, bAdminMsg);
+
+    g_pServer->BroadcastMessage(&message, true, false);
+    SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
+}
+
+static SQRESULT ServerScript_SendServerTextMessage(HSQUIRRELVM v)
+{
+    CPlayer* pPlayer = nullptr;
+    const SQChar* pszPrefix = nullptr;
+    const SQChar* pszMessage = nullptr;
+    SQBool bAdminMsg = false;
+
+    if (!v_sq_getentity(v, reinterpret_cast<SQEntity*>(&pPlayer)))
+        return SQ_ERROR;
+
+    sq_getstring(v, 2, &pszPrefix);
+    sq_getstring(v, 3, &pszMessage);
+    sq_getbool(v, 4, &bAdminMsg);
+
+    if (!VALID_CHARSTAR(pszPrefix))
+    {
+        v_SQVM_ScriptError("Null prefix string");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+
+    if (!VALID_CHARSTAR(pszMessage))
+    {
+        v_SQVM_ScriptError("Null message string");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+    
+    CClient* const pClient = g_pServer->GetClient(pPlayer->GetEdict() - 1);
+    
+    if (!pClient)
+        return SQ_ERROR;
+
+    SVC_SystemSayText message(pszPrefix, pszMessage, bAdminMsg);
+    
+    sq_pushbool(v, pClient->SendNetMsgEx(&message, false, false, false));
+    SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: gets the number of real players on this server
 //-----------------------------------------------------------------------------
@@ -703,6 +768,8 @@ void Script_RegisterAdminServerFunctions(CSquirrelVM* s)
     DEFINE_SERVER_SCRIPTFUNC_NAMED(s, BanPlayerById, "Bans a player from the server by handle or nucleus id", "void", "string id, string reason", false);
 
     DEFINE_SERVER_SCRIPTFUNC_NAMED(s, UnbanPlayer, "Unbans a player from the server by nucleus id or ip address", "void", "string handle", false);
+
+    DEFINE_SERVER_SCRIPTFUNC_NAMED(s, BroadcastServerTextMessage, "Broadcasts a chatmessage to all clients", "void", "string prefix, string message, bool adminMsg", false);
 }
 
 //---------------------------------------------------------------------------------
@@ -736,6 +803,14 @@ static void Script_RegisterServerPlayerClassFuncs()
         "string key, string value",
         false,
         ServerScript_ScriptSetClassVar);
+
+    g_serverScriptPlayerStruct->AddFunction("SendServerTextMessage",
+        "ScriptSendServerTextMessage",
+        "Sends a chat message to a player",
+        "bool",
+        "string prefix, string message, bool adminMsg",
+        false,
+        ServerScript_SendServerTextMessage);
 }
 //---------------------------------------------------------------------------------
 static void Script_RegisterServerAIClassFuncs()

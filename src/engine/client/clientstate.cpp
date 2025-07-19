@@ -511,6 +511,7 @@ void CClientState::Reconnect()
 void CClientState::RegisterNetMsgs(CNetChan* chan)
 {
     REGISTER_SVC_MSG(SetClassVar);
+    REGISTER_SVC_MSG(SystemSayText);
 }
 
 void VClientState::Detour(const bool bAttach) const

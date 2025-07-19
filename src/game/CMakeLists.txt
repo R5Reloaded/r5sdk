@@ -268,6 +268,11 @@ add_sources( SOURCE_GROUP "Script"
     "client/vscript_client.h"
 )
 
+add_sources( SOURCE_GROUP "Hud"
+    "client/hud_basechat.cpp"
+    "client/hud_basechat.h"
+)
+
 file( GLOB GAME_CLIENT_PUBLIC_HEADERS
     "${ENGINE_SOURCE_DIR}/public/game/client/*"
 )

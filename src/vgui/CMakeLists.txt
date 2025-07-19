@@ -22,7 +22,6 @@ add_sources( SOURCE_GROUP "Debug"
 
 add_sources( SOURCE_GROUP "Controls"
     "vgui_controls/RichText.cpp"
-    "vgui_controls/RichText.h"
 )
 
 end_sources()
