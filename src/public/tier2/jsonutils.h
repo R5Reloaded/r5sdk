@@ -374,7 +374,7 @@ inline bool JSON_ParseNumber(const T& data, V& num)
 {
     if (JSON_IsOfType(data, JSONFieldType_e::kNumber))
     {
-        num = data.Get<V>();
+        num = data.template Get<V>();
         return true;
     }
     else if (JSON_IsOfType(data, JSONFieldType_e::kString))
