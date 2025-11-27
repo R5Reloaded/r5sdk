@@ -44,6 +44,7 @@
 #include "engine/staticpropmgr.h"
 #include "materialsystem/cmaterialsystem.h"
 #include "materialsystem/cmatqueuedrendercontext.h"
+#include "materialsystem/constbuffer.h"
 #ifndef DEDICATED
 #include "materialsystem/cmaterialglue.h"
 #include "materialsystem/texturestreaming.h"
@@ -575,6 +576,7 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(VMaterialSystem);
 	REGISTER(VMatQueuedRenderContext);
 #ifndef DEDICATED
+	REGISTER(VConstBuffer);
 	REGISTER(VMaterialGlue);
 	REGISTER(VShaderGlue);
 	REGISTER(VTextureStreaming);

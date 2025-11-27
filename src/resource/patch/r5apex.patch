@@ -110,6 +110,44 @@
 0x1294520: mov eax, dword ptr ds:[rax+r13*1+0x27EE1E2C]
 0x1294528: jmp 0x00000001403EA883
 
+// The following patches are done to increase the buffer sizes of g_constBufferCollection in order
+// to allow more const buffers to be loaded at runtime (the amount of assets we've ported so far
+// made us reach the current limit of 3072).
+// g_constBufferCollection.insertItems (inline array) was used directly at the following offsets,
+// in the SDK we write the pointer to our new array directly at the address of the old array, and
+// switch the LEA instruction out with MOV to make code dereference it and use our new array!
+0x3EB5EF: mov rax, qword ptr ds:[0x00000001671856B0]
+0x3EEED3: mov r12, qword ptr ds:[0x00000001671856B0]
+// The access to the same array is slightly more obscure here, because g_constBufferCollection is
+// used as base address, since the mutex lock is nearby (minor optimization) and the code uses the
+// offset of the old static array (0x4070) as immediate to index right into it. In at the following
+// patches, we jump to a code cave and instead use the pointer that is set at Gfx_InitShared() which
+// allows for reassigning the buffer location directly from the SDK without patching anything again!
+0x3EB6A1: jmp 0x000000014043ED73                     // Jump to code cave (old replaced Pak_ProcessAssets function site)
+0x43E173: mov r11, qword ptr ds:[0x0000000167181688] // Address of old array now contains ptr to new SDK array.
+0x43E17A: cmp qword ptr ds:[r11+rax*8], rsi          // Index into new array instead of old.
+0x43E17E: jmp 0x00000001403EC2A9                     // Jump back to original code and continue execution.
+// Same process is repeated here for the other use cases (note that register usage is different due to contextual reasons):
+0x3EEEB4: jmp 0x000000014043ED93
+0x43E193: mov rcx, qword ptr ds:[0x0000000167181688]
+0x43E19A: cmp qword ptr ds:[rcx+rax*8], rdi
+0x43E19E: jmp 0x00000001403EFABC
+//--
+0x3EB6F6: jmp 0x000000014043ED83
+0x43E183: mov rdx, qword ptr ds:[0x0000000167181688]
+0x43E18A: mov rdx, qword ptr ds:[rdx+rax*8]
+0x43E18E: jmp 0x00000001403EC2FE
+//--
+0x3EEF20: jmp 0x000000014043EDA3
+0x43E1A3: mov rdx, qword ptr ds:[0x0000000167181688]
+0x43E1AA: mov rdx, qword ptr ds:[rdx+rax*8]
+0x43E1AE: jmp 0x00000001403EFB28
+// The ones here are similar to the usages above, however we are lucky because the base is stored at
+// R11 and R11 was only used to access g_constBufferCollection.insertItems through immediate offset.
+// So we just change it to MOV ptr into R11 which allows us to index directly into our new array:
+0x3EEC77: mov r11, qword ptr ds:[0x0000000167181688] // load insertMap.items instead of old insertItems array.
+0x3EED19: cmp qword ptr ds:[r11+rcx*8], rax // removed immediate '0x4070', because the new buffer is now in R11.
+
 /////////////////////////////
 /////////////////////////////
 ////    Code defects     ////
