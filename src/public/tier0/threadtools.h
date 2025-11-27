@@ -878,4 +878,10 @@ class VThreadTools : public IDetour
 
 #endif // !_TOOLS
 
+struct CThreadMutexRW
+{
+	SRWLOCK m_lock;
+	unsigned int m_pad[14];
+};
+
 #endif // THREADTOOLS_H
