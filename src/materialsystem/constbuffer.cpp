@@ -25,7 +25,7 @@ static void Gfx_RemapCbufCollection()
 	g_constBufferCollection->insertMap.capacity = CBUF_MAX_ITEMS_NEW;
 	g_constBufferCollection->insertMap.items = s_constBufferRemap.insertItems;
 	g_constBufferCollection->insertMap.buckets = s_constBufferRemap.insertBuckets;
-	g_constBufferCollection->insertMap.bucketMask = CBUF_BUCKET_SIZE_NEW;
+	g_constBufferCollection->insertMap.bucketMask = CBUF_BUCKET_SIZE_NEW-1;
 
 	// NOTE: this is the only array that is used directly in some functions.
 	// The trick is to set the first item in the array to the address of our
@@ -39,7 +39,7 @@ static void Gfx_RemapCbufCollection()
 	g_constBufferCollection->eraseMap.capacity = CBUF_MAX_ITEMS_NEW;
 	g_constBufferCollection->eraseMap.items = s_constBufferRemap.eraseItems;
 	g_constBufferCollection->eraseMap.buckets = s_constBufferRemap.eraseBuckets;
-	g_constBufferCollection->eraseMap.bucketMask = CBUF_BUCKET_SIZE_NEW;
+	g_constBufferCollection->eraseMap.bucketMask = CBUF_BUCKET_SIZE_NEW-1;
 }
 
 static void Gfx_InitShared()

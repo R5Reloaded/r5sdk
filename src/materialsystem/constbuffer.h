@@ -12,7 +12,7 @@
 // usage any further, increase these. Keep in mind that the bucket size
 // must be a power of two because RHashMap uses mod masks!
 #define CBUF_MAX_ITEMS_NEW 9920
-#define CBUF_BUCKET_SIZE_NEW 16383
+#define CBUF_BUCKET_SIZE_NEW 16384
 
 struct GfxCbufItem_s
 {
