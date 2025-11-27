@@ -342,9 +342,9 @@ struct PakGlobalState_s
 	// all currently loaded pak handles
 	PakLoadedInfo_s loadedPaks[PAK_MAX_LOADED_PAKS];
 
-	RMultiHashMap unkMap2; // links to 'unkIntArray' and 'unkIntArray2'
-	int unkIntArray[PAK_MAX_TRACKED_ASSETS];
-	int unkIntArray2[PAK_MAX_LOADED_ASSETS];
+	RHashMap<int, PAK_MAX_TRACKED_ASSETS> trackerHash; // links to 'trackerHashItems' and 'trackerHashBuckets'
+	u32 trackerHashItems[PAK_MAX_TRACKED_ASSETS];
+	int trackerHashBuckets[PAK_MAX_LOADED_ASSETS];
 
 	// whether asset streaming (mandatory & optional) is enabled
 	b64 useStreamingSystem;
