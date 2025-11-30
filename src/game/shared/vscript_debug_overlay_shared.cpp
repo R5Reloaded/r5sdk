@@ -12,10 +12,10 @@
 
 SQRESULT SharedScript_DebugDrawSolidBox(HSQUIRRELVM v)
 {
-    const SQVector3D* origin;
-    const SQVector3D* mins;
-    const SQVector3D* maxs;
-    const SQVector3D* colorVec;
+    const SQVector3D* origin = nullptr;
+    const SQVector3D* mins = nullptr;
+    const SQVector3D* maxs = nullptr;
+    const SQVector3D* colorVec = nullptr;
     SQFloat alpha;
     SQBool drawThroughWorld;
     SQFloat duration;
@@ -37,12 +37,12 @@ SQRESULT SharedScript_DebugDrawSolidBox(HSQUIRRELVM v)
 
 SQRESULT SharedScript_DebugDrawSweptBox(HSQUIRRELVM v)
 {
-    const SQVector3D* start;
-    const SQVector3D* end;
-    const SQVector3D* mins;
-    const SQVector3D* maxs;
-    const SQVector3D* angles;
-    const SQVector3D* colorVec;
+    const SQVector3D* start = nullptr;
+    const SQVector3D* end = nullptr;
+    const SQVector3D* mins = nullptr;
+    const SQVector3D* maxs = nullptr;
+    const SQVector3D* angles = nullptr;
+    const SQVector3D* colorVec = nullptr;
     SQFloat alpha;
     SQBool drawThroughWorld;
     SQFloat duration;
@@ -66,10 +66,10 @@ SQRESULT SharedScript_DebugDrawSweptBox(HSQUIRRELVM v)
 
 SQRESULT SharedScript_DebugDrawTriangle(HSQUIRRELVM v)
 {
-    const SQVector3D* p1;
-    const SQVector3D* p2;
-    const SQVector3D* p3;
-    const SQVector3D* colorVec;
+    const SQVector3D* p1 = nullptr;
+    const SQVector3D* p2 = nullptr;
+    const SQVector3D* p3 = nullptr;
+    const SQVector3D* colorVec = nullptr;
     SQFloat alpha;
     SQBool drawThroughWorld;
     SQFloat duration;
@@ -91,11 +91,11 @@ SQRESULT SharedScript_DebugDrawTriangle(HSQUIRRELVM v)
 
 SQRESULT SharedScript_DebugDrawSolidSphere(HSQUIRRELVM v)
 {
-    const SQVector3D* origin;
+    const SQVector3D* origin = nullptr;
     SQFloat radius;
     SQInteger theta;
     SQInteger phi;
-    const SQVector3D* colorVec;
+    const SQVector3D* colorVec = nullptr;
     SQFloat alpha;
     SQBool drawThroughWorld;
     SQFloat duration;
@@ -118,10 +118,10 @@ SQRESULT SharedScript_DebugDrawSolidSphere(HSQUIRRELVM v)
 
 SQRESULT SharedScript_DebugDrawCapsule(HSQUIRRELVM v)
 {
-    const SQVector3D* start;
-    const SQVector3D* end;
+    const SQVector3D* start = nullptr;
+    const SQVector3D* end = nullptr;
     SQFloat radius;
-    const SQVector3D* colorVec;
+    const SQVector3D* colorVec = nullptr;
     SQFloat alpha;
     SQBool drawThroughWorld;
     SQFloat duration;
