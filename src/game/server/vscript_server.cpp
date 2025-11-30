@@ -110,7 +110,7 @@ static SQRESULT ServerScript_DebugScreenText(HSQUIRRELVM v)
     {
         SQFloat posX;
         SQFloat posY;
-        const SQChar* text;
+        const SQChar* text = nullptr;
 
         sq_getfloat(v, 2, &posX);
         sq_getfloat(v, 3, &posY);
@@ -132,8 +132,8 @@ static SQRESULT ServerScript_DebugScreenTextWithColor(HSQUIRRELVM v)
     {
         SQFloat posX;
         SQFloat posY;
-        const SQChar* text;
-        const SQVector3D* colorVec;
+        const SQChar* text = nullptr;
+        const SQVector3D* colorVec = nullptr;
 
         sq_getfloat(v, 2, &posX);
         sq_getfloat(v, 3, &posY);
@@ -445,7 +445,7 @@ static bool Internal_ServerScript_ValidateHull(const SQInteger hull)
 //-----------------------------------------------------------------------------
 static bool Internal_ServerScript_NavMesh_GetExtents(HSQUIRRELVM v, const SQInteger stackIdx, rdVec3D* const out)
 {
-    const SQVector3D* extents;
+    const SQVector3D* extents = nullptr;
     sq_getvector(v, stackIdx, &extents);
 
     const SQFloat maxMagnitudeSqr = 9000000.0f;
@@ -504,7 +504,7 @@ static bool Internal_ServerScript_NavMesh_FindNearestPos(HSQUIRRELVM v, const bo
         halfExtents.init(maxs.x, maxs.y, maxs.z);
     }
 
-    const SQVector3D* point;
+    const SQVector3D* point = nullptr;
     sq_getvector(v, 2, &point);
 
     const rdVec3D searchPoint(point->x, point->y, point->z);
@@ -584,7 +584,7 @@ static SQRESULT ServerScript_SaveRecordedAnimation(HSQUIRRELVM v)
         SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
     }
 
-    const SQChar* fileName;
+    const SQChar* fileName = nullptr;
     sq_getstring(v, 3, &fileName);
 
     char fileNameBuf[MAX_OSPATH];

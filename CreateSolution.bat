@@ -5,7 +5,7 @@ set BUILDDIR=build_intermediate
 set BINDIR=game
 
 REM Check for Visual Studio versions in order
-for %%V in (15 16 17) do (
+for %%V in (15 16 17 18) do (
     reg query "HKEY_CLASSES_ROOT\VisualStudio.DTE.%%V.0" >> nul 2>&1
     if NOT ERRORLEVEL 1 (
         if "%%V"=="15" (
@@ -14,6 +14,8 @@ for %%V in (15 16 17) do (
             set "CMAKE_GENERATOR=Visual Studio 16 2019"
         ) else if "%%V"=="17" (
             set "CMAKE_GENERATOR=Visual Studio 17 2022"
+        ) else if "%%V"=="18" (
+            set "CMAKE_GENERATOR=Visual Studio 18 2026"
         )
         echo Using Visual Studio %%V as generator.
         goto :build

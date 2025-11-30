@@ -114,7 +114,7 @@ static SQRESULT ClientScript_DebugScreenText(HSQUIRRELVM v)
     {
         SQFloat posX;
         SQFloat posY;
-        const SQChar* text;
+        const SQChar* text = nullptr;
 
         sq_getfloat(v, 2, &posX);
         sq_getfloat(v, 3, &posY);
@@ -137,8 +137,8 @@ static SQRESULT ClientScript_DebugScreenTextWithColor(HSQUIRRELVM v)
     {
         SQFloat posX;
         SQFloat posY;
-        const SQChar* text;
-        const SQVector3D* colorVec;
+        const SQChar* text = nullptr;
+        const SQVector3D* colorVec = nullptr;
 
         sq_getfloat(v, 2, &posX);
         sq_getfloat(v, 3, &posY);
