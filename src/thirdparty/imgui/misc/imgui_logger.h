@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <deque>
 #include <array>
 #include <memory>
 #include <unordered_set>
@@ -115,7 +116,7 @@ public:
 		{}
 	};
 
-	typedef std::vector<Line> Lines;
+    typedef std::deque<Line> Lines;
 
 	CTextLogger();
 	~CTextLogger();
