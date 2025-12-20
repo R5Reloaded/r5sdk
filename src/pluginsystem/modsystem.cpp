@@ -262,17 +262,19 @@ void CModSystem::UpdateModStatusList()
 //-----------------------------------------------------------------------------
 void CModSystem::LoadModStatusList(CUtlMap<CUtlString, bool>& enabledList)
 {
-	if (!FileSystem()->FileExists(MOD_STATUS_LIST_FILE, "GAME"))
-		return;
+    KeyValues* const pModList = FileSystem()->LoadKeyValues(
+        IFileSystem::TYPE_COMMON, MOD_STATUS_LIST_FILE, "GAME");
 
-	const KeyValues* pModList = FileSystem()->LoadKeyValues(
-		IFileSystem::TYPE_COMMON, MOD_STATUS_LIST_FILE, "GAME");
+    if (!pModList)
+        return; // Does not exist, or failed to parse (check console).
 
-	for (KeyValues* pSubKey = pModList->GetFirstSubKey();
-		pSubKey != nullptr; pSubKey = pSubKey->GetNextKey())
-	{
-		enabledList.Insert(pSubKey->GetName(), pSubKey->GetBool());
-	}
+    for (KeyValues* pSubKey = pModList->GetFirstSubKey();
+        pSubKey != nullptr; pSubKey = pSubKey->GetNextKey())
+    {
+        enabledList.Insert(pSubKey->GetName(), pSubKey->GetBool());
+    }
+
+    pModList->DeleteThis();
 }
 
 //-----------------------------------------------------------------------------
