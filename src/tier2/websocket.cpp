@@ -225,7 +225,7 @@ bool CWebSocket::ConnContext_s::Connect(const double queryTime, const ConnParams
 		const double retryTimeTotal = lastQueryTime + params.retryTime;
 		const double currTime = Plat_FloatTime();
 
-		if (retryTimeTotal > currTime)
+		if (retryTimeTotal >= currTime)
 			return false; // Still within retry period
 	}
 
