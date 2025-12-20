@@ -111,7 +111,7 @@ void CNetConBase::SetKey(const char* pBase64NetKey, const bool bUseDefaultOnFail
 		mbedtls_base64_decode(m_NetKey, sizeof(m_NetKey), &numBytesDecoded,
 			reinterpret_cast<const unsigned char*>(DEFAULT_NET_ENCRYPTION_KEY), AES_128_B64_ENCODED_SIZE);
 
-		m_Base64NetKey.SetDirect(DEFAULT_NET_ENCRYPTION_KEY, sizeof(DEFAULT_NET_ENCRYPTION_KEY));
+		m_Base64NetKey.SetDirect(DEFAULT_NET_ENCRYPTION_KEY, sizeof(DEFAULT_NET_ENCRYPTION_KEY) - 1);
 	}
 }
 
