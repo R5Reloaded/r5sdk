@@ -288,6 +288,9 @@ static void RenderBoxInternal(const matrix3x4_t& fTransformMatrix, const Vector3
         vertexBuilder.End(ctx);
         ctx->DrawTriangleList(vertexBuilder.GetParams(), nullptr, 0);
     }
+
+    // Need to call this to decrement context ref counter.
+    ctx->EndRenderer();
 }
 
 struct RenderWireframeBoxQueue_s
@@ -371,6 +374,9 @@ static void RenderWireframeBoxInternal(const matrix3x4_t& fTransformMatrix, cons
         vertexBuilder.End(ctx);
         ctx->DrawLineList(vertexBuilder.GetParams(), nullptr, 0);
     }
+
+    // Need to call this to decrement context ref counter.
+    ctx->EndRenderer();
 }
 
 //-----------------------------------------------------------------------------

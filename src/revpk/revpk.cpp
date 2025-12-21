@@ -279,7 +279,10 @@ int main(int argc, char* argv[])
     for (int i = 0; i < argc; i++)
     {
         str.Append(argv[i]);
-        str.Append(' ');
+
+        if (i < (argc - 1)) {
+            str.Append(' ');
+        }
     }
 
     args.Tokenize(str.Get(), cmd_source_t::kCommandSrcCode, &s_BreakSetWithoutColons);

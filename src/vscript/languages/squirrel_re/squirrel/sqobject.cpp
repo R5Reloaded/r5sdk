@@ -14,9 +14,13 @@ const SQChar* IdType2Name(const SQObjectType type)
 	case OT_TABLE:return _SC("table");
 	case OT_VAR:return _SC("var");
 	case OT_ARRAY:return _SC("array");
-	case OT_CLOSURE: return _SC("function");
+
+    case OT_FUNCPROTO:
+    case OT_CLOSURE:
+    case OT_NATIVECLOSURE: 
+        return _SC("function");
+
 	case OT_THREAD: return _SC("thread");
-	case OT_FUNCPROTO: return _SC("function");
 	case OT_UNIMPLEMENTED: return _SC("unimplemented function");
 	case OT_CLASS: return _SC("class");
 	case OT_INSTANCE: return _SC("instance");

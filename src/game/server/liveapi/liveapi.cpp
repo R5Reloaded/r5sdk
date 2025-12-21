@@ -895,7 +895,7 @@ static bool LiveAPI_HandleInventoryDrop(HSQUIRRELVM const v, const SQObject& obj
 
 			LIVEAPI_ENSURE_TYPE(v, fieldObj, OT_STRING, event, fieldNum);
 
-			const SQString* const str = _string(obj);
+			const SQString* const str = _string(fieldObj);
 			event->add_extradata(str->_val, str->_len);
 		}
 

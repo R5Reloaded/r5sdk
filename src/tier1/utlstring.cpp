@@ -186,7 +186,7 @@ CUtlString::CUtlString( const char *pString )
 
 CUtlString::CUtlString( const CUtlString& string )
 {
-	Set( string.Get() );
+	SetDirect( string.Get(), string.Length() );
 }
 
 // Attaches the string to external memory. Useful for avoiding a copy

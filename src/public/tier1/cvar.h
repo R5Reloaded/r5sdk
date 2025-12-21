@@ -80,10 +80,11 @@ private:
 
 	// temporary console area so we can store prints before console display funs are installed
 	mutable CUtlBuffer                 m_TempConsoleBuffer;
+	int                                m_nMaxSplitScreenSlots;
 	CUtlVector< QueuedConVarSet_t >    m_QueuedConVarSets;
 	bool                               m_bMaterialSystemThreadSetAllowed;
 };
-static_assert(sizeof(CCvar) == 360);
+static_assert(sizeof(CCvar) == 0x158);
 
 extern CCvar* g_pCVar;
 extern CCvar* EngineCVar();

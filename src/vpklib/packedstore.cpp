@@ -1095,10 +1095,10 @@ void VPKDir_t::CTreeBuilder::BuildTree(const CUtlVector<VPKEntryBlock_t>& entryB
 		* - A file path is only written once per extension tree.
 		* - A file name is only written once per file path tree.
 		**********************************************************************/
-		const auto& extIt = m_FileTree.try_emplace({ fileExt.String(), (size_t)fileExt.Length() }, PathContainer_t()).first;
+		const auto extIt = m_FileTree.try_emplace({ fileExt.String(), (size_t)fileExt.Length() }, PathContainer_t()).first;
 		PathContainer_t& pathTree = extIt->second;
 
-		const auto& pathIt = pathTree.try_emplace({ filePath.String(), (size_t)filePath.Length() }, std::list<const VPKEntryBlock_t*>()).first;
+		const auto pathIt = pathTree.try_emplace({ filePath.String(), (size_t)filePath.Length() }, std::list<const VPKEntryBlock_t*>()).first;
 		pathIt->second.emplace_back(&entryBlock);
 	}
 }
