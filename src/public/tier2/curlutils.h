@@ -27,6 +27,7 @@ struct CURLParams
 		, followRedirect(false)
 		, verbose(false)
 		, failOnError(false)
+		, forceIPv4(false)
 	{}
 
 	void* readFunction;
@@ -38,6 +39,7 @@ struct CURLParams
 	bool followRedirect;
 	bool verbose;
 	bool failOnError;
+	bool forceIPv4;
 };
 
 size_t CURLReadFileCallback(void* data, const size_t size, const size_t nmemb, FILE* stream);
