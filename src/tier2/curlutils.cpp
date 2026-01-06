@@ -42,6 +42,9 @@ void CURLInitCommonOptions(CURL* curl, const char* remote,
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, params.writeFunction);
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, params.readFunction);
 
+    if (params.forceIPv4)
+        curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+
     if (params.statusFunction)
     {
         Assert(progressData);

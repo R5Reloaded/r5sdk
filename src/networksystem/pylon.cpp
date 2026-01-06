@@ -192,7 +192,7 @@ bool CPylon::PostServerHost(string& outMessage, string& outToken, string& outHos
     rapidjson::Document responseJson;
     CURLINFO status;
 
-    if (!SendRequest("/servers/add", requestJson, responseJson, outMessage, status, "server host error"))
+    if (!SendRequest("/servers/add", requestJson, responseJson, outMessage, status, "server host error", true, true))
     {
         return false;
     }
@@ -472,7 +472,7 @@ bool CPylon::GetEULA(MSEulaData_t& outData, string& outMessage) const
 //-----------------------------------------------------------------------------
 bool CPylon::SendRequest(const char* endpoint, const rapidjson::Document& requestJson,
     rapidjson::Document& responseJson, string& outMessage, CURLINFO& status,
-    const char* errorText, const bool checkEula) const
+    const char* errorText, const bool checkEula, const bool forceIPv4) const
 {
     if (!IsDedicated() && !IsEULAUpToDate() && checkEula)
     {
@@ -484,7 +484,7 @@ bool CPylon::SendRequest(const char* endpoint, const rapidjson::Document& reques
     JSON_DocumentToBufferDeserialize(requestJson, stringBuffer);
 
     string responseBody;
-    if (!QueryServer(endpoint, stringBuffer.GetString(), responseBody, outMessage, status))
+    if (!QueryServer(endpoint, stringBuffer.GetString(), responseBody, outMessage, status, forceIPv4))
     {
         return false;
     }
@@ -542,7 +542,7 @@ bool CPylon::SendRequest(const char* endpoint, const rapidjson::Document& reques
 // Output : True on success, false on failure.
 //-----------------------------------------------------------------------------
 bool CPylon::QueryServer(const char* endpoint, const char* request,
-    string& outResponse, string& outMessage, CURLINFO& outStatus) const
+    string& outResponse, string& outMessage, CURLINFO& outStatus, const bool forceIPv4) const
 {
     const bool showDebug = pylon_showdebuginfo.GetBool();
     const char* hostName = pylon_matchmaking_hostname.GetString();
@@ -563,6 +563,7 @@ bool CPylon::QueryServer(const char* endpoint, const char* request,
     params.timeout = curl_timeout.GetInt();
     params.verifyPeer = ssl_verify_peer.GetBool();
     params.verbose = curl_debug.GetBool();
+    params.forceIPv4 = forceIPv4;
 
     curl_slist* sList = nullptr;
     CURL* curl = CURLInitRequest(finalUrl.c_str(), request, outResponse, sList, params);
