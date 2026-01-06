@@ -259,7 +259,7 @@ bool CPylon::GetBannedList(const CBanSystem::BannedList_t& inBannedVec, CBanSyst
     string outMessage;
     CURLINFO status;
 
-    if (!SendRequest("/banlist/bulkCheck", requestJson, responseJson, outMessage, status, "banned bulk check error"))
+    if (!SendRequest("/banlist/bulkCheck", requestJson, responseJson, outMessage, status, "banned bulk check error", true, true))
     {
         return false;
     }
@@ -331,7 +331,7 @@ bool CPylon::CheckForBan(const string& ipAddress, const uint64_t nucleusId, cons
     string outMessage;
     CURLINFO status;
 
-    if (!SendRequest("/banlist/isBanned", requestJson, responseJson, outMessage, status, "banned check error"))
+    if (!SendRequest("/banlist/isBanned", requestJson, responseJson, outMessage, status, "banned check error", true, true))
     {
         return false;
     }
