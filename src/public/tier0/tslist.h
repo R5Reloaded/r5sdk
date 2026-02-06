@@ -8,6 +8,7 @@
 #define TSLIST_HEAD_ALIGN DECL_ALIGN(TSLIST_HEAD_ALIGNMENT)
 #define TSLIST_NODE_ALIGN DECL_ALIGN(TSLIST_NODE_ALIGNMENT)
 
+typedef SLIST_ENTRY TSLNodeBase_t;
 typedef SLIST_HEADER TSLHead_t;
 
 //-----------------------------------------------------------------------------
@@ -47,8 +48,11 @@ inline CAlignedMemAlloc* AlignedMemAlloc()
 	return g_pAlignedMemAlloc;
 }
 
-struct CTSListBase
+class CTSListBase
 {
+public:
+    TSLNodeBase_t* Pop() { return static_cast<TSLNodeBase_t*>(InterlockedPopEntrySList(&m_Head)); }
+private:
     TSLHead_t m_Head;
 };
 
@@ -73,6 +77,19 @@ public:
 
     struct TSLIST_NODE_ALIGN Node_t
     {
+        Node_t() {}
+        Node_t(const T& init) : elem(init) {}
+
+        static void* operator new(size_t size)
+        {
+            return static_cast<Node_t*>(MemAlloc_AllocAlignedFileLine(size, TSLIST_HEAD_ALIGNMENT, __FILE__, __LINE__));
+        }
+
+        static void operator delete(void* p)
+        {
+            MemAlloc_FreeAligned(p);
+        }
+
         Node_t* pNext;
         T elem;
     };
@@ -151,6 +168,51 @@ public:
         head.pNode->elem = elem;
         InterlockedDecrement((volatile LONG*)&m_Count);
         return head.pNode;
+    }
+
+    Node_t* Push(Node_t* pNode)
+    {
+        NodeLink_t oldTail;
+        Node_t* pOldNext;
+        pNode->pNext = End();
+        
+        for (;;)
+        {
+            oldTail.pNode = m_Tail.pNode;
+            oldTail.sequence = m_Tail.sequence;
+
+            {
+                AUTO_LOCK(m_Mutex);
+                pOldNext = oldTail.pNode->pNext;
+                
+                if (oldTail.pNode->pNext == End())
+                    oldTail.pNode->pNext = pNode;
+            }
+
+            if (pOldNext == End())
+                break;
+
+            FinishPush(oldTail.pNode->pNext, oldTail);
+        }
+
+        FinishPush(pNode, oldTail);
+        InterlockedIncrement((volatile LONG*)&m_Count);
+        return oldTail.pNode;
+    }
+
+    void PushItem(const T& init)
+    {
+        Node_t* pNode = reinterpret_cast<Node_t*>(m_FreeNodes.Pop());
+        if (pNode)
+        {
+            pNode->elem = init;
+        }
+        else 
+        {
+            pNode = new Node_t(init);
+        }
+
+        Push(pNode);
     }
 
     NodeLink_t m_Head;
