@@ -204,7 +204,7 @@ static bool ShouldFormatAsIPv4(const char* const pszAddress)
 		if (!*pszAddress)
 			return true;
 
-		return ContainsIPv6Chars(pszAddress);
+		return !ContainsIPv6Chars(pszAddress);
 	}
 
 	return ContainsIPv4Chars(pszAddress) && !ContainsIPv6Chars(pszAddress);
