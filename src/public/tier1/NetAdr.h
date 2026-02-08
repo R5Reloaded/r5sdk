@@ -33,6 +33,7 @@ public:
 	bool		CompareAdr(const CNetAdr& other) const;
 	inline bool	ComparePort(const CNetAdr& other) const { return port == other.port; }
 	inline bool	IsLoopback(void) const { return type == netadrtype_t::NA_LOOPBACK; } // true if engine loopback buffers are used.
+    bool        IsLocalhost(void) const;
 
 	const char*	ToString(const bool onlyBase = false) const;
 	size_t		ToString(char* const pchBuffer, const size_t unBufferSize, const bool onlyBase = false) const;
