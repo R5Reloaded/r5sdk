@@ -131,6 +131,8 @@ public:
 	inline const bf_write& GetStreamUnreliable(void) const { return m_StreamUnreliable; }
 	inline const netadr_t& GetRemoteAddress(void)    const { return remote_address; }
 
+    inline int GetMaxRoutablePayloadSize(void)	     const { return m_nMaxRoutablePayloadSize; }
+
 	int         GetNumBitsWritten(const bool bReliable);
 	int         GetNumBitsLeft(const bool bReliable);
 	inline bool IsOverflowed(void)                const { return m_StreamReliable.IsOverflowed(); }
