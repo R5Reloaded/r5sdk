@@ -100,6 +100,8 @@ ConVar* sv_alltalk                         = nullptr;
 
 ConVar* sv_clampPlayerFrameTime            = nullptr;
 
+ConVar* sv_maxroutable                     = nullptr;
+
 ConVar* playerframetimekick_margin         = nullptr;
 ConVar* playerframetimekick_decayrate      = nullptr;
 
@@ -152,6 +154,8 @@ ConVar* net_usesocketsforloopback;
 ConVar* net_data_block_enabled             = nullptr;
 ConVar* net_datablock_networkLossForSlowSpeed = nullptr;
 ConVar* net_compressDataBlock              = nullptr;
+ConVar* net_queued_packet_thread           = nullptr;
+ConVar* net_droppackets                    = nullptr;
 
 ConVar* net_showmsg                        = nullptr;
 ConVar* net_blockmsg                       = nullptr;
@@ -252,6 +256,8 @@ void ConVar_InitShipped(void)
 	net_data_block_enabled           = g_pCVar->FindVar("net_data_block_enabled");
 	net_compressDataBlock            = g_pCVar->FindVar("net_compressDataBlock");
 	net_datablock_networkLossForSlowSpeed = g_pCVar->FindVar("net_datablock_networkLossForSlowSpeed");
+    net_queued_packet_thread         = g_pCVar->FindVar("net_queued_packet_thread");
+    net_droppackets                  = g_pCVar->FindVar("net_droppackets");
 
 	net_usesocketsforloopback        = g_pCVar->FindVar("net_usesocketsforloopback");
 
@@ -278,6 +284,8 @@ void ConVar_InitShipped(void)
 	sv_alltalk = g_pCVar->FindVar("sv_alltalk");
 
 	sv_clampPlayerFrameTime = g_pCVar->FindVar("sv_clampPlayerFrameTime");
+
+    sv_maxroutable = g_pCVar->FindVar("sv_maxroutable");
 
 	playerframetimekick_margin = g_pCVar->FindVar("playerframetimekick_margin");
 	playerframetimekick_decayrate = g_pCVar->FindVar("playerframetimekick_decayrate");
