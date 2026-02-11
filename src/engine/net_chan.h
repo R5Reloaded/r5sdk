@@ -101,6 +101,10 @@ inline void(*CNetChan__FlowNewPacket)(CNetChan* pChan, int flow, int outSeqNr, i
 inline int(*CNetChan__SendDatagram)(CNetChan* pChan, bf_write* pMsg);
 inline bool(*CNetChan__ProcessMessages)(CNetChan* pChan, bf_read* pMsg);
 
+inline void(*CNetChan__CreateFragmentsFromBuffer)(CNetChan* pChan, bf_write* pBuff);
+inline bool(*CNetChan__SendSubChannelData)(CNetChan* pChan, bf_write* pBuff);
+inline bool(*CNetChan__ReadSubChannelData)(CNetChan* pChan, bf_read* pBuff);
+
 //-----------------------------------------------------------------------------
 class CNetChan
 {
@@ -159,7 +163,15 @@ public:
 	void FreeReceiveList();
 	bool ProcessMessages(bf_read* pMsg);
 
-	bool ReadSubChannelData(bf_read& buf);
+    void CreateFragmentsFromBuffer(bf_write* pbuff);
+
+    static bool _SendSubChannelData(CNetChan* thisp, bf_write* pBuff);
+    bool SendSubChannelData(bf_write* pBuff);
+
+    static bool _ReadSubChannelData(CNetChan* thisp, bf_read* pBuff);
+
+	bool ReadSubChannelData(bf_read* buf);
+    bool ProcessSubChannelBuffer(NetPacketCompressionMethod_e compressionMethod);
 
 	static void _Shutdown(CNetChan* pChan, const char* szReason, uint8_t bBadRep, bool bRemoveNow);
 	static bool _ProcessMessages(CNetChan* pChan, bf_read* pMsg);
@@ -268,6 +280,10 @@ class VNetChan : public IDetour
 		LogFunAdr("CNetChan::FlowNewPacket", CNetChan__FlowNewPacket);
 		LogFunAdr("CNetChan::SendDatagram", CNetChan__SendDatagram);
 		LogFunAdr("CNetChan::ProcessMessages", CNetChan__ProcessMessages);
+
+        LogFunAdr("CNetChan::CreateFragmentsFromBuffer", CNetChan__CreateFragmentsFromBuffer);
+        LogFunAdr("CNetChan::SendCubChannelData", CNetChan__SendSubChannelData);
+        LogFunAdr("CNetChan::ReadSubChannelData", CNetChan__ReadSubChannelData);
 	}
 	virtual void GetFun(void) const
 	{
@@ -277,6 +293,9 @@ class VNetChan : public IDetour
 		Module_FindPattern(g_GameDll, "44 89 4C 24 ?? 44 89 44 24 ?? 89 54 24 10 56").GetPtr(CNetChan__FlowNewPacket);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 55 56 57 41 56 41 57 48 83 EC 70").GetPtr(CNetChan__SendDatagram);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 57 48 81 EC ?? ?? ?? ?? 48 8B FA").GetPtr(CNetChan__ProcessMessages);
+        Module_FindPattern(g_GameDll, "41 55 48 81 EC ?? ?? ?? ?? 48 89 5C 24").GetPtr(CNetChan__CreateFragmentsFromBuffer);
+        Module_FindPattern(g_GameDll, "40 53 55 48 83 EC ? 80 79").GetPtr(CNetChan__SendSubChannelData);
+        Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 41 54 41 55 41 56 41 57 48 81 EC ?? ?? ?? ?? C6 81").GetPtr(CNetChan__ReadSubChannelData);
 	}
 	virtual void GetVar(void) const { }
 	virtual void GetCon(void) const { }
