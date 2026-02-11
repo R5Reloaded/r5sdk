@@ -20,7 +20,7 @@
 //-----------------------------------------------------------------------------
 // Returns true if buffer is compressed.
 //-----------------------------------------------------------------------------
-bool CLZSS::IsCompressed( const unsigned char *pInput ) const
+bool CLZSS::IsCompressed( const unsigned char *pInput )
 {
 	const lzss_header_t* const pHeader = (const lzss_header_t* const)pInput;
 	if ( pHeader && pHeader->id == LZSS_ID )
@@ -36,7 +36,7 @@ bool CLZSS::IsCompressed( const unsigned char *pInput ) const
 // Returns uncompressed size of compressed input buffer. Used for allocating output
 // buffer for decompression. Returns 0 if input buffer is not compressed.
 //-----------------------------------------------------------------------------
-unsigned int CLZSS::GetActualSize( const unsigned char *pInput ) const
+unsigned int CLZSS::GetActualSize( const unsigned char *pInput )
 {
 	const lzss_header_t* const pHeader = (const lzss_header_t* const)pInput;
 	if ( pHeader && pHeader->id == LZSS_ID )

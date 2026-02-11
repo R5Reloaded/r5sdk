@@ -34,8 +34,10 @@ public:
 	unsigned int	Uncompress( unsigned char *pInput, unsigned char *pOutput ) const;
 	//unsigned int	Uncompress( unsigned char *pInput, CUtlBuffer &buf );
 	unsigned int	SafeUncompress( const unsigned char *pInput, unsigned char *pOutput, unsigned int unBufSize ) const;
-	bool			IsCompressed( const unsigned char *pInput ) const;
-	unsigned int	GetActualSize( const unsigned char *pInput ) const;
+	
+    static size_t       GetHeaderSize() { return sizeof(lzss_header_t); }
+    static bool			IsCompressed( const unsigned char *pInput );
+	static unsigned int	GetActualSize( const unsigned char *pInput );
 
 	// windowsize must be a power of two.
 	FORCEINLINE CLZSS( int nWindowSize = DEFAULT_LZSS_WINDOW_SIZE );
