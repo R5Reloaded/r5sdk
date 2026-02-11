@@ -51,7 +51,7 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 	buf.WriteBytes(blockData, blockSize);
 
 	// send the data block packet
-	v_NET_SendPacket(NULL, 
+    NET_SendPacket(NULL,
 		chan->GetSocket(), 
 		chan->GetRemoteAddress(),
 		buf.GetData(),

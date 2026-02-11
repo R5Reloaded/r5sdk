@@ -42,7 +42,7 @@ inline int(*v_NET_SendDatagram)(SOCKET s, void* pPayload, int iLenght, netadr_t*
 inline int (*v_NET_DecryptPacket)(netkey_t* pNetKey, const char* pData, int nDataLen, const char* pIV, void* unused, void* unused1, 
     void* unused2, const char* pTag, void* unused3, uint8_t* pOutputBuffer);
 
-inline bool(*v_NET_BufferToBufferCompress)(uint8_t* const dest, size_t* const destLen, uint8_t* const source, const size_t sourceLen);
+inline bool(*v_NET_BufferToBufferCompress)(uint8_t* const dest, size_t* const destLen, const uint8_t* const source, const size_t sourceLen);
 inline unsigned int(*v_NET_BufferToBufferDecompress_LZSS)(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize);
 
 inline void(*v_NET_PrintFunc)(const char* fmt, ...);
@@ -59,9 +59,14 @@ void NET_GenerateKey();
 void NET_PrintFunc(const char* fmt, ...);
 void NET_RemoveChannel(CClient* pClient, int nIndex, const char* szReason, uint8_t bBadRep, bool bRemoveNow);
 
-bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint8_t* const source, const size_t sourceLen);
-unsigned int NET_BufferToBufferDecompress(uint8_t* pInput, size_t& coBufsize, uint8_t* pOutput, const size_t unBufSize);
+bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, const uint8_t* const source, const size_t sourceLen);
+unsigned int NET_BufferToBufferDecompress(const uint8_t* const pInput, const size_t& coBufsize, uint8_t* pOutput, const size_t unBufSize);
 
+bool NET_BufferToBufferDecompressGetNeededDecompressionBufferSize(const uint8_t* const pInput, const size_t nInputBufferLen, size_t& nOutputSize, NetPacketCompressionMethod_e mode);
+bool NET_BufferToBufferDecompressMultiMode(const uint8_t* const pInput, const size_t nInputBufferLen, uint8_t* const pOutputBuffer, size_t& nOutputSize, NetPacketCompressionMethod_e mode);
+
+bool NET_BufferToBufferCompressMultiMethodNeededCapactity(const size_t nInputLen, size_t& nNeededLength, NetPacketCompressionMethod_e mode);
+bool NET_BufferToBufferCompressMultiMethod(uint8_t* const dest, size_t& destLen, const uint8_t* const source, const size_t sourceLen, NetPacketCompressionMethod_e mode);
 unsigned int NET_BufferToBufferDecompress_LZSS(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize);
 
 bool NET_ReadMessageType(int* outType, bf_read* buffer);

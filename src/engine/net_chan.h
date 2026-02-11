@@ -27,6 +27,13 @@
 class CClient;
 class CNetChan;
 
+enum NetPacketCompressionMethod_e : uint8_t
+{
+    LZSS = 0,
+    ZSTD,
+    INVALID
+};
+
 //-----------------------------------------------------------------------------
 typedef struct netframe_header_s
 {
