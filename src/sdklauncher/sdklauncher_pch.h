@@ -1,6 +1,12 @@
 #pragma once
 #include "core/stdafx.h"
+
+//LOBYTE is already defined from pseudodefs, however this definition is not the same as the windows one
+#pragma push_macro("LOBYTE")
+#undef LOBYTE
+#define LOBYTE(w) ((BYTE)(((DWORD_PTR)(w)) & 0xff))
 #include <gdiplus.h>
+#pragma pop_macro("LOBYTE")
 
 #include "thirdparty/cppnet/cppkore/Form.h"
 #include "thirdparty/cppnet/cppkore/Kore.h"
