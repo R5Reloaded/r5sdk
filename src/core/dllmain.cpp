@@ -98,6 +98,15 @@ void SDK_Init()
         return;
     }
 
+    PROCESS_POWER_THROTTLING_STATE PowrThrottlingState = {};
+    PowrThrottlingState.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+
+    //Ask windows very nicely to not reduce our process timer resolution on windows 11
+    PowrThrottlingState.ControlMask = PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
+    PowrThrottlingState.StateMask = 0;
+
+    SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &PowrThrottlingState, sizeof(PowrThrottlingState));
+
     // Set after checking cpu and initializing MathLib since we check CPU
     // features there. Else we crash on the recursive initialization error as
     // SpdLog uses SSE features.
