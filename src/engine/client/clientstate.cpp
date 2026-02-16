@@ -402,14 +402,37 @@ static ConVar cl_onlineAuthTokenSignature2("cl_onlineAuthTokenSignature2", "", F
 bool CClientState::Authenticate(connectparams_t* connectParams, char* const reasonBuf, const size_t reasonBufLen) const
 {
 #define FORMAT_ERROR_REASON(fmt, ...) V_snprintf(reasonBuf, reasonBufLen, fmt, ##__VA_ARGS__);
-
+    char szIPStringBuff[64];
+    const char* pszIpString = connectParams->netAdr;
     string msToken; // token returned by the masterserver authorising the client to play online
     string message; // message returned by the masterserver about the result of the auth
 
     // verify that the client is not lying about their account identity
     // code is immediately discarded upon verification
 
-    const bool ret = g_MasterServer.AuthForConnection(*g_NucleusID, connectParams->netAdr, g_OriginAuthCode, msToken, message);
+    const size_t nIpStringLen = V_strlen(connectParams->netAdr);
+
+    //Check for an ip string wrapped in quotes
+    if (nIpStringLen > 2)
+    {
+        if (connectParams->netAdr[0] == '\"' && connectParams->netAdr[nIpStringLen - 1] == '\"')
+        {
+            V_strncpy(szIPStringBuff, &connectParams->netAdr[1], sizeof(szIPStringBuff));
+            //Null terminate it before the trailing "
+            szIPStringBuff[nIpStringLen - 2] = '\0';
+            pszIpString = szIPStringBuff;
+        }
+    }
+    
+    CNetAdr remoteAddress;
+    if (!remoteAddress.SetFromString(pszIpString))
+    {
+        FORMAT_ERROR_REASON("Invalid server ip address '%s'", pszIpString);
+        return false;
+    }
+
+    const char* const pszNormalisedRemoteAddress = remoteAddress.ToString();
+    const bool ret = g_MasterServer.AuthForConnection(*g_NucleusID, pszNormalisedRemoteAddress, g_OriginAuthCode, msToken, message);
     if (!ret)
     {
         FORMAT_ERROR_REASON("%s", message.c_str());
@@ -428,9 +451,9 @@ bool CClientState::Authenticate(connectparams_t* connectParams, char* const reas
         return false;
     }
 
+    const size_t sigLength = strlen(tokenSignatureDelim + 1);
     // replace the delimiter with a null char so the first cvar only takes the header and payload data
     *(char*)tokenSignatureDelim = '\0';
-    const size_t sigLength = strlen(tokenSignatureDelim) - 1;
 
     cl_onlineAuthToken.SetValue(token);
 

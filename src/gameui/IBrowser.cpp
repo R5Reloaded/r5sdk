@@ -836,7 +836,7 @@ void CBrowser::SendHostingPostRequest(NetGameServer_t& gameServer)
         {
             string hostRequestMessage;
             string hostToken;
-            string hostIp;
+            CNetAdr hostIp;
 
             const bool result = g_MasterServer.PostServerHost(hostRequestMessage, hostToken, hostIp, gameServer);
 
@@ -857,16 +857,13 @@ void CBrowser::SendHostingPostRequest(NetGameServer_t& gameServer)
 //          *hostToken - 
 //          &hostIp - 
 //-----------------------------------------------------------------------------
-void CBrowser::InstallHostingDetails(const bool postFailed, const string& hostMessage, const string& hostToken, const string& hostIp)
+void CBrowser::InstallHostingDetails(const bool postFailed, const string& hostMessage, const string& hostToken, const CNetAdr& hostIp)
 {
 #ifndef CLIENT_DLL
     m_hostMessage = hostMessage;
     m_hostToken = hostToken;
 
-    if (!hostIp.empty())
-    {
-        g_ServerHostManager.SetHostIP(hostIp);
-    }
+    g_ServerHostManager.SetHostIP(hostIp);
 
     if (postFailed)
     {

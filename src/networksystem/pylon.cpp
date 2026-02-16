@@ -7,6 +7,7 @@
 
 #include <core/stdafx.h>
 #include <tier1/cvar.h>
+#include <tier1/fmtstr.h>
 #include <tier2/curlutils.h>
 #include <tier2/jsonutils.h>
 #include <networksystem/pylon.h>
@@ -162,7 +163,7 @@ bool CPylon::GetServerByToken(NetGameServer_t& outGameServer,
 //			&netGameServer - 
 // Output : Returns true on success, false on failure.
 //-----------------------------------------------------------------------------
-bool CPylon::PostServerHost(string& outMessage, string& outToken, string& outHostIp, const NetGameServer_t& netGameServer) const
+bool CPylon::PostServerHost(string& outMessage, string& outToken, CNetAdr& outHostIp, const NetGameServer_t& netGameServer) const
 {
     if (!IsEnabled())
     {
@@ -217,7 +218,13 @@ bool CPylon::PostServerHost(string& outMessage, string& outToken, string& outHos
     if (JSON_GetValue(responseJson, "ip", ip) &&
         JSON_GetValue(responseJson, "port", port))
     {
-        outHostIp = Format("[%s]:%i", ip, port);
+        CFmtStrN<64> fmtStr;
+        fmtStr.Format("[%s]:%i", ip, port);
+        if (!outHostIp.SetFromString(fmtStr.Get()))
+        {
+            outMessage = Format("Invalid host ip address returned from ms '%s'", fmtStr.Get());
+            return false;
+        }
     }
 
     return true;
