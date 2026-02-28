@@ -140,6 +140,8 @@ ConVar* particle_overlay_list_tally        = nullptr;
 ConVar* hudchat_visibility				   = nullptr;
 ConVar* hudchat_new_message_fade_duration  = nullptr;
 ConVar* hudchat_new_message_shown_duration = nullptr;
+
+ConVar* mat_letterbox_aspect_threshold     = nullptr;
 #endif // !DEDICATED
 //-----------------------------------------------------------------------------
 // FILESYSTEM                                                                 |
@@ -236,6 +238,8 @@ void ConVar_InitShipped(void)
 	hudchat_visibility				 = g_pCVar->FindVar("hudchat_visibility");
 	hudchat_new_message_fade_duration = g_pCVar->FindVar("hudchat_new_message_fade_duration");
 	hudchat_new_message_shown_duration = g_pCVar->FindVar("hudchat_new_message_shown_duration");
+
+	mat_letterbox_aspect_threshold   = g_pCVar->FindVar("mat_letterbox_aspect_threshold");
 #endif // !DEDICATED
 	mp_gamemode                      = g_pCVar->FindVar("mp_gamemode");
 	ip_cvar                          = g_pCVar->FindVar("ip");
@@ -322,6 +326,11 @@ void ConVar_InitShipped(void)
 	rui_defaultDebugFontFace->RemoveFlags(FCVAR_DEVELOPMENTONLY);
 	origin_disconnectWhenOffline->RemoveFlags(FCVAR_DEVELOPMENTONLY);
 	discord_updatePresence->RemoveFlags(FCVAR_DEVELOPMENTONLY);
+
+	//Set mat_letterbox_aspect_threshold default to 1 to allow for using a greater range of aspect ratios
+	//1 will allow anything up to 1:1
+	mat_letterbox_aspect_threshold->SetDefault("1");
+	mat_letterbox_aspect_threshold->SetValue("1");
 #endif // !DEDICATED
 	fps_max->AddFlags(FCVAR_ARCHIVE);
 	fps_max_vsync->RemoveFlags(FCVAR_DEVELOPMENTONLY);
