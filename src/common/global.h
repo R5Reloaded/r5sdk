@@ -85,6 +85,8 @@ extern ConVar* sv_voiceEcho;
 extern ConVar* sv_voiceenable;
 extern ConVar* sv_alltalk;
 
+extern ConVar sv_onlineAuthEnable;
+
 extern ConVar* sv_clampPlayerFrameTime;
 
 extern ConVar* playerframetimekick_margin;
