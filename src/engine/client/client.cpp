@@ -85,7 +85,6 @@ void CClient::CheckMSForNewAuthKey()
 {
 	std::thread([]()
 		{
-			std::lock_guard<std::mutex> lock(s_jwtPublicKeyMutex);
 			MSAuthKeyData_t keyData;
 			std::string msg;
 			
@@ -95,6 +94,7 @@ void CClient::CheckMSForNewAuthKey()
 				// sent them in the response
 				if (keyData.keyNeedsUpdate && (JWT_PUBLIC_KEY.length() == 0 || JWT_PUBLIC_KEY_HASH != keyData.keyHash))
 				{
+					std::lock_guard<std::mutex> lock(s_jwtPublicKeyMutex);
 					JWT_PUBLIC_KEY = keyData.keyData;
 					JWT_PUBLIC_KEY_HASH = keyData.keyHash;
 				}
