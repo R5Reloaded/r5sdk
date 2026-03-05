@@ -21,6 +21,7 @@ struct MSAuthKeyData_t
 {
 	string keyData;
 	string keyHash;
+	bool keyNeedsUpdate;
 };
 
 class CPylon
@@ -38,7 +39,7 @@ public:
 	bool AuthForConnection(const uint64_t nucleusId, const char* ipAddress, const char* authCode, string& outToken, string& outMessage) const;
 
 	bool GetEULA(MSEulaData_t& outData, string& outMessage) const;
-	bool GetAuthKey(MSAuthKeyData_t& outData, string& outMessage) const;
+	bool GetAuthKey(const std::string& currentHash, MSAuthKeyData_t& outData, string& outMessage) const;
 	bool IsEnabled() const;
 
 	inline void SetLanguage(const char* lang)

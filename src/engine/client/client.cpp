@@ -89,9 +89,11 @@ void CClient::CheckMSForNewAuthKey()
 			MSAuthKeyData_t keyData;
 			std::string msg;
 			
-			if (g_MasterServer.GetAuthKey(keyData, msg))
+			if (g_MasterServer.GetAuthKey(JWT_PUBLIC_KEY_HASH, keyData, msg))
 			{
-				if (JWT_PUBLIC_KEY.length() == 0 || JWT_PUBLIC_KEY_HASH != keyData.keyHash)
+				// If keyNeedsUpdate is false, there are no valid keyData or keyHash values, as the masterserver will not have
+				// sent them in the response
+				if (keyData.keyNeedsUpdate && (JWT_PUBLIC_KEY.length() == 0 || JWT_PUBLIC_KEY_HASH != keyData.keyHash))
 				{
 					JWT_PUBLIC_KEY = keyData.keyData;
 					JWT_PUBLIC_KEY_HASH = keyData.keyHash;
@@ -161,7 +163,6 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 	if (tokenLen < 0)
 		ERROR_AND_RETURN("Token stitching failed");
 
-	std::lock_guard<std::mutex> lock(s_jwtPublicKeyMutex);
 
 	struct l8w8jwt_decoding_params params;
 	l8w8jwt_decoding_params_init(&params);
@@ -171,6 +172,7 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 	params.jwt = (char*)fullToken;
 	params.jwt_length = tokenLen;
 
+	std::lock_guard<std::mutex> lock(s_jwtPublicKeyMutex);
 	params.verification_key = (unsigned char*)JWT_PUBLIC_KEY.c_str();
 	params.verification_key_length = sizeof(JWT_PUBLIC_KEY);
 

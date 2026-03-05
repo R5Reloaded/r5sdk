@@ -18,7 +18,7 @@
 ConVar pylon_matchmaking_enabled("pylon_matchmaking_enabled", "1", FCVAR_RELEASE | FCVAR_ACCESSIBLE_FROM_THREADS, "Whether to use the Pylon matchmaking server");
 ConVar pylon_matchmaking_hostname("pylon_matchmaking_hostname", "r5r.org", FCVAR_RELEASE | FCVAR_ACCESSIBLE_FROM_THREADS, "Holds the Pylon matchmaking hostname");
 ConVar pylon_host_update_interval("pylon_host_update_interval", "5", FCVAR_RELEASE, "Time interval between status updates to the Pylon master server", true, 5.f, false, 0.f, "seconds");
-ConVar pylon_auth_refresh_interval("pylon_auth_refresh_interval", "30", FCVAR_RELEASE, "Time interval between requests to refresh the server's client authentication public key", true, 30.f, false, 0.f, "seconds");
+ConVar pylon_auth_refresh_interval("pylon_auth_refresh_interval", "30", FCVAR_RELEASE, "Time interval between requests to refresh the server's client authentication public key", true, 5.f, false, 0.f, "seconds");
 ConVar pylon_host_visibility("pylon_host_visibility", "0", FCVAR_RELEASE, "Determines the visibility to the Pylon master server", true, 0.f, true, 2.f, "0 = Offline, 1 = Hidden, 2 = Public");
 ConVar pylon_showdebuginfo("pylon_showdebuginfo", "0", FCVAR_RELEASE | FCVAR_ACCESSIBLE_FROM_THREADS, "Shows debug output for Pylon");
 
@@ -467,7 +467,7 @@ bool CPylon::GetEULA(MSEulaData_t& outData, string& outMessage) const
 //          &outMessage - 
 // Output : True on success, false on failure.
 //-----------------------------------------------------------------------------
-bool CPylon::GetAuthKey(MSAuthKeyData_t& outData, string& outMessage) const
+bool CPylon::GetAuthKey(const std::string& currentHash, MSAuthKeyData_t& outData, string& outMessage) const
 {
     if (!IsEnabled())
     {
@@ -478,6 +478,11 @@ bool CPylon::GetAuthKey(MSAuthKeyData_t& outData, string& outMessage) const
     rapidjson::Document requestJson;
     requestJson.SetObject();
 
+    rapidjson::Document::AllocatorType& allocator = requestJson.GetAllocator();
+
+    requestJson.AddMember("version", SDK_VERSION, allocator);
+    requestJson.AddMember("keyHash", rapidjson::Value(currentHash.c_str(), allocator), allocator);
+
     rapidjson::Document responseJson;
     CURLINFO status;
 
@@ -486,7 +491,10 @@ bool CPylon::GetAuthKey(MSAuthKeyData_t& outData, string& outMessage) const
         return false;
     }
 
-    rapidjson::Document::ConstMemberIterator keyInfoIt;
+    // If the response contains the key "requireUpdate" and it's set to false, there is no other data in the response.
+    // Otherwise, continue parsing to get the key data and hash
+    if (!JSON_GetValue(responseJson, "requireUpdate", outData.keyNeedsUpdate) && !outData.keyNeedsUpdate)
+        return true;
 
     std::string keyData;
     if (!JSON_GetValue(responseJson, "keyData", keyData))
