@@ -18,7 +18,7 @@
 ConVar pylon_matchmaking_enabled("pylon_matchmaking_enabled", "1", FCVAR_RELEASE | FCVAR_ACCESSIBLE_FROM_THREADS, "Whether to use the Pylon matchmaking server");
 ConVar pylon_matchmaking_hostname("pylon_matchmaking_hostname", "r5r.org", FCVAR_RELEASE | FCVAR_ACCESSIBLE_FROM_THREADS, "Holds the Pylon matchmaking hostname");
 ConVar pylon_host_update_interval("pylon_host_update_interval", "5", FCVAR_RELEASE, "Time interval between status updates to the Pylon master server", true, 5.f, false, 0.f, "seconds");
-ConVar pylon_auth_refresh_interval("pylon_auth_refresh_interval", "30", FCVAR_RELEASE, "Time interval between requests to refresh the server's client authentication public key", true, 5.f, false, 0.f, "seconds");
+ConVar pylon_auth_refresh_interval("pylon_auth_refresh_interval", "30", FCVAR_RELEASE, "Time interval between requests to refresh the server's client authentication public key", true, 15.f, false, 0.f, "seconds");
 ConVar pylon_host_visibility("pylon_host_visibility", "0", FCVAR_RELEASE, "Determines the visibility to the Pylon master server", true, 0.f, true, 2.f, "0 = Offline, 1 = Hidden, 2 = Public");
 ConVar pylon_showdebuginfo("pylon_showdebuginfo", "0", FCVAR_RELEASE | FCVAR_ACCESSIBLE_FROM_THREADS, "Shows debug output for Pylon");
 
