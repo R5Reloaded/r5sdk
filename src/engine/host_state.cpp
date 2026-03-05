@@ -397,6 +397,7 @@ void CHostState::Think(void) const
 #ifdef DEDICATED
 	static CFastTimer pylonTimer;
 #endif // DEDICATED
+	static CFastTimer authTimer;
 
 	if (!bInitialized) // Initialize clocks.
 	{
@@ -405,6 +406,7 @@ void CHostState::Think(void) const
 #ifdef DEDICATED
 		pylonTimer.Start();
 #endif // DEDICATED
+		authTimer.Start();
 		bInitialized = true;
 	}
 
@@ -433,6 +435,13 @@ void CHostState::Think(void) const
 		pylonTimer.Start();
 	}
 #endif // DEDICATED
+
+	if (authTimer.GetDurationInProgress().GetSeconds() > pylon_auth_refresh_interval.GetFloat())
+	{
+		CClient::CheckMSForNewAuthKey();
+		authTimer.Start();
+	}
+
 #endif // !CLIENT_DLL
 }
 

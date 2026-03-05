@@ -65,18 +65,6 @@ CClientExtended* CClient::GetClientExtended(void) const
 }
 #endif // !CLIENT_DLL
 
-
-static const char JWT_PUBLIC_KEY[] = 
-"-----BEGIN PUBLIC KEY-----\n"
-"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2/335exIZ6LE8pYi6e50\n"
-"7tH19tXaeeEJVF5XXpTCXpndXIIWVimvg6xQ381eajySDw93wvG1DzW3U/6LHzyt\n"
-"Q++N8w7N+FwnXyoDUD5Y8hheTZv6jjLoYT8ZtsMl20k9UosrbFBTMUhgmIT2dVth\n"
-"LH+rT9ohpUNwQXHJvTOs9eY74GyfFw93+32LANBPZ8b+S8S3oZnKFVeCxRkYKsV0\n"
-"b34POHVBbXNw6Kt163gR5zaiCfJJtRto9AA7MV2t9pfy8CChs3uJ+Xn7QVHD5cqt\n"
-"Msg9MBac2Pvs2j+8wJ/igAVL5L81z3FXVt04id59TfPMUbYhRfY8pk7FB0MCigOH\n"
-"dwIDAQAB\n"
-"-----END PUBLIC KEY-----\n";
-
 static ConVar sv_onlineAuthEnable("sv_onlineAuthEnable", "1", FCVAR_RELEASE, "Enables the server-side online authentication system");
 
 static ConVar sv_onlineAuthValidateExpiry("sv_onlineAuthValidateExpiry", "1", FCVAR_RELEASE, "Validate the online authentication token 'expiry' claim");
@@ -87,6 +75,35 @@ static ConVar sv_onlineAuthIssuedAtTolerance("sv_onlineAuthIssuedAtTolerance", "
 
 static ConVar sv_quota_stringCmdsPerSecond("sv_quota_stringCmdsPerSecond", "32", FCVAR_RELEASE, "How many string commands per second clients are allowed to submit, 0 to disallow all string commands", true, 0.f, false, 0.f);
 
+// [rexx]: yeah yeah. stdlib bad etc.
+static std::string JWT_PUBLIC_KEY;
+static std::string JWT_PUBLIC_KEY_HASH;
+
+static std::mutex s_jwtPublicKeyMutex;
+
+void CClient::CheckMSForNewAuthKey()
+{
+	std::thread([]()
+		{
+			std::lock_guard<std::mutex> lock(s_jwtPublicKeyMutex);
+			MSAuthKeyData_t keyData;
+			std::string msg;
+			
+			if (g_MasterServer.GetAuthKey(keyData, msg))
+			{
+				if (JWT_PUBLIC_KEY.length() == 0 || JWT_PUBLIC_KEY_HASH != keyData.keyHash)
+				{
+					JWT_PUBLIC_KEY = keyData.keyData;
+					JWT_PUBLIC_KEY_HASH = keyData.keyHash;
+				}
+			}
+			else
+			{
+				Warning(eDLL_T::SERVER, "Failed to check for a new JWT auth key: %s\n", msg.c_str());
+			}
+		}
+	).detach();
+}
 //---------------------------------------------------------------------------------
 // Purpose: check whether this client is authorized to join this server
 // Input  : *playerName  - 
@@ -144,6 +161,8 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 	if (tokenLen < 0)
 		ERROR_AND_RETURN("Token stitching failed");
 
+	std::lock_guard<std::mutex> lock(s_jwtPublicKeyMutex);
+
 	struct l8w8jwt_decoding_params params;
 	l8w8jwt_decoding_params_init(&params);
 
@@ -152,7 +171,7 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 	params.jwt = (char*)fullToken;
 	params.jwt_length = tokenLen;
 
-	params.verification_key = (unsigned char*)JWT_PUBLIC_KEY;
+	params.verification_key = (unsigned char*)JWT_PUBLIC_KEY.c_str();
 	params.verification_key_length = sizeof(JWT_PUBLIC_KEY);
 
 	params.validate_exp = sv_onlineAuthValidateExpiry.GetBool();
