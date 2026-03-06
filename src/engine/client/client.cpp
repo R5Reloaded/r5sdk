@@ -174,7 +174,7 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 
 	std::lock_guard<std::mutex> lock(s_jwtPublicKeyMutex);
 	params.verification_key = (unsigned char*)JWT_PUBLIC_KEY.c_str();
-	params.verification_key_length = sizeof(JWT_PUBLIC_KEY);
+	params.verification_key_length = JWT_PUBLIC_KEY.size();
 
 	params.validate_exp = sv_onlineAuthValidateExpiry.GetBool();
 	params.exp_tolerance_seconds = (uint8_t)sv_onlineAuthExpiryTolerance.GetInt();
