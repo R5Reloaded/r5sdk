@@ -205,12 +205,13 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 		if (!strcmp(claim.key, "sessionId"))
 		{
 			const char* const sessionId = claim.value;
+			const CNetAdr& hostIP = g_ServerHostManager.GetHostIP();
 
 			char newId[256];
 			const int idLen = snprintf(newId, sizeof(newId), "%llu-%s-%s",
 				(NucleusID_t)this->m_DataBlock.userData,
 				playerName,
-				g_ServerHostManager.GetHostIP().c_str());
+				hostIP.ToString());
 
 			if (idLen < 0)
 				ERROR_AND_RETURN("Session ID stitching failed");

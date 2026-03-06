@@ -31,7 +31,7 @@ public:
 
 	bool GetServerList(vector<NetGameServer_t>& outServerList, string& outMessage) const;
 	bool GetServerByToken(NetGameServer_t& slOutServer, string& outMessage, const string& svToken) const;
-	bool PostServerHost(string& outMessage, string& svOutToken, string& outHostIp, const NetGameServer_t& netGameServer) const;
+	bool PostServerHost(string& outMessage, string& svOutToken, CNetAdr& outHostIp, const NetGameServer_t& netGameServer) const;
 
 	bool GetBannedList(const CBanSystem::BannedList_t& inBannedVec, CBanSystem::BannedList_t** outBannedVec) const;
 	bool CheckForBan(const string& ipAddress, const uint64_t nucleusId, const string& personaName, string& outReason, CBanSystem::Banned_t::BanType_e& outBanType, string& outExpiryTimestamp) const;

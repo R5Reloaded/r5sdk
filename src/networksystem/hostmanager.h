@@ -1,5 +1,6 @@
 #ifndef HOSTMANAGER_H
 #define HOSTMANAGER_H
+#include <tier1/NetAdr.h>
 #include <networksystem/serverlisting.h>
 
 enum HostStatus_e
@@ -32,15 +33,16 @@ public:
 	inline void SetCurrentError(const string& error) { m_ErrorMsg = error; }
 	inline const string& GetCurrentError() const { return m_ErrorMsg; }
 
-	inline void SetHostIP(const string& ip) { m_HostIP = ip; };
-	inline const string& GetHostIP() const { return m_HostIP; };
+	inline void SetHostIP(const CNetAdr& ip) { m_HostIP = ip; };
+	inline bool SetHostIPFromString(const char* const pszIpString) { return m_HostIP.SetFromString(pszIpString); }
+	inline const CNetAdr& GetHostIP() const { return m_HostIP; };
 
 private:
 	HostStatus_e m_HostingStatus;
 
 	string m_Token;
 	string m_ErrorMsg;
-	string m_HostIP;
+	CNetAdr m_HostIP;
 };
 
 extern CServerHostManager g_ServerHostManager;
