@@ -190,6 +190,7 @@ bool CPylon::PostServerHost(string& outMessage, string& outToken, CNetAdr& outHo
     requestJson.AddMember("numPlayers",  netGameServer.numPlayers,                           allocator);
     requestJson.AddMember("maxPlayers",  netGameServer.maxPlayers,                           allocator);
     requestJson.AddMember("timeStamp",   netGameServer.timeStamp,                            allocator);
+    requestJson.AddMember("authEnabled", sv_onlineAuthEnable.GetBool(), allocator);
 
     rapidjson::Document responseJson;
     CURLINFO status;
