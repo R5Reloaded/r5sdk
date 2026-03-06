@@ -6,6 +6,7 @@
 
 extern ConVar pylon_matchmaking_hostname;
 extern ConVar pylon_host_update_interval;
+extern ConVar pylon_auth_refresh_interval;
 extern ConVar pylon_host_visibility;
 extern ConVar pylon_showdebuginfo;
 
@@ -14,6 +15,13 @@ struct MSEulaData_t
 	int version;
 	string language;
 	string contents;
+};
+
+struct MSAuthKeyData_t
+{
+	string keyData;
+	string keyHash;
+	bool keyNeedsUpdate;
 };
 
 class CPylon
@@ -31,6 +39,7 @@ public:
 	bool AuthForConnection(const uint64_t nucleusId, const char* ipAddress, const char* authCode, string& outToken, string& outMessage) const;
 
 	bool GetEULA(MSEulaData_t& outData, string& outMessage) const;
+	bool GetAuthKey(const std::string& currentHash, MSAuthKeyData_t& outData, string& outMessage) const;
 	bool IsEnabled() const;
 
 	inline void SetLanguage(const char* lang)

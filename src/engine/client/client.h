@@ -107,6 +107,7 @@ public:
 	void RegisterNetMsgs(CNetChan* chan);
 	bool SendNetMsgEx(CNetMessage* pMsg, bool bLocal, bool bForceReliable, bool bVoice);
 
+	static void CheckMSForNewAuthKey();
 	bool Authenticate(const char* const playerName, char* const reasonBuf, const size_t reasonBufLen);
 	bool Connect(const char* szName, CNetChan* pNetChan, bool bFakePlayer,
 		CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize);
