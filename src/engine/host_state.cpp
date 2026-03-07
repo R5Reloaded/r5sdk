@@ -442,8 +442,14 @@ void CHostState::Think(void) const
 	if (authTimer.GetDurationInProgress().GetSeconds() > pylon_auth_refresh_interval.GetFloat())
 	{
 		// Don't bother getting keys if we aren't even using online auth
-		if(sv_onlineAuthEnable.GetBool())
+		if (sv_onlineAuthEnable.GetBool() && g_pServer->IsActive())
+		{
+			const char* const pszMapName = g_pServer->GetMapName();
+			if (V_strcmp(pszMapName, "mp_lobby") != 0 && V_strcmp(pszMapName, "mp_npe") != 0)
+			{
 			CClient::CheckMSForNewAuthKey();
+			}
+		}
 
 		authTimer.Start();
 	}
