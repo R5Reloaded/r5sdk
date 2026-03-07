@@ -441,7 +441,7 @@ void CHostState::Think(void) const
 		if (sv_onlineAuthEnable.GetBool() && g_pServer->IsActive())
 		{
 			const char* const pszMapName = g_pServer->GetMapName();
-			if (V_strcmp(pszMapName, "mp_lobby") != 0 && V_strcmp(pszMapName, "mp_npe") != 0)
+			if (IsDedicated() || (V_strcmp(pszMapName, "mp_lobby") != 0 && V_strcmp(pszMapName, "mp_npe") != 0))
 			{
 				CClient::CheckMSForNewAuthKey();
 			}
