@@ -406,10 +406,6 @@ void CHostState::Think(void) const
 #endif // DEDICATED
 		authTimer.Start();
 
-		// Quick! Get a key before we get players!
-		if (sv_onlineAuthEnable.GetBool())
-			CClient::CheckMSForNewAuthKey();
-
 		bInitialized = true;
 	}
 
@@ -442,8 +438,14 @@ void CHostState::Think(void) const
 	if (authTimer.GetDurationInProgress().GetSeconds() > pylon_auth_refresh_interval.GetFloat())
 	{
 		// Don't bother getting keys if we aren't even using online auth
-		if(sv_onlineAuthEnable.GetBool())
-			CClient::CheckMSForNewAuthKey();
+		if (sv_onlineAuthEnable.GetBool() && g_pServer->IsActive())
+		{
+			const char* const pszMapName = g_pServer->GetMapName();
+			if (IsDedicated() || (V_strcmp(pszMapName, "mp_lobby") != 0 && V_strcmp(pszMapName, "mp_npe") != 0))
+			{
+				CClient::CheckMSForNewAuthKey();
+			}
+		}
 
 		authTimer.Start();
 	}
