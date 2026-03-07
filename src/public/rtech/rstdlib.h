@@ -55,17 +55,35 @@ private:
 	SRWLOCK lock;
 };
 
-struct RMultiHashMap
+#define RSTD_HASHMAP_FREE_BUCKET -1
+
+template <typename T, unsigned int N>
+struct RHashMap
 {
-	int globalIndex;
-	int firstBufSize;
-	void* firstBuffer;
-	void* secondBuffer;
-	int firstSlotsUsed;
-	int secondSlotsUsed;
-	int firstIndex;
-	int secondIndex;
-	int secondBufMask;
+	constexpr RHashMap(T(&itemArray)[N], int(&bucketArray)[N])
+	{
+		count = 0;
+		capacity = N;
+		items = itemArray;
+		buckets = bucketArray;
+		firstReusable = 0;
+		firstUnused = 0;
+		itemToAdd = 0;
+		bucketToAdd = 0;
+		const u32 bucketBufSz = SmallestPowerOfTwoGreaterOrEqual(N);
+		bucketMask = bucketBufSz - 1;
+		memset(buckets, RSTD_HASHMAP_FREE_BUCKET, bucketBufSz);
+	}
+
+	unsigned int count;
+	unsigned int capacity;
+	T* items;
+	int* buckets;
+	unsigned int firstReusable;
+	unsigned int firstUnused;
+	int itemToAdd;
+	unsigned int bucketToAdd;
+	unsigned int bucketMask;
 };
 
 #pragma pack(push, 4)
