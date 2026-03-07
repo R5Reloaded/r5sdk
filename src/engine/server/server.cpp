@@ -230,7 +230,10 @@ bool CServer::SpawnServer(CServer* pServer, const char* pszMapName, const char* 
 	const bool bSpawnResult = CServer__SpawnServer(pServer, pszMapName, pszMapGroupName);
 	if (bSpawnResult)
 	{
-		CClient::CheckMSForNewAuthKey();
+		if (::IsDedicated() || (V_strcmp(pszMapName, "mp_lobby") != 0 && V_strcmp(pszMapName, "mp_npe") != 0))
+		{
+			CClient::CheckMSForNewAuthKey();
+		}
 	}
 	return bSpawnResult;
 }
