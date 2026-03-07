@@ -63,6 +63,7 @@ public:
 
 	void BroadcastMessage(CNetMessage* const msg, const bool onlyActive, const bool reliable);
 	static void RunFrame(CServer* pServer);
+	static bool SpawnServer(CServer* pServer, const char* pszMapName, const char* pszMapGroupName);
 #endif // !CLIENT_DLL
 
 private:

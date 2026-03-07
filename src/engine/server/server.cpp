@@ -225,9 +225,20 @@ void CServer::RunFrame(CServer* pServer)
 	CServer__RunFrame(pServer);
 }
 
+bool CServer::SpawnServer(CServer* pServer, const char* pszMapName, const char* pszMapGroupName)
+{
+	const bool bSpawnResult = CServer__SpawnServer(pServer, pszMapName, pszMapGroupName);
+	if (bSpawnResult)
+	{
+		CClient::CheckMSForNewAuthKey();
+	}
+	return bSpawnResult;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 void VServer::Detour(const bool bAttach) const
 {
+	DetourSetup(&CServer__SpawnServer, &CServer::SpawnServer, bAttach);
 	DetourSetup(&CServer__RunFrame, &CServer::RunFrame, bAttach);
 	DetourSetup(&CServer__ConnectClient, &CServer::ConnectClient, bAttach);
 }
