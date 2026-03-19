@@ -76,7 +76,8 @@ struct dataFragments_t
 	char* buffer;
 	int64_t blockSize;
 	bool isCompressed;
-	uint8_t gap11[7];
+	uint8_t gap11[6];
+	NetPacketCompressionMethod_e eCompressionMethod;
 	int64_t uncompressedSize;
 	bool firstFragment;
 	bool lastFragment;
@@ -108,6 +109,7 @@ inline bool(*CNetChan__ReadSubChannelData)(CNetChan* pChan, bf_read* pBuff);
 //-----------------------------------------------------------------------------
 class CNetChan
 {
+	friend class VNetChan;
 public:
 	~CNetChan()
 	{
@@ -163,15 +165,10 @@ public:
 	void FreeReceiveList();
 	bool ProcessMessages(bf_read* pMsg);
 
-    void CreateFragmentsFromBuffer(bf_write* pbuff);
-
-    static bool _SendSubChannelData(CNetChan* thisp, bf_write* pBuff);
-    bool SendSubChannelData(bf_write* pBuff);
-
-    static bool _ReadSubChannelData(CNetChan* thisp, bf_read* pBuff);
-
-	bool ReadSubChannelData(bf_read* buf);
-    bool ProcessSubChannelBuffer(NetPacketCompressionMethod_e compressionMethod);
+	void CreateFragmentsFromBuffer(bf_write* pBuff);
+	bool SendSubChannelData(bf_write* pBuff);
+	bool ReadSubChannelData(bf_read* pBuff);
+    bool ProcessSubChannelBuffer();
 
 	static void _Shutdown(CNetChan* pChan, const char* szReason, uint8_t bBadRep, bool bRemoveNow);
 	static bool _ProcessMessages(CNetChan* pChan, bf_read* pMsg);
@@ -181,6 +178,10 @@ public:
 	void SetChoked();
 	void SetRemoteFramerate(float flFrameTime, float flFrameTimeStdDeviation);
 	inline void SetRemoteCPUStatistics(uint8_t nStats) { m_nServerCPU = nStats; }
+private:
+	static bool _SendSubChannelData(CNetChan* thisp, bf_write* pBuff);
+	static bool _ReadSubChannelData(CNetChan* thisp, bf_read* pBuff);
+	static void _CreateFragmentsFromBuffer(CNetChan* thisp, bf_write* pBuff);
 
 	//-----------------------------------------------------------------------------
 public:
