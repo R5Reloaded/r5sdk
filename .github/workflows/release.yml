@@ -1,0 +1,73 @@
+name: make-release
+on: 
+    workflow_dispatch:
+        inputs:
+            version:
+                description: "Version of the release"
+                required: true
+                type: string
+
+    release:
+        types: [created]
+
+jobs:
+    release-build:
+        runs-on: windows-latest
+        
+        permissions:
+            contents: write
+
+        env:
+            VERSION: ${{ inputs.version || github.ref_name }}
+
+        steps:
+            - name: Checkout branch
+              uses: actions/checkout@v4 
+
+            - name: Validate version
+              shell: pwsh
+              run: |
+                if ("${{env.VERSION}}" -notmatch '^v\d+(?:\.\d+){0,2}$') {
+                  throw "Version must follow the format v1(.2.3), got: ${{env.VERSION}}"
+                }
+
+            - name: Setup MSBuild
+              uses: microsoft/setup-msbuild@v3
+            
+            - name: Setup cmake
+              uses: jwlawson/actions-setup-cmake@v2
+
+            - name: Configure
+              run: cmake -B ${{github.workspace}}/build_intermediate -DOPTION_CERTAIN=ON -DOPTION_RETAIL=ON -DOPTION_LTCG_MODE=ALL
+
+            - name: Build solution
+              run: msbuild ${{github.workspace}}/build_intermediate/r5sdk.sln /p:configuration=Release
+
+            - name: Package release
+              shell: pwsh
+              run: |
+                  if (-not (Test-Path "${{github.workspace}}/game")) { throw "Build output not found" }
+                  $staging = "${{github.workspace}}/release_staging"
+                  $symbols_staging = "${{github.workspace}}/symbols_staging"
+
+                  if (Test-Path $staging) { Remove-Item -Path $staging -Recurse -Force }
+                  if (Test-Path $symbols_staging) { Remove-Item -Path $symbols_staging -Recurse -Force }
+
+                  Copy-Item -Path "${{github.workspace}}/game" -Destination $staging -Recurse
+                  New-Item -ItemType Directory -Path $symbols_staging
+
+                  Get-ChildItem -Path $staging -Recurse -Filter *.pdb | ForEach-Object {
+                      Move-Item -Path $_.FullName -Destination $symbols_staging
+                  }
+
+                  Compress-Archive -Path "$staging/*" -DestinationPath ${{github.workspace}}/release_${{env.VERSION}}.zip -Force
+                  Compress-Archive -Path "$symbols_staging/*" -DestinationPath ${{github.workspace}}/symbols_${{env.VERSION}}.zip -Force
+
+            - name: Upload release
+              uses: softprops/action-gh-release@v2
+              with:
+                tag_name: ${{ env.VERSION }}
+                generate_release_notes: true
+                files: | 
+                  ${{github.workspace}}/release_${{env.VERSION}}.zip
+                  ${{github.workspace}}/symbols_${{env.VERSION}}.zip
