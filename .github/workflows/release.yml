@@ -47,7 +47,21 @@ jobs:
               shell: pwsh
               run: |
                   if (-not (Test-Path "${{github.workspace}}/game")) { throw "Build output not found" }
-                  Compress-Archive -Path ${{github.workspace}}/game -DestinationPath ${{github.workspace}}/release_${{env.VERSION}}.zip
+                  $staging = "${{github.workspace}}/release_staging"
+                  $symbols_staging = "${{github.workspace}}/symbols_staging"
+
+                  if (Test-Path $staging) { Remove-Item -Path $staging -Recurse -Force }
+                  if (Test-Path $symbols_staging) { Remove-Item -Path $symbols_staging -Recurse -Force }
+
+                  Copy-Item -Path "${{github.workspace}}/game" -Destination $staging -Recurse
+                  New-Item -ItemType Directory -Path $symbols_staging
+
+                  Get-ChildItem -Path $staging -Recurse -Filter *.pdb | ForEach-Object {
+                      Move-Item -Path $_.FullName -Destination $symbols_staging
+                  }
+
+                  Compress-Archive -Path $staging -DestinationPath ${{github.workspace}}/release_${{env.VERSION}}.zip -Force
+                  Compress-Archive -Path $symbols_staging -DestinationPath ${{github.workspace}}/symbols_${{env.VERSION}}.zip -Force
 
             - name: Upload release
               uses: softprops/action-gh-release@v2
