@@ -68,4 +68,6 @@ jobs:
               with:
                 tag_name: ${{ env.VERSION }}
                 generate_release_notes: true
-                files: ${{github.workspace}}/release_${{env.VERSION}}.zip
+                files: | 
+                  ${{github.workspace}}/release_${{env.VERSION}}.zip
+                  ${{github.workspace}}/symbols_${{env.VERSION}}.zip
