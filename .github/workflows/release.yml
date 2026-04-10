@@ -60,8 +60,8 @@ jobs:
                       Move-Item -Path $_.FullName -Destination $symbols_staging
                   }
 
-                  Compress-Archive -Path $staging -DestinationPath ${{github.workspace}}/release_${{env.VERSION}}.zip -Force
-                  Compress-Archive -Path $symbols_staging -DestinationPath ${{github.workspace}}/symbols_${{env.VERSION}}.zip -Force
+                  Compress-Archive -Path "$staging/*" -DestinationPath ${{github.workspace}}/release_${{env.VERSION}}.zip -Force
+                  Compress-Archive -Path "$symbols_staging/*" -DestinationPath ${{github.workspace}}/symbols_${{env.VERSION}}.zip -Force
 
             - name: Upload release
               uses: softprops/action-gh-release@v2
