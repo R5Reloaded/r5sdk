@@ -65,6 +65,7 @@ struct SQVM : public CHAINABLE_OBJ
 };
 static_assert(offsetof(SQVM, _top) == 0x78);
 static_assert(offsetof(SQVM, _nnativecalls) == 0x130);
+static_assert(offsetof(SQVM, _stacklevel) == 0x50);
 
 inline SQObjectPtr& stack_get(HSQUIRRELVM v, SQInteger idx) { return ((idx >= 0) ? (v->_stackbase[idx-1]) : (v->GetUp(idx))); }
 #define _ss(_vm_) (_vm_)->_sharedstate

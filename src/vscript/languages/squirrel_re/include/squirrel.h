@@ -202,6 +202,14 @@ typedef struct tagSQObject
 
 typedef SQObject HSQOBJECT;
 
+typedef struct tagSQStackInfos
+{
+	const char* funcname;
+	const char* source;
+	int line;
+	// there's probably more but idk what they are so
+} SQStackInfos;
+
 ///////////////////////////////////////////////////////////////////////////////
 SQRESULT sq_pushroottable(HSQUIRRELVM v);
 SQRESULT sq_getinteger(HSQUIRRELVM v, SQInteger idx, SQInteger* i);
@@ -278,6 +286,8 @@ inline bool (*v_sq_getentity)(HSQUIRRELVM v, SQEntity* ent);
 inline SQRESULT (*v_sq_startconsttable)(HSQUIRRELVM v);
 inline SQRESULT (*v_sq_endconsttable)(HSQUIRRELVM v);
 
+inline SQRESULT (*v_sq_stackinfos)(HSQUIRRELVM v, SQInteger level, SQStackInfos* si, SQInteger callstacksize);
+
 inline SQString* (*v_StringTable__Add)(void* a1, const SQChar* str, SQInteger len);
 
 // returns: RefTable::RefNode*
@@ -309,7 +319,7 @@ class VSquirrelAPI : public IDetour
 		LogFunAdr("sq_startconsttable", v_sq_startconsttable);
 		LogFunAdr("sq_endconsttable", v_sq_endconsttable);
 
-		LogFunAdr("sq_endconsttable", v_sq_endconsttable);
+		LogFunAdr("sq_stackinfos", v_sq_stackinfos);
 
 		LogFunAdr("StringTable::Add", v_StringTable__Add);
 
@@ -335,6 +345,8 @@ class VSquirrelAPI : public IDetour
 
 		Module_FindPattern(g_GameDll, "8B 51 78 4C 8B 49 60 44 8B C2 49 C1 E0 04 4C 03 81 ?? ?? ?? ?? 8D 42 01 89 41 78 41 F7 81 ?? ?? ?? ?? ?? ?? ?? ?? 74 0A 49 8B 81 ?? ?? ?? ?? FF 40 08 41 F7 00 ?? ?? ?? ?? 41 0F 10 81 ?? ?? ?? ?? 74 15").GetPtr(v_sq_startconsttable);
 		Module_FindPattern(g_GameDll, "8B 41 78 45 33 C0 FF C8 8B D0 89 41 78 48 C1 E2 04 48 03 91 ?? ?? ?? ?? 8B 02 48 C7 02 ?? ?? ?? ?? 25 ?? ?? ?? ?? 74 15").GetPtr(v_sq_endconsttable);
+
+		Module_FindPattern(g_GameDll, "33 C0 44 2B CA").GetPtr(v_sq_stackinfos);
 
 		Module_FindPattern(g_GameDll, "E8 ?? ?? ?? ?? 41 8D 4D FF").FollowNearCallSelf().GetPtr(v_StringTable__Add);
 

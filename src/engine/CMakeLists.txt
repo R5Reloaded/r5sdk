@@ -171,6 +171,9 @@ add_sources( SOURCE_GROUP "GameUI"
     "${ENGINE_SOURCE_DIR}/gameui/IStreamOverlay.cpp"
     "${ENGINE_SOURCE_DIR}/gameui/IStreamOverlay.h"
 
+    "${ENGINE_SOURCE_DIR}/gameui/IRUIDebugger.cpp"
+    "${ENGINE_SOURCE_DIR}/gameui/IRUIDebugger.h"
+
     "${ENGINE_SOURCE_DIR}/gameui/imgui_system.cpp"
     "${ENGINE_SOURCE_DIR}/gameui/imgui_system.h"
     "${ENGINE_SOURCE_DIR}/gameui/imgui_surface.cpp"
