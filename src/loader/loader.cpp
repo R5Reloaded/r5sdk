@@ -175,7 +175,7 @@ static void Loader_DetachFromEntryPoint()
 	DetourDetach(&v_LauncherMain, &hkLauncherMain);
 	const HRESULT hr = DetourTransactionCommit();
 
-	Assert(hr != NO_ERROR);
+	Assert(hr == S_OK);
 	NOTE_UNUSED(hr);
 }
 
