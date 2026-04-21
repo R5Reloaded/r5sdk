@@ -30,9 +30,11 @@ static bool Rui_Draw(__int64* a1, __m128* a2, const __m128i* a3, __int64 a4, __m
 static void Rui_CodeAssert(RuiInstance_s* const ruiInstance, const char* const errorMsg)
 {
 	if (rui_codeAsserts.GetBool())
+	{
 		Error(eDLL_T::UI, 0, "%s", errorMsg);
+		Assert(0);
+	}
 
-	Assert(0);
 	ruiInstance->hasError = true;
 }
 
