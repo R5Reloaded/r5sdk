@@ -699,13 +699,13 @@ uint64_t KeyValues::GetUint64(const char* pszKeyName, uint64_t nDefaultValue)
 		case TYPE_STRING:
 		{
 			uint64_t uiResult = 0ull;
-			sscanf(pKey->m_sValue, "%lld", &uiResult);
+			sscanf(pKey->m_sValue, "%llu", &uiResult);
 			return uiResult;
 		}
 		case TYPE_WSTRING:
 		{
 			uint64_t uiResult = 0ull;
-			swscanf(pKey->m_wsValue, L"%lld", &uiResult);
+			swscanf(pKey->m_wsValue, L"%llu", &uiResult);
 			return uiResult;
 		}
 		case TYPE_FLOAT:
@@ -796,7 +796,7 @@ const char* KeyValues::GetString(const char* pszKeyName, const char* pszDefaultV
 	if (pKey)
 	{
 		// convert the data to string form then return it
-		char buf[64];
+		char buf[144]; // Largest is TYPE_VECTOR (3x3 (max print size of float is 47) + 2 spaces + \0).
 		switch (pKey->m_iDataType)
 		{
 		case TYPE_FLOAT:
@@ -804,7 +804,7 @@ const char* KeyValues::GetString(const char* pszKeyName, const char* pszDefaultV
 			SetString(pszKeyName, buf);
 			break;
 		case TYPE_PTR:
-			snprintf(buf, sizeof(buf), "%lld", CastPtrToInt64(pKey->m_pValue));
+			snprintf(buf, sizeof(buf), "0x%p", pKey->m_pValue);
 			SetString(pszKeyName, buf);
 			break;
 		case TYPE_INT:
@@ -812,11 +812,11 @@ const char* KeyValues::GetString(const char* pszKeyName, const char* pszDefaultV
 			SetString(pszKeyName, buf);
 			break;
 		case TYPE_UINT64:
-			snprintf(buf, sizeof(buf), "%lld", *(reinterpret_cast<uint64*>(pKey->m_sValue)));
+			snprintf(buf, sizeof(buf), "%llu", *(reinterpret_cast<uint64*>(pKey->m_sValue)));
 			SetString(pszKeyName, buf);
 			break;
 		case TYPE_COLOR:
-			snprintf(buf, sizeof(buf), "%d %d %d %d", pKey->m_Color[0], pKey->m_Color[1], pKey->m_Color[2], pKey->m_Color[3]);
+			snprintf(buf, sizeof(buf), "%hhu %hhu %hhu %hhu", pKey->m_Color[0], pKey->m_Color[1], pKey->m_Color[2], pKey->m_Color[3]);
 			SetString(pszKeyName, buf);
 			break;
 
@@ -859,7 +859,7 @@ const wchar_t* KeyValues::GetWString(const char* pszKeyName, const wchar_t* pwsz
 	KeyValues* pKey = FindKey(pszKeyName, false);
 	if (pKey)
 	{
-		wchar_t wbuf[64];
+		wchar_t wbuf[144]; // Largest is TYPE_VECTOR (3x3 (max print size of float is 47) + 2 spaces + \0).
 		switch (pKey->m_iDataType)
 		{
 		case TYPE_FLOAT:
@@ -867,7 +867,7 @@ const wchar_t* KeyValues::GetWString(const char* pszKeyName, const wchar_t* pwsz
 			SetWString(pszKeyName, wbuf);
 			break;
 		case TYPE_PTR:
-			swprintf(wbuf, Q_ARRAYSIZE(wbuf), L"%lld", static_cast<int64_t>(reinterpret_cast<size_t>(pKey->m_pValue)));
+			swprintf(wbuf, Q_ARRAYSIZE(wbuf), L"0x%p", pKey->m_pValue);
 			SetWString(pszKeyName, wbuf);
 			break;
 		case TYPE_INT:
@@ -875,13 +875,11 @@ const wchar_t* KeyValues::GetWString(const char* pszKeyName, const wchar_t* pwsz
 			SetWString(pszKeyName, wbuf);
 			break;
 		case TYPE_UINT64:
-		{
-			swprintf(wbuf, Q_ARRAYSIZE(wbuf), L"%lld", *(reinterpret_cast<uint64_t*>(pKey->m_sValue)));
+			swprintf(wbuf, Q_ARRAYSIZE(wbuf), L"%llu", *(reinterpret_cast<uint64_t*>(pKey->m_sValue)));
 			SetWString(pszKeyName, wbuf);
-		}
-		break;
+			break;
 		case TYPE_COLOR:
-			swprintf(wbuf, Q_ARRAYSIZE(wbuf), L"%d %d %d %d", pKey->m_Color[0], pKey->m_Color[1], pKey->m_Color[2], pKey->m_Color[3]);
+			swprintf(wbuf, Q_ARRAYSIZE(wbuf), L"%hhu %hhu %hhu %hhu", pKey->m_Color[0], pKey->m_Color[1], pKey->m_Color[2], pKey->m_Color[3]);
 			SetWString(pszKeyName, wbuf);
 			break;
 
