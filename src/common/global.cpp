@@ -27,6 +27,7 @@ ConVar* developer                          = nullptr;
 ConVar* fps_max                            = nullptr;
 ConVar* fps_max_vsync                      = nullptr;
 
+ConVar* playlist_debug                     = nullptr;
 #ifndef DEDICATED
 ConVar* in_syncRT                          = nullptr;
 #endif // !DEDICATED
@@ -180,6 +181,7 @@ void ConVar_InitShipped(void)
 	developer                        = g_pCVar->FindVar("developer");
 	fps_max                          = g_pCVar->FindVar("fps_max");
 	fps_max_vsync                    = g_pCVar->FindVar("fps_max_vsync");
+	playlist_debug                   = g_pCVar->FindVar("playlist_debug");
 	base_tickinterval_sp             = g_pCVar->FindVar("base_tickinterval_sp");
 	base_tickinterval_mp             = g_pCVar->FindVar("base_tickinterval_mp");
 	fs_showAllReads                  = g_pCVar->FindVar("fs_showAllReads");
