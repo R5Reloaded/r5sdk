@@ -1672,7 +1672,7 @@ void KeyValues::RecursiveLoadFromBuffer(char const* resourceName, CKeyValuesToke
 }
 
 // prevent two threads from entering this at the same time and trying to share the global error reporting and parse buffers
-static CThreadFastMutex g_KVMutex;
+static CThreadMutex g_KVMutex;
 //-----------------------------------------------------------------------------
 // Read from a buffer...
 //-----------------------------------------------------------------------------
