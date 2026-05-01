@@ -1282,6 +1282,13 @@ void KeyValues::RecursiveCopyKeyValues(KeyValues& src)
 			m_Color[3] = src.m_Color[3];
 		}
 		break;
+		case TYPE_VECTOR:
+		{
+			m_Vector[0] = src.m_Vector[0];
+			m_Vector[1] = src.m_Vector[1];
+			m_Vector[2] = src.m_Vector[2];
+		}
+		break;
 
 		default:
 		{
