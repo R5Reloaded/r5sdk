@@ -118,6 +118,7 @@ public:
 	const char* GetString(const char* pszKeyName = nullptr, const char* pszDefaultValue = "");
 	const wchar_t* GetWString(const char* pszKeyName = nullptr, const wchar_t* pwszDefaultValue = L"");
 	Color GetColor(const char* pszKeyName, const Color& defaultColor);
+	Vector3D& GetVector(const char* pszKeyName, const Vector3D& defaultVector, Vector3D& outVector);
 	bool GetBool(const char* pszKeyName = nullptr, bool nDefaultValue = false) { return GetInt(pszKeyName, nDefaultValue ? 1 : 0) ? true : false; }
 	KeyValuesTypes_t GetDataType(const char* pszKeyName);
 	KeyValuesTypes_t GetDataType(void) const;
@@ -132,6 +133,7 @@ public:
 	void SetWString(const char* pszKeyName, const wchar_t* pwszValue);
 	void SetStringValue(char const* pszValue);
 	void SetColor(const char* pszKeyName, Color color);
+	void SetVector(const char* pszKeyName, const Vector3D& vector);
 	void SetFloat(const char* pszKeyName, float flValue);
 	void SetBool(const char* pszKeyName, bool bValue) { SetInt(pszKeyName, bValue ? 1 : 0); }
 	void UsesEscapeSequences(bool bState);

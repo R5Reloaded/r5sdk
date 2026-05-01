@@ -961,6 +961,38 @@ Color KeyValues::GetColor(const char* pszKeyName, const Color& defaultColor)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: Gets a vector
+// Input  : *pszKeyName - 
+//			&defaultVector - 
+//			&outVector - 
+// Output : Vector3D&
+//-----------------------------------------------------------------------------
+Vector3D& KeyValues::GetVector(const char* pszKeyName, const Vector3D& defaultVector, Vector3D& outVector)
+{
+	outVector = defaultVector;
+	KeyValues* pKey = FindKey(pszKeyName, false);
+	if (pKey)
+	{
+		if (pKey->m_iDataType == TYPE_VECTOR)
+		{
+			outVector.x = pKey->m_Vector[0];
+			outVector.y = pKey->m_Vector[1];
+			outVector.z = pKey->m_Vector[2];
+		}
+		else if (pKey->m_iDataType == TYPE_STRING)
+		{
+			// parse the vectors out of the string
+			float x = 0, y = 0, z = 0;
+			sscanf(pKey->m_sValue, "%f %f %f", &x, &y, &z);
+			outVector.x = x;
+			outVector.y = y;
+			outVector.z = z;
+		}
+	}
+	return outVector;
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: Get the data type of the value stored in a keyName
 // Input  : *pszKeyName - 
 //-----------------------------------------------------------------------------
@@ -1156,6 +1188,24 @@ void KeyValues::SetColor(const char* pszKeyName, Color color)
 		pKey->m_Color[1] = color[1];
 		pKey->m_Color[2] = color[2];
 		pKey->m_Color[3] = color[3];
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Sets a vector
+// Input  : *pszKeyName - 
+//			vector - 
+//-----------------------------------------------------------------------------
+void KeyValues::SetVector(const char* pszKeyName, const Vector3D& vector)
+{
+	KeyValues* pKey = FindKey(pszKeyName, true);
+
+	if (pKey)
+	{
+		pKey->m_iDataType = TYPE_VECTOR;
+		pKey->m_Vector[0] = vector.x;
+		pKey->m_Vector[1] = vector.y;
+		pKey->m_Vector[2] = vector.z;
 	}
 }
 
