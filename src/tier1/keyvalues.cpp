@@ -819,6 +819,10 @@ const char* KeyValues::GetString(const char* pszKeyName, const char* pszDefaultV
 			snprintf(buf, sizeof(buf), "%hhu %hhu %hhu %hhu", pKey->m_Color[0], pKey->m_Color[1], pKey->m_Color[2], pKey->m_Color[3]);
 			SetString(pszKeyName, buf);
 			break;
+		case TYPE_VECTOR:
+			snprintf(buf, sizeof(buf), "%f %f %f", pKey->m_Vector[0], pKey->m_Vector[1], pKey->m_Vector[2]);
+			SetString(pszKeyName, buf);
+			break;
 
 		case TYPE_WSTRING:
 		{
@@ -880,6 +884,10 @@ const wchar_t* KeyValues::GetWString(const char* pszKeyName, const wchar_t* pwsz
 			break;
 		case TYPE_COLOR:
 			swprintf(wbuf, Q_ARRAYSIZE(wbuf), L"%hhu %hhu %hhu %hhu", pKey->m_Color[0], pKey->m_Color[1], pKey->m_Color[2], pKey->m_Color[3]);
+			SetWString(pszKeyName, wbuf);
+			break;
+		case TYPE_VECTOR:
+			swprintf(wbuf, Q_ARRAYSIZE(wbuf), L"%f %f %f", pKey->m_Vector[0], pKey->m_Vector[1], pKey->m_Vector[2]);
 			SetWString(pszKeyName, wbuf);
 			break;
 
