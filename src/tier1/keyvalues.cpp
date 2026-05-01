@@ -1850,7 +1850,7 @@ bool KeyValues::LoadFromBuffer(char const* resourceName, const char* pBuffer, IB
 		// bad, got a binary compiled KV file through an unexpected text path
 		// not all paths support binary compiled kv, needs to get fixed
 		// need to have caller supply buffer length (strlen not valid), this interface change was never plumbed
-		Warning(eDLL_T::COMMON, "ERROR! Binary compiled KV '%s' in an unexpected handler\n", resourceName);
+		Warning(eDLL_T::COMMON, "Binary compiled KV '%s' in an unexpected handler\n", resourceName);
 		Assert(0);
 		return false;
 	}
