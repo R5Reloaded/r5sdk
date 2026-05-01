@@ -1427,8 +1427,19 @@ void KeyValues::RecursiveSaveToFile(IBaseFileSystem* pFileSystem, FileHandle_t p
 				break;
 			}
 			case TYPE_COLOR:
-				DevMsg(eDLL_T::COMMON, "%s: TODO, missing code for TYPE_COLOR.\n", __FUNCTION__);
+			{
+				WriteIndents(pFileSystem, pHandle, pBuf, nIndentLevel + 1);
+				INTERNALWRITE("\"", 1);
+				INTERNALWRITE(dat->GetName(), V_strlen(dat->GetName()));
+				INTERNALWRITE("\"\t\t\"", 4);
+
+				char buf[16]; // Enough for 4x3 (max print size of u8) + 3 spaces + \0.
+				V_snprintf(buf, sizeof(buf), "%hhu %hhu %hhu %hhu", dat->m_Color[0], dat->m_Color[1], dat->m_Color[2], dat->m_Color[3]);
+
+				INTERNALWRITE(buf, V_strlen(buf));
+				INTERNALWRITE("\"\n", 2);
 				break;
+			}
 
 			default:
 				break;
