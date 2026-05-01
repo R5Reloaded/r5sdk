@@ -31,7 +31,8 @@ enum KeyValuesTypes_t : char
 	TYPE_COMPILED_INT_BYTE = 0x8,
 	TYPE_COMPILED_INT_0    = 0x9,
 	TYPE_COMPILED_INT_1    = 0xA,
-	TYPE_NUMTYPES          = 0xB,
+	TYPE_VECTOR            = 0xB,
+	TYPE_NUMTYPES          = 0xC,
 };
 enum MergeKeyValuesOp_t
 {
@@ -182,8 +183,8 @@ public:
 		float         m_flValue;
 		void*         m_pValue;
 		unsigned char m_Color[4];
+		float         m_Vector[3];
 	};
-	char             m_szShortName[8];             // 0x0020
 	char             m_iDataType;                  // 0x0028
 	char             m_bHasEscapeSequences;        // 0x0029
 	uint16_t         m_iKeyNameCaseSensitive2;     // 0x002A

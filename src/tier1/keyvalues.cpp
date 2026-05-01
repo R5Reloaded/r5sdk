@@ -1440,7 +1440,20 @@ void KeyValues::RecursiveSaveToFile(IBaseFileSystem* pFileSystem, FileHandle_t p
 				INTERNALWRITE("\"\n", 2);
 				break;
 			}
+			case TYPE_VECTOR:
+			{
+				WriteIndents(pFileSystem, pHandle, pBuf, nIndentLevel + 1);
+				INTERNALWRITE("\"", 1);
+				INTERNALWRITE(dat->GetName(), V_strlen(dat->GetName()));
+				INTERNALWRITE("\"\t\t\"", 4);
 
+				char buf[144]; // Enough for 3x3 (max print size of float is 47) + 2 spaces + \0.
+				V_snprintf(buf, sizeof(buf), "%f %f %f", dat->m_Vector[0], dat->m_Vector[1], dat->m_Vector[2]);
+
+				INTERNALWRITE(buf, V_strlen(buf));
+				INTERNALWRITE("\"\n", 2);
+				break;
+			}
 			default:
 				break;
 			}
@@ -2194,6 +2207,12 @@ KeyValues* KeyValues::MakeCopy(void) const
 		pNewKeyValue->m_Color[1] = m_Color[1];
 		pNewKeyValue->m_Color[2] = m_Color[2];
 		pNewKeyValue->m_Color[3] = m_Color[3];
+		break;
+
+	case TYPE_VECTOR:
+		pNewKeyValue->m_Vector[0] = m_Vector[0];
+		pNewKeyValue->m_Vector[1] = m_Vector[1];
+		pNewKeyValue->m_Vector[2] = m_Vector[2];
 		break;
 
 	case TYPE_UINT64:
