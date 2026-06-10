@@ -166,7 +166,7 @@ struct RuiInstance_s
 // do not change! this is used for the size of a static struct in the exe
 constexpr int MAX_RUI_SCRIPT_INSTANCES = 2704;
 
-const char* s_ruiStateNames[] = {
+constexpr const char* s_ruiStateNames[] = {
 	"UNK_0",
 	"ALIVE",
 	"FREEING", // RuiDestroy sets this, but then elements end up with "DEAD" later on?
