@@ -89,8 +89,8 @@ void CImguiSystem::Shutdown()
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 
-	ImGui::DestroyContext();
 	m_snapshotData.Clear();
+	ImGui::DestroyContext();
 
 	m_initialized = false;
 	m_hasNewFrame = false;
