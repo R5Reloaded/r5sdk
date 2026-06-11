@@ -47,7 +47,7 @@ static void SetName_f(const CCommand& args)
         return;
 
     // Update nucleus name.
-    strncpy(g_PersonaName, pszName, nLen+1);
+    strncpy(g_PersonaName, pszName, nLen + 1);
     name_cvar->SetValue(pszName);
 }
 static void Reconnect_f(const CCommand& args)
@@ -59,14 +59,14 @@ static void Reconnect_f(const CCommand& args)
 // Purpose: console commands
 //------------------------------------------------------------------------------
 static ConCommand cl_setname("cl_setname", SetName_f, "Sets the client's persona name", FCVAR_RELEASE);
-static ConCommand reconnect("reconnect", Reconnect_f, "Reconnect to current server.", FCVAR_DONTRECORD|FCVAR_RELEASE);
+static ConCommand reconnect("reconnect", Reconnect_f, "Reconnect to current server.", FCVAR_DONTRECORD | FCVAR_RELEASE);
 
 //------------------------------------------------------------------------------
 // Purpose: returns true if client simulation is paused
 //------------------------------------------------------------------------------
 bool CClientState::IsPaused() const
 {
-	return m_bPaused || !*host_initialized || g_pEngineVGui->ShouldPause();
+    return m_bPaused || !*host_initialized || g_pEngineVGui->ShouldPause();
 }
 
 //------------------------------------------------------------------------------
@@ -315,7 +315,7 @@ bool CClientState::_ProcessCreateStringTable(CClientState* thisptr, SVC_CreateSt
         // than UINT_MAX-3 or UINT_MAX/2? The largest string tables sent
         // are settings layout string tables which are roughly 256KiB
         // compressed with LZSS. perhaps clamp this to something like 16MiB?
-        if (msg->m_DataIn.TotalBytesAvailable() > 0 && 
+        if (msg->m_DataIn.TotalBytesAvailable() > 0 &&
             msgCompressedSize <= (unsigned int)msg->m_DataIn.TotalBytesAvailable() &&
             msgCompressedSize < UINT_MAX / 2 && msgUncompressedSize < UINT_MAX / 2)
         {
@@ -386,97 +386,6 @@ bool CClientState::_ProcessUserMessage(CClientState* thisptr, SVC_UserMessage* m
     return true;
 }
 
-static ConVar cl_onlineAuthEnable("cl_onlineAuthEnable", "1", FCVAR_RELEASE, "Enables the client-side online authentication system");
-
-static ConVar cl_onlineAuthToken("cl_onlineAuthToken", "", FCVAR_HIDDEN | FCVAR_USERINFO | FCVAR_DONTRECORD | FCVAR_SERVER_CANNOT_QUERY | FCVAR_PLATFORM_SYSTEM, "The client's online authentication token");
-static ConVar cl_onlineAuthTokenSignature1("cl_onlineAuthTokenSignature1", "", FCVAR_HIDDEN | FCVAR_USERINFO | FCVAR_DONTRECORD | FCVAR_SERVER_CANNOT_QUERY | FCVAR_PLATFORM_SYSTEM, "The client's online authentication token signature", false, 0.f, false, 0.f, "Primary");
-static ConVar cl_onlineAuthTokenSignature2("cl_onlineAuthTokenSignature2", "", FCVAR_HIDDEN | FCVAR_USERINFO | FCVAR_DONTRECORD | FCVAR_SERVER_CANNOT_QUERY | FCVAR_PLATFORM_SYSTEM, "The client's online authentication token signature", false, 0.f, false, 0.f, "Secondary");
-
-//------------------------------------------------------------------------------
-// Purpose: get authentication token for current connection context
-// Input  : *connectParams - 
-//          *reasonBuf     - 
-//          reasonBufLen   - 
-// Output : true on success, false otherwise
-//------------------------------------------------------------------------------
-bool CClientState::Authenticate(connectparams_t* connectParams, char* const reasonBuf, const size_t reasonBufLen) const
-{
-#define FORMAT_ERROR_REASON(fmt, ...) V_snprintf(reasonBuf, reasonBufLen, fmt, ##__VA_ARGS__);
-    char szIPStringBuff[64];
-    const char* pszIpString = connectParams->netAdr;
-    string msToken; // token returned by the masterserver authorising the client to play online
-    string message; // message returned by the masterserver about the result of the auth
-
-    // verify that the client is not lying about their account identity
-    // code is immediately discarded upon verification
-
-    const size_t nIpStringLen = V_strlen(connectParams->netAdr);
-
-    //Check for an ip string wrapped in quotes
-    if (nIpStringLen > 2)
-    {
-        if (connectParams->netAdr[0] == '\"' && connectParams->netAdr[nIpStringLen - 1] == '\"')
-        {
-            V_strncpy(szIPStringBuff, &connectParams->netAdr[1], sizeof(szIPStringBuff));
-            //Null terminate it before the trailing "
-            szIPStringBuff[nIpStringLen - 2] = '\0';
-            pszIpString = szIPStringBuff;
-        }
-    }
-    
-    CNetAdr remoteAddress;
-    if (!remoteAddress.SetFromString(pszIpString))
-    {
-        FORMAT_ERROR_REASON("Invalid server ip address '%s'", pszIpString);
-        return false;
-    }
-
-    const char* const pszNormalisedRemoteAddress = remoteAddress.ToString();
-    const bool ret = g_MasterServer.AuthForConnection(*g_NucleusID, pszNormalisedRemoteAddress, g_OriginAuthCode, msToken, message);
-    if (!ret)
-    {
-        FORMAT_ERROR_REASON("%s", message.c_str());
-        return false;
-    }
-
-    // get full token
-    const char* token = msToken.c_str();
-
-    // get a pointer to the delimiter that begins the token's signature
-    const char* tokenSignatureDelim = strrchr(token, '.');
-
-    if (!tokenSignatureDelim)
-    {
-        FORMAT_ERROR_REASON("Invalid token returned by MS");
-        return false;
-    }
-
-    const size_t sigLength = strlen(tokenSignatureDelim + 1);
-    // replace the delimiter with a null char so the first cvar only takes the header and payload data
-    *(char*)tokenSignatureDelim = '\0';
-
-    cl_onlineAuthToken.SetValue(token);
-
-    if (sigLength > 0)
-    {
-        // get a pointer to the first part of the token signature to store in cl_onlineAuthTokenSignature1
-        const char* tokenSignaturePart1 = tokenSignatureDelim + 1;
-
-        cl_onlineAuthTokenSignature1.SetValue(tokenSignaturePart1);
-
-        if (sigLength > 255)
-        {
-            // get a pointer to the rest of the token signature to store in cl_onlineAuthTokenSignature2
-            const char* tokenSignaturePart2 = tokenSignaturePart1 + 255;
-
-            cl_onlineAuthTokenSignature2.SetValue(tokenSignaturePart2);
-        }
-    }
-
-    return true;
-#undef REJECT_CONNECTION
-}
-
 bool IsLocalHost(connectparams_t* connectParams)
 {
     return (strstr(connectParams->netAdr, "localhost") || strstr(connectParams->netAdr, "127.0.0.1"));
@@ -484,17 +393,7 @@ bool IsLocalHost(connectparams_t* connectParams)
 
 void CClientState::VConnect(CClientState* thisptr, connectparams_t* connectParams)
 {
-    if (cl_onlineAuthEnable.GetBool() && !IsLocalHost(connectParams))
-    {
-        char authFailReason[512];
-
-        if (!thisptr->Authenticate(connectParams, authFailReason, sizeof(authFailReason)))
-        {
-            COM_ExplainDisconnection(true, "Failed to authenticate for online play: %s", authFailReason);
-            return;
-        }
-    }
-
+    // rexx: this hook is no longer needed at the moment, but I'm keeping it around because it might be needed in the future
     CClientState__Connect(thisptr, connectParams);
 }
 

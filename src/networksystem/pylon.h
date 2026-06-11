@@ -24,6 +24,13 @@ struct MSAuthKeyData_t
 	bool keyNeedsUpdate;
 };
 
+struct MSConnectionInfo_t
+{
+	string addr;
+	string key;
+	int port;
+};
+
 class CPylon
 {
 public:
@@ -37,6 +44,7 @@ public:
 	bool CheckForBan(const string& ipAddress, const uint64_t nucleusId, const string& personaName, string& outReason, CBanSystem::Banned_t::BanType_e& outBanType, string& outExpiryTimestamp) const;
 
 	bool AuthForConnection(const uint64_t nucleusId, const char* ipAddress, const char* authCode, string& outToken, string& outMessage) const;
+	bool AuthForConnection(const uint64_t nucleusId, const string& serverId, const char* authCode, string& outToken, MSConnectionInfo_t& outConnInfo, string& outMessage) const;
 
 	bool GetEULA(MSEulaData_t& outData, string& outMessage) const;
 	bool GetAuthKey(const std::string& currentHash, MSAuthKeyData_t& outData, string& outMessage) const;

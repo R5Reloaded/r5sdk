@@ -36,9 +36,7 @@ static bool GetServerListingFromJSON(const rapidjson::Value& value, NetGameServe
         JSON_GetValue(value, "hidden",      outGameServer.hidden)      &&
         JSON_GetValue(value, "map",         outGameServer.map)         &&
         JSON_GetValue(value, "playlist",    outGameServer.playlist)    &&
-        JSON_GetValue(value, "ip",          outGameServer.address)     &&
-        JSON_GetValue(value, "port",        outGameServer.port)        &&
-        JSON_GetValue(value, "key",         outGameServer.netKey)      &&
+        JSON_GetValue(value, "serverId",    outGameServer.serverId)    &&
         JSON_GetValue(value, "checksum",    outGameServer.checksum)    &&
         JSON_GetValue(value, "numPlayers",  outGameServer.numPlayers)  &&
         JSON_GetValue(value, "maxPlayers",  outGameServer.maxPlayers))
@@ -420,6 +418,63 @@ bool CPylon::AuthForConnection(const uint64_t nucleusId, const char* ipAddress,
     }
 
     return false;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: authenticate for 'this' particular connection.
+// Input  : nucleusId   - 
+//          *ipAddress  - 
+//          *authCode   - 
+//          &outToken   - 
+//          &outMessage - 
+// Output : true on success, false on failure.
+//-----------------------------------------------------------------------------
+bool CPylon::AuthForConnection(const uint64_t nucleusId, const string& serverId,
+    const char* authCode, string& outToken, MSConnectionInfo_t& outConnInfo, string& outMessage) const
+{
+    if (!IsEnabled())
+    {
+        SetDisabledMessage(outMessage);
+        return false;
+    }
+
+    rapidjson::Document requestJson;
+    requestJson.SetObject();
+
+    rapidjson::Document::AllocatorType& allocator = requestJson.GetAllocator();
+
+    requestJson.AddMember("id", nucleusId, allocator);
+    requestJson.AddMember("serverId", rapidjson::Value(serverId.c_str(), allocator), allocator);
+    requestJson.AddMember("code", rapidjson::Value(authCode, allocator), allocator);
+
+    rapidjson::Document responseJson;
+
+    CURLINFO status;
+
+    if (!SendRequest("/client/authenticate", requestJson, responseJson, outMessage, status, "origin auth error"))
+    {
+        return false;
+    }
+
+    const char* token = nullptr;
+
+    if (!JSON_GetValue(responseJson, "token", token))
+        return false;
+
+    outToken = token;
+
+    if (responseJson.HasMember("connectionInfo"))
+    {
+        if (!JSON_GetValue(responseJson["connectionInfo"], "ip", outConnInfo.addr))
+            return false;
+        if (!JSON_GetValue(responseJson["connectionInfo"], "port", outConnInfo.port))
+            return false;
+        if (!JSON_GetValue(responseJson["connectionInfo"], "key", outConnInfo.key))
+            return false;
+    }
+    else return false;
+
+    return true;
 }
 
 //-----------------------------------------------------------------------------

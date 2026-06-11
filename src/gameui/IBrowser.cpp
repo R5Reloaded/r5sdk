@@ -335,7 +335,7 @@ void CBrowser::DrawBrowserPanel(void)
 
                 if (ImGui::Button("Connect"))
                 {
-                    g_ServerListManager.ConnectToServer(server->address, server->port, server->netKey);
+                    g_ServerListManager.ConnectToServerById(server->serverId);
                 }
 
                 ImGui::PopID();
@@ -806,6 +806,7 @@ void CBrowser::UpdateHostingStatus(void)
             hostip->GetString(),
             hostport->GetInt(),
             g_pNetKey->GetBase64NetKey(),
+            "",
             *g_nServerRemoteChecksum,
             SDK_VERSION,
             g_pServer->GetNumClients(),

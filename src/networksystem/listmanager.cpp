@@ -17,6 +17,7 @@
 #include "rtech/playlists/playlists.h"
 #include "pylon.h"
 #include "listmanager.h"
+#include <ebisusdk/EbisuSDK.h>
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -106,6 +107,81 @@ void CServerListManager::ConnectToServer(const string& svServer, const string& s
 
     const string command = Format("%s \"%s\"", "connect", svServer.c_str()).c_str();
     Cbuf_AddText(Cbuf_GetCurrentPlayer(), command.c_str(), cmd_source_t::kCommandSrcCode);
+}
+
+
+static ConVar cl_onlineAuthEnable("cl_onlineAuthEnable", "1", FCVAR_RELEASE, "Enables the client-side online authentication system");
+
+static ConVar cl_onlineAuthToken("cl_onlineAuthToken", "", FCVAR_USERINFO | FCVAR_DONTRECORD | FCVAR_SERVER_CANNOT_QUERY | FCVAR_PLATFORM_SYSTEM, "The client's online authentication token");
+static ConVar cl_onlineAuthTokenSignature1("cl_onlineAuthTokenSignature1", "", FCVAR_USERINFO | FCVAR_DONTRECORD | FCVAR_SERVER_CANNOT_QUERY | FCVAR_PLATFORM_SYSTEM, "The client's online authentication token signature", false, 0.f, false, 0.f, "Primary");
+static ConVar cl_onlineAuthTokenSignature2("cl_onlineAuthTokenSignature2", "", FCVAR_USERINFO | FCVAR_DONTRECORD | FCVAR_SERVER_CANNOT_QUERY | FCVAR_PLATFORM_SYSTEM, "The client's online authentication token signature", false, 0.f, false, 0.f, "Secondary");
+
+
+bool ServerList_SetTokenCVars(const string& msToken)
+{
+    // get full token
+    const char* token = msToken.c_str();
+
+    // get a pointer to the delimiter that begins the token's signature
+    const char* tokenSignatureDelim = strrchr(token, '.');
+
+    if (!tokenSignatureDelim)
+    {
+        Warning(eDLL_T::ENGINE, "ServerList_SetTokenCVars: Invalid token returned by MS");
+        //FORMAT_ERROR_REASON("Invalid token returned by MS");
+        return false;
+    }
+
+    const size_t sigLength = strlen(tokenSignatureDelim + 1);
+    // replace the delimiter with a null char so the first cvar only takes the header and payload data
+    *(char*)tokenSignatureDelim = '\0';
+
+    cl_onlineAuthToken.SetValue(token);
+
+    if (sigLength > 0)
+    {
+        // get a pointer to the first part of the token signature to store in cl_onlineAuthTokenSignature1
+        const char* tokenSignaturePart1 = tokenSignatureDelim + 1;
+
+        cl_onlineAuthTokenSignature1.SetValue(tokenSignaturePart1);
+
+        if (sigLength > 255)
+        {
+            // get a pointer to the rest of the token signature to store in cl_onlineAuthTokenSignature2
+            const char* tokenSignaturePart2 = tokenSignaturePart1 + 255;
+
+            cl_onlineAuthTokenSignature2.SetValue(tokenSignaturePart2);
+        }
+    }
+
+    return true;
+}
+
+void CServerListManager::ConnectToServerById(const string& svId) const
+{
+    std::thread request([&]
+        {
+            string msToken;
+            string message;
+            MSConnectionInfo_t connInfo;
+
+            const string authCode = cl_onlineAuthEnable.GetBool() ? g_OriginAuthCode : "";
+
+            if (!g_MasterServer.AuthForConnection(*g_NucleusID, svId, authCode.c_str(), msToken, connInfo, message))
+            {
+                return;
+            }
+
+            ServerList_SetTokenCVars(msToken);
+
+            g_TaskQueue.Dispatch([this, svId, connInfo]
+                {
+                    this->ConnectToServer(connInfo.addr, connInfo.port, connInfo.key);
+                }, 0);
+        }
+    );
+
+    request.detach();
 }
 
 CServerListManager g_ServerListManager;
