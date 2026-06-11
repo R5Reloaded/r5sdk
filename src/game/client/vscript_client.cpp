@@ -541,8 +541,7 @@ static SQRESULT UIScript_ConnectToListedServer(HSQUIRRELVM v)
 
     const NetGameServer_t& gameServer = g_ServerListManager.m_vServerList[iServer];
 
-    g_ServerListManager.ConnectToServer(gameServer.address, gameServer.port,
-        gameServer.netKey);
+    g_ServerListManager.ConnectToServerById(gameServer.serverId);
 
     SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
 }
@@ -567,7 +566,7 @@ static SQRESULT UIScript_ConnectToHiddenServer(HSQUIRRELVM v)
     const bool result = g_MasterServer.GetServerByToken(netListing, hiddenServerRequestMessage, privateToken); // Send token connect request.
     if (result)
     {
-        g_ServerListManager.ConnectToServer(netListing.address, netListing.port, netListing.netKey);
+        g_ServerListManager.ConnectToServerById(netListing.serverId);
     }
     else
     {

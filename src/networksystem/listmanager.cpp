@@ -160,6 +160,8 @@ bool ServerList_SetTokenCVars(const string& msToken)
 
 void CServerListManager::ConnectToServerById(const string& svId) const
 {
+    ImGui::InsertNotification({ ImGuiToastType::Info, 3000, "Connecting..." });
+
     std::thread request([&]
         {
             string msToken;
@@ -171,7 +173,9 @@ void CServerListManager::ConnectToServerById(const string& svId) const
             if (!g_MasterServer.AuthForConnection(*g_NucleusID, svId, authCode.c_str(), msToken, connInfo, message))
             {
                 Error(eDLL_T::MS, ERROR_SUCCESS, "ConnectToServer: %s\n", message.c_str());
-                ImGui::InsertNotification({ ImGuiToastType::Error, 3000, "ConnectToServer: %s\n", message.c_str() });
+
+                // do i need a mutex for this..? probably right?
+                ImGui::InsertNotification({ ImGuiToastType::Error, 5000, "ConnectToServer: %s", message.c_str() });
                 return;
             }
 
