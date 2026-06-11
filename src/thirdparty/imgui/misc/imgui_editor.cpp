@@ -1130,7 +1130,8 @@ void CTextEditor::Render(const char* aTitle, const ImVec2& aSize, bool aBorder)
 	if (m_bHandleKeyboardInputs)
 	{
 		HandleKeyboardInputs();
-		ImGui::PushAllowKeyboardFocus(true);
+
+		ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, false);
 	}
 
 	if (m_bHandleMouseInputs)
@@ -1140,7 +1141,7 @@ void CTextEditor::Render(const char* aTitle, const ImVec2& aSize, bool aBorder)
 	Render();
 
 	if (m_bHandleKeyboardInputs)
-		ImGui::PopAllowKeyboardFocus();
+		ImGui::PopItemFlag();
 
 	if (!m_bIgnoreImGuiChild)
 		ImGui::EndChild();

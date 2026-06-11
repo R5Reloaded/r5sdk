@@ -139,7 +139,7 @@ bool CRUIDebugger::DrawSurface(void)
 
 	ImGui::Text("%u/%u alive", m_numAliveInstances, MAX_RUI_SCRIPT_INSTANCES);
 
-	if (ImGui::BeginChild("##RUIDebugger_DebugOut", ImVec2(-1, -1), ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar))
+	if (ImGui::BeginChild("##RUIDebugger_DebugOut", ImVec2(-1, -1), ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar))
 	{
 		std::lock_guard guard(this->scratchMutex);
 		ImGui::TextUnformatted(buffer.c_str());

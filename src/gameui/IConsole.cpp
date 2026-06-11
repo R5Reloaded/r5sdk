@@ -239,10 +239,10 @@ bool CConsole::DrawSurface(void)
 
     if (isLegacyStyle)
     {
-        loggerFlags |= ImGuiChildFlags_Border;
+        loggerFlags |= ImGuiChildFlags_Borders;
 
         // Eliminate padding around logger child. This padding gets added when
-        // ImGuiChildFlags_Border flag gets set.
+        // ImGuiChildFlags_Borders flag gets set.
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 1.f, 1.f }); numLoggerStyleVars++;
 
         // if we use the legacy theme, also account for one extra space as the
@@ -524,7 +524,7 @@ void CConsole::DrawAutoCompletePanel(void)
         ImGuiWindowFlags_AlwaysHorizontalScrollbar;
 
     ImGui::Begin("##Console_DrawAutoCompletePanel_Suggest", nullptr, autoCompleteWindowFlags);
-    ImGui::PushAllowKeyboardFocus(false);
+    ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, true);
 
     ImGuiWindow* const autocompleteWindow = ImGui::GetCurrentWindow();
 
@@ -631,7 +631,7 @@ void CConsole::DrawAutoCompletePanel(void)
 
     DetermineAutoCompleteWindowHeight(startY);
 
-    ImGui::PopAllowKeyboardFocus();
+    ImGui::PopItemFlag();
     ImGui::End();
 }
 

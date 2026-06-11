@@ -131,7 +131,7 @@ bool CStreamOverlay::DrawSurface(void)
 
 	SetRect(791, 291, 10, 10);
 
-	if (ImGui::BeginChild("##StreamOverlay_StreamReport", ImVec2(-1, -1), ImGuiChildFlags_Border, ImGuiWindowFlags_HorizontalScrollbar))
+	if (ImGui::BeginChild("##StreamOverlay_StreamReport", ImVec2(-1, -1), ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar))
 	{
 		const bool resized = ResizeScratchBuffer(stream_overlay_memory.GetInt());
 

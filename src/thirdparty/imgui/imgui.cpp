@@ -7338,7 +7338,12 @@ void ImGui::RenderWindowTitleBarContents(ImGuiWindow* window, const ImRect& titl
         ImGuiItemFlags backup_item_flags = g.CurrentItemFlags;
         g.CurrentItemFlags |= ImGuiItemFlags_NoFocus;
         if (CloseButton(window->GetID("#CLOSE"), close_button_pos))
+        {
             *p_open = false;
+            if (window->CloseCallback) // [R5SDK]
+                ((void(*)(void))window->CloseCallback)();
+        }
+
         g.CurrentItemFlags = backup_item_flags;
     }
 
@@ -7443,7 +7448,7 @@ static void SetWindowActiveForSkipRefresh(ImGuiWindow* window)
 //   You can use the "##" or "###" markers to use the same label with different id, or same id with different label. See documentation at the top of this file.
 // - Return false when window is collapsed, so you can early out in your code. You always need to call ImGui::End() even if false is returned.
 // - Passing 'bool* p_open' displays a Close button on the upper-right corner of the window, the pointed value will be set to false when the button is pressed.
-bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
+bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags, void* close_callback)
 {
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = g.Style;
@@ -7619,6 +7624,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         const bool window_just_appearing_after_hidden_for_resize = (window->HiddenFramesCannotSkipItems > 0);
         window->Active = true;
         window->HasCloseButton = (p_open != NULL);
+        window->CloseCallback = close_callback;
         window->ClipRect = ImVec4(-FLT_MAX, -FLT_MAX, +FLT_MAX, +FLT_MAX);
         window->IDStack.resize(1);
         window->DrawList->_ResetForNewFrame();
@@ -7922,8 +7928,10 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
             window->ScrollbarSizes = ImVec2(window->ScrollbarY ? style.ScrollbarSize : 0.0f, window->ScrollbarX ? style.ScrollbarSize : 0.0f);
 
             // Amend the partially filled window->DecorationXXX values.
-            window->DecoOuterSizeX2 += window->ScrollbarSizes.x;
-            window->DecoOuterSizeY2 += window->ScrollbarSizes.y;
+            if (!(flags & ImGuiWindowFlags_OverlayVerticalScrollbar)) // [R5SDK]
+                window->DecoOuterSizeX2 += window->ScrollbarSizes.x;
+            if (!(flags & ImGuiWindowFlags_OverlayHorizontalScrollbar)) // [R5SDK]
+                window->DecoOuterSizeY2 += window->ScrollbarSizes.y;
         }
 
         // UPDATE RECTANGLES (1- THOSE NOT AFFECTED BY SCROLLING)
@@ -8618,6 +8626,26 @@ void ImGui::SetWindowSize(const char* name, const ImVec2& size, ImGuiCond cond)
 {
     if (ImGuiWindow* window = FindWindowByName(name))
         SetWindowSize(window, size, cond);
+}
+
+void ImGui::SetWindowScrollX(const char* name, float scroll_x)
+{
+    if (ImGuiWindow* window = FindWindowByName(name))
+    {
+        window->DC.CursorMaxPos.x += window->Scroll.x;
+        window->Scroll.x = scroll_x;
+        window->DC.CursorMaxPos.x -= window->Scroll.x;
+    }
+}
+
+void ImGui::SetWindowScrollY(const char* name, float scroll_y)
+{
+    if (ImGuiWindow* window = FindWindowByName(name))
+    {
+        window->DC.CursorMaxPos.y += window->Scroll.y;
+        window->Scroll.y = scroll_y;
+        window->DC.CursorMaxPos.y -= window->Scroll.y;
+    }
 }
 
 void ImGui::SetWindowCollapsed(ImGuiWindow* window, bool collapsed, ImGuiCond cond)

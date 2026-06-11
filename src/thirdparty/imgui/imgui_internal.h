@@ -2776,6 +2776,7 @@ struct IMGUI_API ImGuiWindow
     int                     MemoryDrawListVtxCapacity;
     bool                    MemoryCompacted;                    // Set when window extraneous data have been garbage collected
 
+    void*                   CloseCallback;
 public:
     ImGuiWindow(ImGuiContext* context, const char* name);
     ~ImGuiWindow();

@@ -10996,4 +10996,106 @@ void ImGui::TabItemLabelAndCloseButton(ImDrawList* draw_list, const ImRect& bb, 
 }
 
 
+bool ImGui::Hotkey(const char* label, int* key, const ImVec2& ssize)
+{
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems)
+        return false;
+
+    ImGuiContext& g = *GImGui;
+    ImGuiIO& io = g.IO;
+    const ImGuiStyle& style = g.Style;
+
+    float backupPaddingY = style.FramePadding.y;
+    g.Style.FramePadding.y = 0.0f;
+
+    const ImGuiID id = window->GetID(label);
+    const ImVec2 labelSize = ImGui::CalcTextSize(label, NULL, true);
+    const ImVec2 size = ImGui::CalcItemSize(ssize, ImGui::CalcItemWidth(), labelSize.y + style.FramePadding.y * 2.0f);
+
+    const ImRect frameBB(window->DC.CursorPos, window->DC.CursorPos + ImVec2(size.x, labelSize.y + style.FramePadding.y));
+    const ImRect total_bb(frameBB.Min, frameBB.Max + ImVec2(labelSize.x > 0.0f ? style.ItemInnerSpacing.x + labelSize.x : 0.0f, 0.0f));
+
+    ImGui::ItemSize(total_bb, style.FramePadding.y);
+    if (!ImGui::ItemAdd(total_bb, id))
+    {
+        g.Style.FramePadding.y = backupPaddingY;
+        return false;
+    }
+
+    const bool isHovered = ImGui::ItemHoverable(frameBB, id, g.LastItemData.ItemFlags);
+
+    if (isHovered) {
+        ImGui::SetHoveredID(id);
+        g.MouseCursor = ImGuiMouseCursor_TextInput;
+    }
+
+    const bool didClick = isHovered && io.MouseClicked[0];
+
+    if (didClick)
+    {
+        if (g.ActiveId != id)
+        {
+            io.ClearInputMouse();
+            io.ClearInputKeys();
+
+            *key = ImGuiKey_None;
+        }
+        ImGui::SetActiveID(id, window);
+        ImGui::FocusWindow(window);
+    }
+    else if (io.MouseClicked[0])
+    {
+        if (g.ActiveId == id)
+        {
+            ImGui::ClearActiveID();
+        }
+    }
+
+    bool didValueChange = false;
+    int kkey = *key;
+
+    if (g.ActiveId == id)
+    {
+        for (int i = ImGuiKey_NamedKey_BEGIN; i < ImGuiKey_NamedKey_END; i++)
+        {
+            if (GetKeyData((ImGuiKey)i)->Down)
+            {
+                kkey = i;
+                didValueChange = true;
+                ImGui::ClearActiveID();
+            }
+        }
+
+        if (IsKeyPressed(ImGuiKey_Escape))
+        {
+            *key = NULL;
+            ImGui::ClearActiveID();
+        }
+        else
+        {
+            *key = kkey;
+        }
+    }
+
+    char displayBuf[24] = "None";
+
+    if (*key != 0 && g.ActiveId != id)
+    {
+        strcpy_s(displayBuf, ImGui::GetKeyName((ImGuiKey)*key));
+    }
+    else if (g.ActiveId == id)
+    {
+        strcpy_s(displayBuf, "Press key");
+    }
+
+    const ImRect clip_rect(frameBB.Min.x, frameBB.Min.y, frameBB.Min.x + size.x, frameBB.Min.y + size.y);
+    ImGui::RenderTextClipped(frameBB.Min + style.FramePadding, frameBB.Max - style.FramePadding, displayBuf, NULL, NULL, style.ButtonTextAlign, &clip_rect);
+
+    g.Style.FramePadding.y = backupPaddingY;
+
+    return didValueChange;
+}
+
+
 #endif // #ifndef IMGUI_DISABLE

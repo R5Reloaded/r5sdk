@@ -737,7 +737,7 @@ void CTextLogger::Render(const float alpha)
 	if (m_bHandleUserInputs)
 	{
 		HandleKeyboardInputs(bHoveredScrollbar, bActiveScrollbar);
-		ImGui::PushAllowKeyboardFocus(true);
+		ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, false);
 
 		HandleMouseInputs(bHoveredScrollbar, bActiveScrollbar);
 	}
@@ -880,7 +880,7 @@ void CTextLogger::Render(const float alpha)
 	m_bScrollToCursor = false;
 
 	if (m_bHandleUserInputs)
-		ImGui::PopAllowKeyboardFocus();
+		ImGui::PopItemFlag();
 
 	ImGui::PopStyleVar();
 }
