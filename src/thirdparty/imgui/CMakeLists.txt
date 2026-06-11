@@ -44,8 +44,10 @@ add_sources( SOURCE_GROUP "Misc"
 	"misc/imgui_utility.h"
 	"misc/imgui_wrapper.cpp"
 	"misc/imgui_wrapper.h"
+	"misc/ImGuiNotify.hpp"
 	"misc/cpp/imgui_stdlib.cpp"
 	"misc/cpp/imgui_stdlib.h"
+	"misc/fonts/codicons.h"
 )
 
 add_sources( SOURCE_GROUP "Demos"

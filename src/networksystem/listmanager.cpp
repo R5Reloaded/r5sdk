@@ -18,6 +18,7 @@
 #include "pylon.h"
 #include "listmanager.h"
 #include <ebisusdk/EbisuSDK.h>
+#include <misc/ImGuiNotify.hpp>
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -170,6 +171,7 @@ void CServerListManager::ConnectToServerById(const string& svId) const
             if (!g_MasterServer.AuthForConnection(*g_NucleusID, svId, authCode.c_str(), msToken, connInfo, message))
             {
                 Error(eDLL_T::MS, ERROR_SUCCESS, "ConnectToServer: %s\n", message.c_str());
+                ImGui::InsertNotification({ ImGuiToastType::Error, 3000, "ConnectToServer: %s\n", message.c_str() });
                 return;
             }
 
