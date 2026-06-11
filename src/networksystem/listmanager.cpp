@@ -169,6 +169,7 @@ void CServerListManager::ConnectToServerById(const string& svId) const
 
             if (!g_MasterServer.AuthForConnection(*g_NucleusID, svId, authCode.c_str(), msToken, connInfo, message))
             {
+                Error(eDLL_T::MS, ERROR_SUCCESS, "ConnectToServer: %s\n", message.c_str());
                 return;
             }
 
