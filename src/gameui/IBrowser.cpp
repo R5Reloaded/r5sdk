@@ -267,7 +267,6 @@ void CBrowser::DrawBrowserPanel(void)
         ImGui::TableSetupColumn("Map", ImGuiTableColumnFlags_WidthStretch, 20);
         ImGui::TableSetupColumn("Playlist", ImGuiTableColumnFlags_WidthStretch, 10);
         ImGui::TableSetupColumn("Players", ImGuiTableColumnFlags_WidthStretch, 5);
-        ImGui::TableSetupColumn("Port", ImGuiTableColumnFlags_WidthStretch, 5);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 5);
 
         ImGui::TableSetupScrollFreeze(0, 1);
@@ -326,9 +325,6 @@ void CBrowser::DrawBrowserPanel(void)
 
                 const char* const pszPlayerNums = playerNums.c_str();
                 ImGui::TextEx(pszPlayerNums, &pszPlayerNums[playerNums.length()], textFlags);
-
-                ImGui::TableNextColumn();
-                ImGui::Text("%d", server->port);
 
                 ImGui::TableNextColumn();
                 ImGui::PushID(i);

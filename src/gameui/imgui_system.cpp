@@ -253,7 +253,7 @@ inline void ImGuiSystem_RenderNotifications()
 	// Notifications color setup
 	//ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.10f, 0.10f, 0.10f, 1.00f)); // Background color
 
-	ImGui::PushFont(NULL, 20.f);
+	ImGui::PushFont(NULL, 21.f);
 	// Main rendering function
 	ImGui::RenderNotifications();
 	ImGui::PopFont();

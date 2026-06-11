@@ -175,7 +175,7 @@ void CServerListManager::ConnectToServerById(const string& svId) const
                 Error(eDLL_T::MS, ERROR_SUCCESS, "ConnectToServer: %s\n", message.c_str());
 
                 // do i need a mutex for this..? probably right?
-                ImGui::InsertNotification({ ImGuiToastType::Error, 5000, "ConnectToServer: %s", message.c_str() });
+                ImGui::InsertNotification({ ImGuiToastType::Error, 5000, "Failed to connect!\n%s", message.c_str() });
                 return;
             }
 
