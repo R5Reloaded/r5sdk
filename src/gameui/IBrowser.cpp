@@ -442,7 +442,7 @@ void CBrowser::HiddenServersModal(void)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(408.f, modalWindowHeight));    modalStyleVars++;
 
     bool isModalStillOpen = true;
-    if (ImGui::BeginPopupModal("Private Server##ServerBrowser_HiddenServersModal", &isModalStillOpen, ImGuiWindowFlags_NoResize))
+    if (ImGui::BeginPopupModal("Private Server##ServerBrowser_HiddenServersModal", &isModalStillOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar))
     {
         ImGui::SetWindowSize(ImVec2(408.f, modalWindowHeight), ImGuiCond_Always);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.00f, 0.00f, 0.00f, 0.00f)); // Override the style color for child bg.
