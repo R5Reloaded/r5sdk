@@ -252,7 +252,7 @@ void CBrowser::DrawBrowserPanel(void)
 
     const float fFooterHeight = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
 
-    if (ImGui::BeginTable("##ServerBrowser_DrawBrowserPanel_ServerListTable", 6, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { 0, -fFooterHeight }))
+    if (ImGui::BeginTable("##ServerBrowser_DrawBrowserPanel_ServerListTable", 5, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { 0, -fFooterHeight }))
     {
         if (m_surfaceStyle == ImGuiStyle_t::MODERN)
         {
