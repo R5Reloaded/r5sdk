@@ -631,29 +631,30 @@ static void InformClientAboutCommsBanTriggeredByVoice(CClient* const pClient)
 //---------------------------------------------------------------------------------
 void CClientExtended::BuildCommsBanDisplayMessage(const char* pszReasonStr, const char* pszExpiryTimestamp)
 {
-	CFmtStr fmt;
+    CFmtStr fmt;
+    const bool isTempBan = VALID_CHARSTAR(pszExpiryTimestamp);
 
-	//The default bansystem reason for when there is no reason from the MS is this
-	//TODO: Localize this string into what it should be, for now we just give a descriptive default
-	if (pszReasonStr)
-	{
-		if (V_strcmp("#DISCONNECT_BANNED", pszReasonStr) == 0)
-		{
-			pszReasonStr = "Communication Banned";
-		}
-	}
+    //The default bansystem reason for when there is no reason from the MS is this
+    //TODO: Localize this string into what it should be, for now we just give a descriptive default
+    if (pszReasonStr)
+    {
+        if (V_strcmp("#DISCONNECT_BANNED", pszReasonStr) == 0)
+        {
+            pszReasonStr = "Communication Banned";
+        }
+    }
 
-	fmt.Format("You have an active %s communications ban.\nReason: %s\n", 
-		pszExpiryTimestamp ? "temporary" : "permanent",
-		pszReasonStr ? pszReasonStr : "None"
-	);
+    fmt.Format("You have an active %s communications ban.\nReason: %s",
+        isTempBan ? "temporary" : "permanent",
+        pszReasonStr ? pszReasonStr : "None"
+    );
 
-	if (pszExpiryTimestamp)
-	{
-		fmt.AppendFormat("Expiry: %s", pszExpiryTimestamp);
-	}
+    if (isTempBan)
+    {
+        fmt.AppendFormat("\nExpiry: %s", pszExpiryTimestamp);
+    }
 
-	m_MuteDisplayPrompt = fmt;
+    m_MuteDisplayPrompt = fmt;
 }
 #endif
 
