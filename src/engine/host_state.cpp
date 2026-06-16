@@ -88,6 +88,7 @@ static void HostState_KeepAlive()
 		hostip->GetString(),
 		hostport->GetInt(),
 		g_pNetKey->GetBase64NetKey(),
+		"",
 		*g_nServerRemoteChecksum,
 		SDK_VERSION,
 		g_pServer->GetNumClients(),

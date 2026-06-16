@@ -11,6 +11,7 @@
 #include "tier1/keyvalues.h"
 #include "filesystem/filesystem.h"
 #include "imgui_system.h"
+#include "imgui/misc/ImGuiNotify.hpp"
 
 //-----------------------------------------------------------------------------
 // Constructors/Destructors.
@@ -88,8 +89,8 @@ void CImguiSystem::Shutdown()
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 
-	ImGui::DestroyContext();
 	m_snapshotData.Clear();
+	ImGui::DestroyContext();
 
 	m_initialized = false;
 	m_hasNewFrame = false;
@@ -187,6 +188,13 @@ void CImguiSystem::SetupFonts() const
 		ranFirst = true;
 	}
 
+	ImFontConfig config;
+	config.MergeMode = true;
+	config.OversampleH = 2;
+	config.OversampleV = 2;
+
+	io.Fonts->AddFontFromMemoryCompressedBase85TTF(Codicons_compressed_data, 14.f, &config);
+
 	io.Fonts->Build();
 }
 
@@ -236,6 +244,27 @@ void CImguiSystem::RemoveSurface(CImguiSurface* const surface)
 	m_surfaceList.FindAndRemove(surface);
 }
 
+inline void ImGuiSystem_RenderNotifications()
+{
+	// Notifications style setup
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f); // Disable round borders
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f); // Disable borders
+
+	// Notifications color setup
+	//ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.10f, 0.10f, 0.10f, 1.00f)); // Background color
+
+	ImGui::PushFont(NULL, 21.f);
+	// Main rendering function
+	ImGui::RenderNotifications();
+	ImGui::PopFont();
+
+	//——————————————————————————————— WARNING ———————————————————————————————
+	// Argument MUST match the amount of ImGui::PushStyleVar() calls 
+	ImGui::PopStyleVar(2);
+	// Argument MUST match the amount of ImGui::PushStyleColor() calls 
+	//ImGui::PopStyleColor(1);
+}
+
 //-----------------------------------------------------------------------------
 // Draws the ImGui panels and applies all queued input events.
 //-----------------------------------------------------------------------------
@@ -256,6 +285,8 @@ void CImguiSystem::SampleFrame()
 		CImguiSurface* const surface = m_surfaceList[i];
 		surface->RunFrame();
 	}
+
+	ImGuiSystem_RenderNotifications();
 
 	ImGui::EndFrame();
 	ImGui::Render();

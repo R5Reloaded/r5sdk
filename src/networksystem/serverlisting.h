@@ -17,14 +17,19 @@ struct NetGameServer_t
 	string map;
 	string playlist;
 
-	// the address and port of the server, validated and set from the
+	// S2M ONLY: the address and port of the server, validated and set from the
 	// masterserver
+	// [ C2M DEPRECATED ]: Clients must now connect using the serverId value below. These members are preserved for sending from the SV only.
 	string address;
 	int port = NULL;
 
-	// the base64 net key used to decrypt game packets, the client has to
+	// S2M ONLY: the base64 net key used to decrypt game packets, the client has to
 	// install this before issuing a connectionless packet
 	string netKey;
+
+	// unique identifier for the server
+	// the client uses this to request authentication for connection to the server
+	string serverId;
 
 	// version identifiers used to check if the gameserver and gameclient are
 	// compatible with each other

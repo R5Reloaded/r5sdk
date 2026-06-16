@@ -252,7 +252,7 @@ void CBrowser::DrawBrowserPanel(void)
 
     const float fFooterHeight = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
 
-    if (ImGui::BeginTable("##ServerBrowser_DrawBrowserPanel_ServerListTable", 6, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { 0, -fFooterHeight }))
+    if (ImGui::BeginTable("##ServerBrowser_DrawBrowserPanel_ServerListTable", 5, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, { 0, -fFooterHeight }))
     {
         if (m_surfaceStyle == ImGuiStyle_t::MODERN)
         {
@@ -267,7 +267,6 @@ void CBrowser::DrawBrowserPanel(void)
         ImGui::TableSetupColumn("Map", ImGuiTableColumnFlags_WidthStretch, 20);
         ImGui::TableSetupColumn("Playlist", ImGuiTableColumnFlags_WidthStretch, 10);
         ImGui::TableSetupColumn("Players", ImGuiTableColumnFlags_WidthStretch, 5);
-        ImGui::TableSetupColumn("Port", ImGuiTableColumnFlags_WidthStretch, 5);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch, 5);
 
         ImGui::TableSetupScrollFreeze(0, 1);
@@ -328,14 +327,11 @@ void CBrowser::DrawBrowserPanel(void)
                 ImGui::TextEx(pszPlayerNums, &pszPlayerNums[playerNums.length()], textFlags);
 
                 ImGui::TableNextColumn();
-                ImGui::Text("%d", server->port);
-
-                ImGui::TableNextColumn();
                 ImGui::PushID(i);
 
                 if (ImGui::Button("Connect"))
                 {
-                    g_ServerListManager.ConnectToServer(server->address, server->port, server->netKey);
+                    g_ServerListManager.ConnectToServerById(server->serverId);
                 }
 
                 ImGui::PopID();
@@ -442,7 +438,7 @@ void CBrowser::HiddenServersModal(void)
     ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2(408.f, modalWindowHeight));    modalStyleVars++;
 
     bool isModalStillOpen = true;
-    if (ImGui::BeginPopupModal("Private Server##ServerBrowser_HiddenServersModal", &isModalStillOpen, ImGuiWindowFlags_NoResize))
+    if (ImGui::BeginPopupModal("Private Server##ServerBrowser_HiddenServersModal", &isModalStillOpen, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar))
     {
         ImGui::SetWindowSize(ImVec2(408.f, modalWindowHeight), ImGuiCond_Always);
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.00f, 0.00f, 0.00f, 0.00f)); // Override the style color for child bg.
@@ -487,7 +483,7 @@ void CBrowser::HiddenServersModal(void)
 
                 if (result && !server.name.empty())
                 {
-                    g_ServerListManager.ConnectToServer(server.address, server.port, server.netKey); // Connect to the server
+                    g_ServerListManager.ConnectToServerById(server.serverId); // Connect to the server
                     m_hiddenServerRequestMessage = Format("Found server: %s", server.name.c_str());
                     m_hiddenServerMessageColor = ImVec4(0.00f, 1.00f, 0.00f, 1.00f);
                     ImGui::CloseCurrentPopup();
@@ -806,6 +802,7 @@ void CBrowser::UpdateHostingStatus(void)
             hostip->GetString(),
             hostport->GetInt(),
             g_pNetKey->GetBase64NetKey(),
+            "",
             *g_nServerRemoteChecksum,
             SDK_VERSION,
             g_pServer->GetNumClients(),
