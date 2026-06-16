@@ -234,7 +234,7 @@ static SQRESULT UIScript_GetHiddenServerName(HSQUIRRELVM v)
 {
     const SQChar* privateToken = nullptr;
 
-    if (SQ_FAILED(sq_getstring(v, 2, &privateToken)) || VALID_CHARSTAR(privateToken))
+    if (SQ_FAILED(sq_getstring(v, 2, &privateToken)) || !VALID_CHARSTAR(privateToken))
     {
         v_SQVM_ScriptError("Empty or null private token");
         SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
@@ -555,7 +555,7 @@ static SQRESULT UIScript_ConnectToHiddenServer(HSQUIRRELVM v)
     const SQChar* privateToken = nullptr;
     const SQRESULT strRet = sq_getstring(v, 2, &privateToken);
 
-    if (SQ_FAILED(strRet) || VALID_CHARSTAR(privateToken))
+    if (SQ_FAILED(strRet) || !VALID_CHARSTAR(privateToken))
     {
         v_SQVM_ScriptError("Empty or null private token");
         SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
