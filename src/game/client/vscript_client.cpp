@@ -566,7 +566,7 @@ static SQRESULT UIScript_ConnectToHiddenServer(HSQUIRRELVM v)
     const bool result = g_MasterServer.GetServerByToken(netListing, hiddenServerRequestMessage, privateToken); // Send token connect request.
     if (result)
     {
-        g_ServerListManager.ConnectToServerById(netListing.serverId);
+        g_ServerListManager.ConnectToServerById(std::move(netListing.serverId));
     }
     else
     {

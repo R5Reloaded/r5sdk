@@ -13,7 +13,7 @@ public:
 	void ConnectToServer(const string& svIp, const int nPort, const string& svNetKey) const;
 	void ConnectToServer(const string& svServer, const string& svNetKey) const;
 
-	void ConnectToServerById(const string& svId) const;
+	void ConnectToServerById(const string svId) const;
 
 	// TODO: make private!
 	vector<NetGameServer_t> m_vServerList;

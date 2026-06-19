@@ -483,7 +483,7 @@ void CBrowser::HiddenServersModal(void)
 
                 if (result && !server.name.empty())
                 {
-                    g_ServerListManager.ConnectToServerById(server.serverId); // Connect to the server
+                    g_ServerListManager.ConnectToServerById(std::move(server.serverId)); // Connect to the server
                     m_hiddenServerRequestMessage = Format("Found server: %s", server.name.c_str());
                     m_hiddenServerMessageColor = ImVec4(0.00f, 1.00f, 0.00f, 1.00f);
                     ImGui::CloseCurrentPopup();

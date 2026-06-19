@@ -158,35 +158,33 @@ bool ServerList_SetTokenCVars(const string& msToken)
     return true;
 }
 
-void CServerListManager::ConnectToServerById(const string& svId) const
+void CServerListManager::ConnectToServerById(string svId) const
 {
     ImGui::InsertNotification({ ImGuiToastType::Info, 3000, "Connecting..." });
 
-    std::thread request([&]
-        {
-            string msToken;
-            string message;
-            MSConnectionInfo_t connInfo;
+    std::thread request([this, svId = std::move(svId)] {
+        string msToken;
+        string message;
+        MSConnectionInfo_t connInfo;
 
-            const string authCode = cl_onlineAuthEnable.GetBool() ? g_OriginAuthCode : "";
+        const string authCode = cl_onlineAuthEnable.GetBool() ? g_OriginAuthCode : "";
+        const bool bSuccess = g_MasterServer.AuthForConnection(*g_NucleusID, svId, authCode.c_str(), msToken, connInfo, message);
 
-            if (!g_MasterServer.AuthForConnection(*g_NucleusID, svId, authCode.c_str(), msToken, connInfo, message))
+        g_TaskQueue.Dispatch([this, bSuccess, message = std::move(message), connInfo = std::move(connInfo), msToken = std::move(msToken)] {
+            
+            ServerList_SetTokenCVars(msToken);
+
+            if (!bSuccess)
             {
                 Error(eDLL_T::MS, ERROR_SUCCESS, "ConnectToServer: %s\n", message.c_str());
-
-                // do i need a mutex for this..? probably right?
                 ImGui::InsertNotification({ ImGuiToastType::Error, 5000, "Failed to connect!\n%s", message.c_str() });
                 return;
             }
 
-            ServerList_SetTokenCVars(msToken);
-
-            g_TaskQueue.Dispatch([this, svId, connInfo]
-                {
-                    this->ConnectToServer(connInfo.addr, connInfo.port, connInfo.key);
-                }, 0);
-        }
-    );
+            this->ConnectToServer(connInfo.addr, connInfo.port, connInfo.key);
+        
+        }, 0);
+    });
 
     request.detach();
 }
