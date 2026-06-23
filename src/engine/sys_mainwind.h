@@ -36,6 +36,7 @@ public:
 
 	void DispatchKeyEvent(const uint64_t currentTick, const ButtonCode_t buttonCode) const;
 	void DispatchAllStoredGameMessages() const;
+	HINSTANCE GetInstance() const { return m_hInstance; };
 
 private:
 	HWND m_hWindow;

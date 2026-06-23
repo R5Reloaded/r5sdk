@@ -13,10 +13,71 @@ public:
 	// !!!interface implemented in engine!!!
 public:
 	PlatWindow_t GetAttachedWindow() const;
+    void RecordRawInputMouseMove( const PRAWINPUT pInputEvents, const size_t nEvents );
 
 public:
 	// Hook statics:
+	static void			Shutdown( CInputSystem* thisp );
 	static LRESULT WindowProc(void* unused, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	static unsigned int RawInputCaptureThread( LPVOID lpThreadParam );
+	static bool			Connect_( CInputSystem* thisp, const CreateInterfaceFn factory );
+    static void         GetRawMouseAccumulators_( CInputSystem* thisp, int& accumX, int& accumY );
+	static void			EnableMouseCaptureExH( CInputSystem* thisp, HWND hWnd );
+	static void			DisableMouseCaptureH( CInputSystem* thisp );
+    
+    static HANDLE s_hRawInputThread;
+	static HANDLE s_hRawInputShutdownEvent;
+
+    struct MouseAccumulator_t
+    {
+        void Accumulate(const int x, const int y)
+		{
+			volatile LONG64*   pData   = reinterpret_cast<volatile LONG64*>( &m_accumulatorData );
+			uint64_t		   current = *pData;
+			LONG64			   next;
+			uint64_t		   expected;
+
+            do
+			{ 
+                int temp[2];
+				memcpy( temp, &current, sizeof( temp ) );
+
+                temp[0] += x;
+				temp[1] += y;
+            
+                memcpy( &next, temp, sizeof( temp ) );
+
+                expected = current;
+                current = _InterlockedCompareExchange64( pData, next, current );
+            } while ( current != expected );
+        }
+
+        void Set(const int x, const int y)
+        { 
+            int temp[2];
+			temp[0] = x;
+			temp[1] = y;
+
+            uint64_t combinedValue;
+			memcpy( &combinedValue, temp, sizeof( temp ) );
+            _InterlockedExchange64( reinterpret_cast<volatile LONG64*>(&m_accumulatorData), combinedValue );
+        }
+
+        void Zero() { Set( 0, 0 ); }
+
+        void Consume(int& x, int& y)    
+        { 
+            LONG64 old = _InterlockedExchange64( reinterpret_cast<volatile LONG64*>( &m_accumulatorData ), 0 );
+			int	   temp[2];
+			memcpy( temp, &old, sizeof( temp ) );
+			x = temp[0];
+			y = temp[1];
+        }
+
+        //X = 0
+        //Y = 1
+        alignas(8) int m_accumulatorData[2];
+    };
 
 private:
 	enum
@@ -142,8 +203,11 @@ private:
 	// Raw mouse input
 	bool m_bRawInputSupported;
 	CThreadMutex m_MouseAccumMutex;
-	int m_mouseRawAccumX;
-	int m_mouseRawAccumY;
+	
+    MouseAccumulator_t m_MouseAccum;
+    
+    //int m_mouseRawAccumX;
+	//int m_mouseRawAccumY;
 
 	_BYTE gap1785[8];
 
@@ -169,6 +233,16 @@ static_assert(sizeof(CInputSystem) == 0x18E8);
 
 ///////////////////////////////////////////////////////////////////////////////
 inline LRESULT (*CInputSystem__WindowProc)(void* thisptr, HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+inline bool ( *CInputSystem__Connect )( CInputSystem* thisp, const CreateInterfaceFn factory );
+inline void ( *CInputSystem__AttachToWindow )( CInputSystem* thisp, HWND hWnd );
+inline void ( *CInputSystem__GetRawMouseAccumulators )( CInputSystem* thisp, int& accumX, int& accumY );
+inline void ( *CInputSystem__EnableMouseCapture )( CInputSystem* thisp, HWND hWnd );
+inline void ( *CInputSystem__DisableMouseCapture )( CInputSystem* thisp );
+inline void ( *CInputSystem__Shutdown )( CInputSystem* thisp );
+inline void ( *CInputSystem__SetMouseCursorVisible )( CInputSystem* thisp, bool bVisible );
+inline HCURSOR ( *v_SetCursor )( HCURSOR hCursor );
+
+inline HWND* g_phCurrentForegroundWindow;
 
 extern CInputSystem* g_pInputSystem;
 extern bool(**g_fnSyncRTWithIn)(void); // Belongs to an array of functions, see CMaterialSystem::MatsysMode_Init().
@@ -178,14 +252,45 @@ class VInputSystem : public IDetour
 {
 	virtual void GetAdr(void) const
 	{
+		LogFunAdr( "CInputSystem::Connect", CInputSystem__Connect );
 		LogFunAdr("CInputSystem::WindowProc", CInputSystem__WindowProc);
+		LogFunAdr( "CInputSystem::AttachToWindow", CInputSystem__AttachToWindow );
+		LogFunAdr( "CInputSystem::GetRawMouseAccumulators", CInputSystem__GetRawMouseAccumulators );
+		LogFunAdr( "CInputSystem::EnableMouseCapture", CInputSystem__EnableMouseCapture );
+		LogFunAdr( "CInputSystem::DisableMouseCapture", CInputSystem__DisableMouseCapture );
+		LogFunAdr( "CInputSystem::Shutdown", CInputSystem__Shutdown );
 		LogVarAdr("g_pInputSystem", g_pInputSystem);
 		LogVarAdr("g_fnSyncRTWithIn", g_fnSyncRTWithIn);
+		LogVarAdr( "g_phCurrentForegroundWindow", g_phCurrentForegroundWindow );
 	}
 	virtual void GetFun(void) const
 	{
 		Module_FindPattern(g_GameDll, "48 89 4C 24 ?? 55 56 41 54 41 55 48 83 EC 48").GetPtr(CInputSystem__WindowProc);
-	}
+		Module_FindPattern( g_GameDll, "48 89 5C 24 ?? 57 48 83 EC ?? 48 83 79 ?? ?? 48 8B FA 48 8B D9 0F 85" )
+			.GetPtr( CInputSystem__AttachToWindow );
+
+        Module_FindPattern( g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC ?? 48 8B E9 49 8B F0 48 8B 0D" )
+			.GetPtr( CInputSystem__GetRawMouseAccumulators );
+
+        Module_FindPattern( g_GameDll, "48 89 5C 24 ?? 56 48 83 EC ?? 48 8B 81 ?? ?? ?? ?? 48 8B DA" )
+			.GetPtr( CInputSystem__EnableMouseCapture );
+
+        Module_FindPattern( g_GameDll, "40 53 48 83 EC ?? 48 83 B9 ?? ?? ?? ?? ?? 48 8B D9 74 ?? 33 C9" )
+            .GetPtr( CInputSystem__DisableMouseCapture );
+
+        Module_FindPattern( g_GameDll, "48 83 EC ?? 48 89 5C 24 ?? 48 8D 99" ).GetPtr( CInputSystem__Shutdown );
+		Module_FindPattern( g_GameDll, "88 51 1C" ).GetPtr( CInputSystem__SetMouseCursorVisible );
+		Module_FindPattern( g_GameDll,
+							"48 8B 05 ?? ?? ?? ?? 48 8D 0D ?? ?? ?? ?? 48 85 C0 48 0F 45 C8 FF 05 ?? ?? ?? ?? 48 89 0D ?? ?? ?? ?? B0" )
+			.GetPtr( CInputSystem__Connect );
+
+        g_GameDll.GetImportedSymbol( "user32.dll", "SetCursor", false ).GetPtr( v_SetCursor );
+		
+        CMemory( CInputSystem__AttachToWindow )
+			.OffsetSelf( 0xA7 )
+			.FindPatternSelf( "FF 15 12" )
+			.Patch( { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 } );
+    }
 	virtual void GetVar(void) const
 	{
 		g_pInputSystem = Module_FindPattern(g_GameDll, "48 83 EC 28 48 8B 0D ?? ?? ?? ?? 48 8D 05 ?? ?? ?? ?? 48 89 05 ?? ?? ?? ?? 48 85 C9 74 11")
@@ -193,6 +298,8 @@ class VInputSystem : public IDetour
 
 		const CMemory l_EngineApi_PumpMessages = Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 55 48 81 EC ?? ?? ?? ?? 45 33 C9");
 		g_fnSyncRTWithIn = l_EngineApi_PumpMessages.FindPattern("74 06").FindPatternSelf("FF 15").ResolveRelativeAddressSelf(2, 6).RCast<bool(**)(void)>();
+
+        Module_FindPattern( g_GameDll, "48 89 05 ?? ?? ?? ?? 75 ?? B9" ).ResolveRelativeAddressSelf(0x3, 0x7).GetPtr( g_phCurrentForegroundWindow );
 	}
 	virtual void GetCon(void) const { }
 	virtual void Detour(const bool bAttach) const;
