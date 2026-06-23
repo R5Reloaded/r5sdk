@@ -32,51 +32,50 @@ public:
     {
         void Accumulate(const int x, const int y)
 		{
-			volatile LONG64*   pData   = reinterpret_cast<volatile LONG64*>( &m_accumulatorData );
-			uint64_t		   current = *pData;
-			LONG64			   next;
-			uint64_t		   expected;
+			volatile LONG64*    pData   = reinterpret_cast<volatile LONG64*>( &m_Accumulator );
+			LONG64		        expected;
 
+            CombinedAccumulator current, next;
+			current.m_Combined = *pData;
+    
             do
-			{ 
-                int temp[2];
-				memcpy( temp, &current, sizeof( temp ) );
+			{   
+                next.m_Split.x = current.m_Split.x + x;
+				next.m_Split.y = current.m_Split.y + y;
 
-                temp[0] += x;
-				temp[1] += y;
-            
-                memcpy( &next, temp, sizeof( temp ) );
-
-                expected = current;
-                current = _InterlockedCompareExchange64( pData, next, current );
-            } while ( current != expected );
+                expected = current.m_Combined;
+                current.m_Combined = _InterlockedCompareExchange64( pData, next.m_Combined, current.m_Combined );
+            } while ( current.m_Combined != expected );
         }
 
         void Set(const int x, const int y)
         { 
-            int temp[2];
-			temp[0] = x;
-			temp[1] = y;
+            CombinedAccumulator points;
+			points.m_Split.x = x;
+			points.m_Split.y = y;
 
-            uint64_t combinedValue;
-			memcpy( &combinedValue, temp, sizeof( temp ) );
-            _InterlockedExchange64( reinterpret_cast<volatile LONG64*>(&m_accumulatorData), combinedValue );
+            _InterlockedExchange64( reinterpret_cast<volatile LONG64*>( &m_Accumulator ), points.m_Combined );
         }
 
         void Zero() { Set( 0, 0 ); }
 
         void Consume(int& x, int& y)    
         { 
-            LONG64 old = _InterlockedExchange64( reinterpret_cast<volatile LONG64*>( &m_accumulatorData ), 0 );
-			int	   temp[2];
-			memcpy( temp, &old, sizeof( temp ) );
-			x = temp[0];
-			y = temp[1];
+           CombinedAccumulator old;
+		   old.m_Combined = _InterlockedExchange64( reinterpret_cast<volatile LONG64*>( &m_Accumulator ), 0 );
+		   x			  = old.m_Split.x;
+		   y			  = old.m_Split.y;
         }
 
-        //X = 0
-        //Y = 1
-        alignas(8) int m_accumulatorData[2];
+        ALIGN8 union CombinedAccumulator
+        {
+			LONG64 m_Combined;
+			struct
+			{
+				int x;
+				int y;
+			} m_Split;
+		} m_Accumulator ALIGN8_POST;
     };
 
 private:
