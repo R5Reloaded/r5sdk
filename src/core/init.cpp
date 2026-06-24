@@ -417,6 +417,7 @@ void QuerySystemInfo()
 		if (dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) // Only log the primary device.
 		{
 			Msg(eDLL_T::NONE, "%-25s: '%s'\n", "GPU model identifier", dd.DeviceString);
+			break;
 		}
 	}
 #endif // !DEDICATED
