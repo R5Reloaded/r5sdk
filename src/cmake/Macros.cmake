@@ -132,6 +132,12 @@ macro( whole_program_optimization )
     if( ${OPTION_LTCG_MODE} STREQUAL "ON" )
         set_property( TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE )
         set_property( TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION_PROFILE TRUE )
+
+        # Needs to be explicitly set on MSVC.
+        if ( MSVC )
+            set_property( TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE " /LTCG" )
+            set_property( TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY LINK_FLAGS_PROFILE " /LTCG" )
+        endif()
     endif()
 endmacro()
 
