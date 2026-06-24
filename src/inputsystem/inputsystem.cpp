@@ -280,7 +280,7 @@ bool CInputSystem::Connect_( CInputSystem* thisp, const CreateInterfaceFn factor
 	s_hRawInputThread = CreateThread( NULL, 0x200000, (LPTHREAD_START_ROUTINE)CInputSystem::RawInputCaptureThread, NULL,
 									  STACK_SIZE_PARAM_IS_A_RESERVATION, 0 );
 
-    SetThreadPriority( s_hRawInputThread, THREAD_PRIORITY_TIME_CRITICAL );
+    SetThreadPriority( s_hRawInputThread, THREAD_PRIORITY_HIGHEST );
 
 	return CInputSystem__Connect( thisp, factory );
 }
