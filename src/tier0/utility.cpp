@@ -528,14 +528,15 @@ bool IsEqualNoCase(const string& svInput, const string& svSecond)
         });
 }
 
+static const boost::regex s_base64ValidationRegex(R"((?:[A-Za-z0-9+\/]{4}?)*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=))");
+
 ///////////////////////////////////////////////////////////////////////////////
 // For checking if input is a valid Base64.
 bool IsValidBase64(const string& svInput, string* const psvOutput)
 {
-    static const boost::regex rx(R"((?:[A-Za-z0-9+\/]{4}?)*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=))");
     boost::smatch mh;
 
-    if (boost::regex_search(svInput, mh, rx))
+    if (boost::regex_match(svInput, mh, s_base64ValidationRegex))
     {
         if (psvOutput)
         {
@@ -548,69 +549,148 @@ bool IsValidBase64(const string& svInput, string* const psvOutput)
     return false;
 }
 
+static constexpr char s_base64EncodeLut[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
 ///////////////////////////////////////////////////////////////////////////////
 // For encoding data in Base64.
-string Base64Encode(const string& svInput)
+bool Base64Encode(const std::string_view& input, std::string& output)
 {
-    string result;
-    int val = 0, valb = -6;
-
-    for (unsigned char c : svInput)
+    if (input.empty())
     {
-        val = (val << 8) + c;
-        valb += 8;
-        while (valb >= 0)
+        return false;
+    }
+
+    const size_t inLen = input.size();
+    const size_t outLen = 4 * ((inLen + 2) / 3);
+
+    output.resize(outLen);
+
+    size_t i = 0;
+    size_t j = 0;
+
+    const unsigned char* data = (const unsigned char*)input.data();
+    const size_t limit = inLen - (inLen % 3);
+
+    for (i = 0; i < limit; i += 3)
+    {
+        const uint32_t val = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+
+        output[j++] = s_base64EncodeLut[(val >> 18) & 0x3F];
+        output[j++] = s_base64EncodeLut[(val >> 12) & 0x3F];
+        output[j++] = s_base64EncodeLut[(val >> 6) & 0x3F];
+        output[j++] = s_base64EncodeLut[val & 0x3F];
+    }
+
+    // Handle remainder
+    if (i < inLen)
+    {
+        uint32_t val = data[i] << 16;
+
+        if (i + 1 < inLen)
         {
-            result.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[(val >> valb) & 0x3F]);
-            valb -= 6;
+            val |= data[i + 1] << 8;
         }
+
+        output[j++] = s_base64EncodeLut[(val >> 18) & 0x3F];
+        output[j++] = s_base64EncodeLut[(val >> 12) & 0x3F];
+
+        if (i + 1 < inLen)
+        {
+            output[j++] = s_base64EncodeLut[(val >> 6) & 0x3F];
+        }
+        else
+        {
+            output[j++] = '=';
+        }
+
+        output[j++] = '=';
     }
 
-    if (valb > -6)
-    {
-        result.push_back("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[((val << 8) >> (valb + 8)) & 0x3F]);
-    }
-
-    while (result.size() % 4)
-    {
-        result.push_back('=');
-    }
-
-    return result;
+    return true;
 }
+
+static constexpr unsigned char s_base64DecodeLut[256] = {
+    // 0-127
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 62, 0xFF, 0xFF, 0xFF, 63,
+    52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+    41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    // 128-255
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 // For decoding data in Base64.
-string Base64Decode(const string& svInput)
+bool Base64Decode(const std::string_view& input, std::string& output)
 {
-    string result;
-    vector<int> T(256, -1);
-
-    int val = 0, valb = -8;
-
-    for (int i = 0; i < 64; i++)
+    if (input.empty())
     {
-        T["ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[i]] = i;
+        return false;
     }
 
-    for (unsigned char c : svInput)
+    const size_t inLen = input.size();
+    size_t padding = 0;
+
+    if (inLen >= 1 && input[inLen - 1] == '=') padding++;
+    if (inLen >= 2 && input[inLen - 2] == '=') padding++;
+
+    size_t outLen = (inLen / 4) * 3;
+
+    if (outLen < padding)
     {
-        if (T[c] == -1)
+        return false;
+    }
+
+    outLen -= padding;
+    output.resize(outLen);
+
+    size_t j = 0;
+
+    uint32_t val = 0;
+    int valb = -8;
+
+    for (const unsigned char c : input)
+    {
+        const unsigned char t = s_base64DecodeLut[c];
+
+        if (t == 0xFF)
         {
-            break;
+            if (c == '=')
+            {
+                // End of stream
+                break;
+            }
+
+            // Invalid char.
+            return false;
         }
 
-        val = (val << 6) + T[c];
+        val = (val << 6) + t;
         valb += 6;
 
         if (valb >= 0)
         {
-            result.push_back(char((val >> valb) & 0xFF));
+            if (j < outLen)
+            {
+                output[j++] = (char)((val >> valb) & 0xFF);
+            }
+
             valb -= 8;
         }
     }
 
-    return result;
+    return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

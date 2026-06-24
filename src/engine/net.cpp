@@ -224,7 +224,16 @@ void NET_GenerateKey()
 		return;
 	}
 
-	NET_SetKey(Base64Encode(string(reinterpret_cast<char*>(&keyBuf), AES_128_KEY_SIZE)));
+	const std::string_view keyBufView(reinterpret_cast<char*>(&keyBuf), AES_128_KEY_SIZE);
+	std::string decodedKey;
+
+	if (!Base64Encode(keyBufView, decodedKey))
+	{
+		Error(eDLL_T::ENGINE, NO_ERROR, "Failed to encode encryption key\n");
+		return;
+	}
+
+	NET_SetKey(decodedKey);
 }
 
 //-----------------------------------------------------------------------------

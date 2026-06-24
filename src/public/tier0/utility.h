@@ -42,8 +42,8 @@ string ConvertToUnixPath(const string& svInput);
 bool IsEqualNoCase(const string& svInput, const string& svSecond);
 bool IsValidBase64(const string& svInput, string* const psvOutput = nullptr);
 
-string Base64Encode(const string& svInput);
-string Base64Decode(const string& svInput);
+bool Base64Encode(const std::string_view& input, std::string& output);
+bool Base64Decode(const std::string_view& input, std::string& output);
 
 string UTF8Encode(const wstring& wsvInput);
 //string UTF8Decode(const string& svInput);

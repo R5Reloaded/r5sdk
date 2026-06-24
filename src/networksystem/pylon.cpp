@@ -566,7 +566,11 @@ bool CPylon::GetAuthKey(const std::string& currentHash, MSAuthKeyData_t& outData
         return false;
     }
 
-    outData.keyData = Base64Decode(keyData);
+    if (!Base64Decode(keyData, outData.keyData))
+    {
+        outMessage = "decode error";
+        return false;
+    }
     
     if (!JSON_GetValue(responseJson, "keyHash", outData.keyHash))
     {
