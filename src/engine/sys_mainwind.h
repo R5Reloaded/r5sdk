@@ -33,10 +33,10 @@ public:
 	inline int GetDesktopRefreshRate() const { return m_iDesktopRefreshRate; }
 	inline float GetTVRefreshRate() const // Avoid stutter on TV's running on broadcast frame rates.
 	{ return ((float)m_iDesktopRefreshRate == 59.0f || (float)m_iDesktopRefreshRate == 60.0f) ? 59.939999f : (float)m_iDesktopRefreshRate; }
+	inline HINSTANCE GetInstance() const { return m_hInstance; };
 
 	void DispatchKeyEvent(const uint64_t currentTick, const ButtonCode_t buttonCode) const;
 	void DispatchAllStoredGameMessages() const;
-	HINSTANCE GetInstance() const { return m_hInstance; };
 
 private:
 	HWND m_hWindow;
