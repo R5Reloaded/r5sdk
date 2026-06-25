@@ -35,7 +35,8 @@ public:
 			volatile LONG64*    pData   = reinterpret_cast<volatile LONG64*>( &m_Accumulator );
 			LONG64		        expected;
 
-            CombinedAccumulator current, next;
+            ALIGN8 CombinedAccumulator current; ALIGN8_POST
+			ALIGN8 CombinedAccumulator next; ALIGN8_POST
 			current.m_Combined = *pData;
     
             do
@@ -44,25 +45,25 @@ public:
 				next.m_Split.y = current.m_Split.y + y;
 
                 expected = current.m_Combined;
-                current.m_Combined = _InterlockedCompareExchange64( pData, next.m_Combined, current.m_Combined );
+				current.m_Combined = ThreadInterlockedCompareExchange64( pData, next.m_Combined, current.m_Combined );
             } while ( current.m_Combined != expected );
         }
 
         void Set(const int x, const int y)
         { 
-            CombinedAccumulator points;
+            ALIGN8 CombinedAccumulator points ALIGN8_POST;
 			points.m_Split.x = x;
 			points.m_Split.y = y;
 
-            _InterlockedExchange64( reinterpret_cast<volatile LONG64*>( &m_Accumulator ), points.m_Combined );
+            ThreadInterlockedExchange64( reinterpret_cast<volatile int64*>( &m_Accumulator ), points.m_Combined );
         }
 
         void Zero() { Set( 0, 0 ); }
 
         void Consume(int& x, int& y)    
         { 
-           CombinedAccumulator old;
-		   old.m_Combined = _InterlockedExchange64( reinterpret_cast<volatile LONG64*>( &m_Accumulator ), 0 );
+           ALIGN8 CombinedAccumulator old ALIGN8_POST;
+			old.m_Combined = ThreadInterlockedExchange64( reinterpret_cast<volatile int64*>( &m_Accumulator ), 0 );
 		   x			  = old.m_Split.x;
 		   y			  = old.m_Split.y;
         }

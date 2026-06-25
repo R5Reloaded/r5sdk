@@ -106,6 +106,16 @@ FORCEINLINE bool ThreadInterlockedAssignIf64(int64 volatile* pDest, int64 value,
 	return _InterlockedCompareExchange64( pDest, value, comperand ) == comperand;
 }
 
+FORCEINLINE int32 ThreadInterlockedExchange( int32 volatile* pDest, int32 value )
+{
+	return InterlockedExchange( (volatile LONG*)pDest, value );
+}
+
+FORCEINLINE int64 ThreadInterlockedExchange64(int64 volatile* pDest, int64 value)
+{
+	return _InterlockedExchange64( (volatile LONG64*)pDest, value );
+}
+
 //-----------------------------------------------------------------------------
 //
 // Thread checking methods.
