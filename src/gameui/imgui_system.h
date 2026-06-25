@@ -8,10 +8,6 @@
 #include "imgui/misc/imgui_snapshot.h"
 #include "imgui_surface.h"
 
-// Max number of surfaces to be installed this is limited to the bit length of
-// CImguiSystem::m_activeSurfaces.
-#define IMGUI_SYSTEM_MAX_SURFACES 64
-
 // Max number of fonts to be loaded and merged.
 #define IMGUI_SYSTEM_MAX_FONTS 16
 
@@ -37,7 +33,6 @@ public:
 	void RenderFrame();
 
 	bool IsSurfaceActive() const;
-	void MarkSurfaceActive(const int idx, const bool active);
 
 	// statics:
 	static LRESULT MessageHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -68,11 +63,10 @@ private:
 
 	bool m_enabled;
 	bool m_initialized;
+	bool m_hasActiveSurfacesThisFrame;
 
 	std::atomic_bool m_hasNewFrame;
 	std::atomic_bool m_repeatFrame;
-
-	u64 m_activeSurfaces;
 };
 
 CImguiSystem* ImguiSystem();
