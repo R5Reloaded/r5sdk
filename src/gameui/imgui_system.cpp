@@ -19,6 +19,7 @@
 CImguiSystem::CImguiSystem()
 	: m_enabled(false)
 	, m_initialized(false)
+	, m_isOccluded(false)
 	, m_hasActiveSurfacesThisFrame(false)
 	, m_hasNewFrame(false)
 	, m_repeatFrame(false)
@@ -279,6 +280,27 @@ void CImguiSystem::SampleFrame()
 	Assert(ThreadInMainThread(), "CImguiSystem::SampleFrame() should only be called from the main thread!");
 	Assert(IsInitialized());
 
+	UpdateOcclusionStatus();
+
+	if (m_isOccluded)
+	{
+		// At least update the activity flag as surfaces can still be disabled
+		// while the game window is occluded.
+		bool active = false;
+
+		FOR_EACH_VEC(m_surfaceList, i)
+		{
+			if ((m_surfaceList[i])->IsActivated())
+			{
+				active = true;
+				break;
+			}
+		}
+
+		m_hasActiveSurfacesThisFrame = active;
+		return;
+	}
+
 	ImGui_ImplDX11_NewFrame();
 
 	// See https://github.com/ocornut/imgui/issues/6895
@@ -322,6 +344,9 @@ void CImguiSystem::SwapBuffers()
 	Assert(ThreadInMainThread(), "CImguiSystem::SwapBuffers() should only be called from the main thread!");
 	Assert(IsInitialized());
 
+	if (m_isOccluded)
+		return;
+
 	ImDrawData* const drawData = ImGui::GetDrawData();
 	Assert(drawData);
 
@@ -357,6 +382,26 @@ void CImguiSystem::RenderFrame()
 bool CImguiSystem::IsSurfaceActive() const
 {
 	return m_hasActiveSurfacesThisFrame;
+}
+
+//-----------------------------------------------------------------------------
+// Checks whether our window has been occluded.
+//-----------------------------------------------------------------------------
+bool CImguiSystem::IsOccluded() const
+{
+	HWND window = g_pGame->GetWindow();
+	return IsIconic(window);
+}
+
+//-----------------------------------------------------------------------------
+// Updates the window occlusion state which is used to determine if we can
+// sample frames and swap them later on.
+//-----------------------------------------------------------------------------
+void CImguiSystem::UpdateOcclusionStatus()
+{
+	m_isOccluded = !IsInitialized()
+		? true
+		: IsOccluded();
 }
 
 //-----------------------------------------------------------------------------

@@ -34,6 +34,9 @@ public:
 
 	bool IsSurfaceActive() const;
 
+	bool IsOccluded() const;
+	void UpdateOcclusionStatus();
+
 	void ClampActiveWindowToScreenRect() const;
 
 	// statics:
@@ -65,6 +68,7 @@ private:
 
 	bool m_enabled;
 	bool m_initialized;
+	bool m_isOccluded;
 	bool m_hasActiveSurfacesThisFrame;
 
 	std::atomic_bool m_hasNewFrame;
