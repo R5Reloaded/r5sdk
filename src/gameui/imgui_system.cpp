@@ -279,8 +279,6 @@ void CImguiSystem::SampleFrame()
 	Assert(ThreadInMainThread(), "CImguiSystem::SampleFrame() should only be called from the main thread!");
 	Assert(IsInitialized());
 
-	AUTO_LOCK(m_inputEventQueueMutex);
-
 	ImGui_ImplDX11_NewFrame();
 
 	// See https://github.com/ocornut/imgui/issues/6895
