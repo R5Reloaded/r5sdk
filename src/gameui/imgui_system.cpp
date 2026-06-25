@@ -10,6 +10,7 @@
 
 #include "tier1/keyvalues.h"
 #include "filesystem/filesystem.h"
+#include "inputsystem/inputsystem.h"
 #include "imgui_system.h"
 #include "imgui/misc/ImGuiNotify.hpp"
 
@@ -21,6 +22,8 @@ CImguiSystem::CImguiSystem()
 	, m_initialized(false)
 	, m_isOccluded(false)
 	, m_hasActiveSurfacesThisFrame(false)
+	, m_hasInputFocus(false)
+	, m_wantsMouseDuringLastClick(true)
 	, m_hasNewFrame(false)
 	, m_repeatFrame(false)
 {
@@ -329,6 +332,25 @@ void CImguiSystem::SampleFrame()
 
 	ClampActiveWindowToScreenRect();
 
+	const ImGuiIO& io = ImGui::GetIO(); // Check if we clicked outside any window.
+	bool closeAll = false;
+
+	if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+	{
+		// Make sure that during the time we clicked, that this took
+		// place while Dear ImGui still wants input (this is needed
+		// to avoid events such as clicking on the imgui window, then
+		// dragging the cursor outside of it and releasing as that
+		// would close them too with the old logic of just checking
+		// io.WantCaptureMouse directly after the release event!
+		m_wantsMouseDuringLastClick = io.WantCaptureMouse;
+	}
+	else if (!m_wantsMouseDuringLastClick && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+	{
+		m_wantsMouseDuringLastClick = true;
+		closeAll = true;
+	}
+
 	int numActiveSurfaces = 0;
 
 	FOR_EACH_VEC(m_surfaceList, i)
@@ -337,10 +359,25 @@ void CImguiSystem::SampleFrame()
 		surface->RunFrame();
 
 		if (surface->IsActivated())
-			numActiveSurfaces++;
+		{
+			if (closeAll)
+				surface->SetActive(false);
+			else
+				numActiveSurfaces++;
+		}
 	}
 
 	m_hasActiveSurfacesThisFrame = numActiveSurfaces > 0;
+	const bool shouldHaveInputFocus = m_hasActiveSurfacesThisFrame;
+
+	if (m_hasInputFocus != shouldHaveInputFocus)
+	{
+		g_pInputSystem->EnableInput(!shouldHaveInputFocus);
+		m_hasInputFocus = shouldHaveInputFocus;
+
+		DevMsg(eDLL_T::ENGINE, "%s: input focus to imgui system has been %s\n",
+			__FUNCTION__, shouldHaveInputFocus ? "enabled" : "disabled");
+	}
 
 	ImGuiSystem_RenderNotifications();
 

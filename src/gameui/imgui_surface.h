@@ -23,9 +23,10 @@ public:
 	virtual void SetStyleVar();
 	virtual void SetRect(const float width, const float height, const float x, const float y);
 
-	// inlines:
-	inline void ToggleActive() { m_activated ^= true; }
+	virtual void ToggleActive() { m_activated ^= true; }
+	virtual void SetActive(const bool active) { m_activated = active; }
 
+	// inlines:
 	inline bool IsActivated() const { return m_activated; }
 	inline bool IsVisible() const { return m_fadeAlpha > 0.0f; }
 

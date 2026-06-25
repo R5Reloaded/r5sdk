@@ -71,6 +71,9 @@ private:
 	bool m_isOccluded;
 	bool m_hasActiveSurfacesThisFrame;
 
+	bool m_hasInputFocus;
+	bool m_wantsMouseDuringLastClick;
+
 	std::atomic_bool m_hasNewFrame;
 	std::atomic_bool m_repeatFrame;
 };
