@@ -12,6 +12,7 @@
 #include "filesystem/filesystem.h"
 #include "imgui_system.h"
 #include "imgui/misc/ImGuiNotify.hpp"
+#include "inputsystem/inputstacksystem.h"
 
 //-----------------------------------------------------------------------------
 // Constructors/Destructors.
@@ -67,6 +68,8 @@ bool CImguiSystem::Init()
 		return false;
 	}
 
+    m_hImguiInputCtx = g_pInputStackSystem->PushInputContext();
+
 	m_initialized = true;
 	m_hasNewFrame = false;
 
@@ -92,9 +95,11 @@ void CImguiSystem::Shutdown()
 	m_snapshotData.Clear();
 	ImGui::DestroyContext();
 
+    g_pInputStackSystem->PopInputContext( m_hImguiInputCtx );
+
 	m_initialized = false;
 	m_hasNewFrame = false;
-
+    
 	m_surfaceList.Purge();
 }
 
@@ -286,7 +291,11 @@ void CImguiSystem::SampleFrame()
 		surface->RunFrame();
 	}
 
-	ImGuiSystem_RenderNotifications();
+    const bool bSurfaceActive = IsSurfaceActive();
+    g_pInputStackSystem->SetCursorVisible( m_hImguiInputCtx, bSurfaceActive );
+	g_pInputStackSystem->EnableInputContext( m_hImguiInputCtx, bSurfaceActive );
+
+    ImGuiSystem_RenderNotifications();
 
 	ImGui::EndFrame();
 	ImGui::Render();

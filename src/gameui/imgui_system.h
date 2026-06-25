@@ -7,6 +7,7 @@
 #define IMGUI_SYSTEM_H
 #include "imgui/misc/imgui_snapshot.h"
 #include "imgui_surface.h"
+#include "inputsystem/iinputstacksystem.h"
 
 // Max number of fonts to be loaded and merged.
 #define IMGUI_SYSTEM_MAX_FONTS 16
@@ -60,6 +61,7 @@ private:
 	// is ran in thread separate from the main thread, therefore it needs a
 	// lock to control access as main calls SampleFrame().
 	mutable CThreadMutex m_inputEventQueueMutex;
+	InputContextHandle_t m_hImguiInputCtx;
 
 	bool m_enabled;
 	bool m_initialized;
