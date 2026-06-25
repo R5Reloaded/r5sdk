@@ -286,6 +286,8 @@ void CImguiSystem::SampleFrame()
 
 	ImGui::NewFrame();
 
+	ClampActiveWindowToScreenRect();
+
 	int numActiveSurfaces = 0;
 
 	FOR_EACH_VEC(m_surfaceList, i)
@@ -350,6 +352,29 @@ void CImguiSystem::RenderFrame()
 bool CImguiSystem::IsSurfaceActive() const
 {
 	return m_hasActiveSurfacesThisFrame;
+}
+
+//-----------------------------------------------------------------------------
+// Clamps the cursor to the rect of the game window
+//-----------------------------------------------------------------------------
+void CImguiSystem::ClampActiveWindowToScreenRect() const
+{
+	if (!ImGui::IsAnyItemActive() || !ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+		return; // Not dragging anything.
+
+	RECT rect;
+	if (!GetClientRect(g_pGame->GetWindow(), &rect))
+		return;
+
+	POINT pt;
+	if (!GetCursorPos(&pt))
+		return;
+
+	if (!ScreenToClient(g_pGame->GetWindow(), &pt))
+		return;
+
+	if (pt.x < 0 || pt.y < 0 || pt.x >= rect.right || pt.y >= rect.bottom)
+		ImGui::ClearActiveID(); // Drop it here so we won't drag it outside our game window.
 }
 
 //-----------------------------------------------------------------------------

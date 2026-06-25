@@ -34,6 +34,8 @@ public:
 
 	bool IsSurfaceActive() const;
 
+	void ClampActiveWindowToScreenRect() const;
+
 	// statics:
 	static LRESULT MessageHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
