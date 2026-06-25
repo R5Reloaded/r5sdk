@@ -282,9 +282,16 @@ void CImguiSystem::SampleFrame()
 	AUTO_LOCK(m_inputEventQueueMutex);
 
 	ImGui_ImplDX11_NewFrame();
-	ImGui_ImplWin32_NewFrame();
 
-	ImGui::NewFrame();
+	// See https://github.com/ocornut/imgui/issues/6895
+	// Only the following functions modify g.InputEventsQueue[],
+	// so we could get away with scoping the mutex.
+	{
+		AUTO_LOCK(m_inputEventQueueMutex);
+
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+	}
 
 	ClampActiveWindowToScreenRect();
 
