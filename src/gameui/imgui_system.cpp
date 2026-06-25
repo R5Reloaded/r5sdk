@@ -21,7 +21,7 @@ CImguiSystem::CImguiSystem()
 	: m_enabled(false)
 	, m_initialized(false)
 	, m_isOccluded(false)
-	, m_hasActiveSurfacesThisFrame(false)
+	, m_hasActiveSurfaceThisFrame(false)
 	, m_hasInputFocus(false)
 	, m_wantsMouseDuringLastClick(true)
 	, m_hasNewFrame(false)
@@ -314,7 +314,7 @@ void CImguiSystem::SampleFrame()
 			}
 		}
 
-		m_hasActiveSurfacesThisFrame = active;
+		m_hasActiveSurfaceThisFrame = active;
 		return;
 	}
 
@@ -367,8 +367,8 @@ void CImguiSystem::SampleFrame()
 		}
 	}
 
-	m_hasActiveSurfacesThisFrame = numActiveSurfaces > 0;
-	const bool shouldHaveInputFocus = m_hasActiveSurfacesThisFrame;
+	m_hasActiveSurfaceThisFrame = numActiveSurfaces > 0;
+	const bool shouldHaveInputFocus = m_hasActiveSurfaceThisFrame;
 
 	if (m_hasInputFocus != shouldHaveInputFocus)
 	{
@@ -432,7 +432,7 @@ void CImguiSystem::RenderFrame()
 //-----------------------------------------------------------------------------
 bool CImguiSystem::IsSurfaceActive() const
 {
-	return m_hasActiveSurfacesThisFrame;
+	return m_hasActiveSurfaceThisFrame;
 }
 
 //-----------------------------------------------------------------------------

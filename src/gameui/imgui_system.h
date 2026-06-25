@@ -69,7 +69,7 @@ private:
 	bool m_enabled;
 	bool m_initialized;
 	bool m_isOccluded;
-	bool m_hasActiveSurfacesThisFrame;
+	bool m_hasActiveSurfaceThisFrame;
 
 	bool m_hasInputFocus;
 	bool m_wantsMouseDuringLastClick;
