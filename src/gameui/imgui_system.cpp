@@ -235,6 +235,7 @@ void CImguiSystem::AddSurface(CImguiSurface* const surface)
 	Assert(IsInitialized());
 
 	const int numSurfaces = m_surfaceList.Count();
+	Assert(numSurfaces < IMGUI_SYSTEM_MAX_SURFACES);
 
 	if (numSurfaces == IMGUI_SYSTEM_MAX_SURFACES)
 	{
