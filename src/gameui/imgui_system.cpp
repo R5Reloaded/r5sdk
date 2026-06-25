@@ -119,6 +119,9 @@ void CImguiSystem::SetupIO() const
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_IsSRGB;
 
+	io.IniFilename = "platform\\cfg\\user\\imgui.ini";
+	io.LogFilename = "platform\\logs\\imgui_log.txt";
+
 	SetupFonts();
 }
 
