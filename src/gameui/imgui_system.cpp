@@ -21,6 +21,7 @@ CImguiSystem::CImguiSystem()
 	, m_initialized(false)
 	, m_hasNewFrame(false)
 	, m_repeatFrame(false)
+	, m_activeSurfaces(0)
 {
 }
 
@@ -232,6 +233,15 @@ void CImguiSystem::LoadFont(const char* const fontPath, const bool mergeMode, co
 void CImguiSystem::AddSurface(CImguiSurface* const surface)
 {
 	Assert(IsInitialized());
+
+	const int numSurfaces = m_surfaceList.Count();
+
+	if (numSurfaces == IMGUI_SYSTEM_MAX_SURFACES)
+	{
+		Error(eDLL_T::ENGINE, EXIT_FAILURE, "%s: out of room installing surface %p(\"%s\"); reached code limit of %d!\n",
+			__FUNCTION__, surface, surface->m_surfaceLabel, IMGUI_SYSTEM_MAX_SURFACES);
+	}
+
 	m_surfaceList.AddToTail(surface);
 }
 
@@ -241,7 +251,15 @@ void CImguiSystem::AddSurface(CImguiSurface* const surface)
 void CImguiSystem::RemoveSurface(CImguiSurface* const surface)
 {
 	Assert(!IsInitialized());
-	m_surfaceList.FindAndRemove(surface);
+	const int idx = m_surfaceList.Find(surface);
+
+	if (idx != m_surfaceList.InvalidIndex())
+	{
+		m_surfaceList.Remove(idx);
+		MarkSurfaceActive(idx, false);
+	}
+	else
+		Assert(0);
 }
 
 inline void ImGuiSystem_RenderNotifications()
@@ -284,6 +302,9 @@ void CImguiSystem::SampleFrame()
 	{
 		CImguiSurface* const surface = m_surfaceList[i];
 		surface->RunFrame();
+
+		const bool active = surface->IsActivated();
+		MarkSurfaceActive(i, active);
 	}
 
 	ImGuiSystem_RenderNotifications();
@@ -336,13 +357,15 @@ void CImguiSystem::RenderFrame()
 //-----------------------------------------------------------------------------
 bool CImguiSystem::IsSurfaceActive() const
 {
-	FOR_EACH_VEC(m_surfaceList, i)
-	{
-		if (m_surfaceList[i]->IsActivated())
-			return true;
-	}
+	return m_activeSurfaces & (IMGUI_SYSTEM_MAX_SURFACES-1);
+}
 
-	return false;
+//-----------------------------------------------------------------------------
+// Marks a specific surface as active.
+//-----------------------------------------------------------------------------
+void CImguiSystem::MarkSurfaceActive(const int idx, const bool active)
+{
+	m_activeSurfaces = (m_activeSurfaces & ~(1ull << idx)) | ((u64)active << idx);
 }
 
 //-----------------------------------------------------------------------------

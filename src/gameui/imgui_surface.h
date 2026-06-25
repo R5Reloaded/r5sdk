@@ -7,6 +7,7 @@
 
 class CImguiSurface
 {
+	friend class CImguiSystem;
 public:
 	CImguiSurface();
 	virtual ~CImguiSurface() { };
