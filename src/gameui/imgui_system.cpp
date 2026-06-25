@@ -60,10 +60,21 @@ bool CImguiSystem::Init()
 
 	SetupIO();
 
-	if (!ImGui_ImplWin32_Init(g_pGame->GetWindow()) || 
-		!ImGui_ImplDX11_Init(D3D11Device(), D3D11DeviceContext()))
+	if (!ImGui_ImplWin32_Init(g_pGame->GetWindow()))
 	{
 		Assert(0);
+		ImGui::DestroyContext(context);
+
+		m_enabled = false;
+		return false;
+	}
+
+	if (!ImGui_ImplDX11_Init(D3D11Device(), D3D11DeviceContext()))
+	{
+		Assert(0);
+
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext(context);
 
 		m_enabled = false;
 		return false;
