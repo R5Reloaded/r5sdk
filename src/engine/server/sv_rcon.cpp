@@ -625,7 +625,14 @@ void CRConServer::Disconnect(const int nIndex, const char* szReason) // NETMGR
 		}
 
 		Msg(eDLL_T::SERVER, "Connection to '%s' lost (%s)\n", netAdr.ToString(), szReason);
-		m_nAuthConnections--;
+
+		if (--m_nAuthConnections < sv_rcon_maxconnections.GetInt())
+		{
+			if (!m_Socket.IsListening())
+			{
+				m_Socket.CreateListenSocket(m_Address);
+			}
+		}
 	}
 
 	m_Socket.CloseAcceptedSocket(nIndex);
