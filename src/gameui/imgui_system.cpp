@@ -22,6 +22,7 @@ CImguiSystem::CImguiSystem()
 	, m_initialized(false)
 	, m_hasNewFrame(false)
 	, m_repeatFrame(false)
+	, m_hImguiInputCtx(INPUT_CONTEXT_HANDLE_INVALID)
 {
 }
 
@@ -290,7 +291,7 @@ void CImguiSystem::SampleFrame()
 		CImguiSurface* const surface = m_surfaceList[i];
 		surface->RunFrame();
 	}
-
+	
     const bool bSurfaceActive = IsSurfaceActive();
     g_pInputStackSystem->SetCursorVisible( m_hImguiInputCtx, bSurfaceActive );
 	g_pInputStackSystem->EnableInputContext( m_hImguiInputCtx, bSurfaceActive );

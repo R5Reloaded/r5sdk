@@ -41,6 +41,8 @@ public:
 	// inlines:
 	inline bool IsEnabled() const { return m_enabled; };
 	inline bool IsInitialized() const { return m_initialized; };
+	inline InputContextHandle_t GetInputContext() const { return m_hImguiInputCtx; };
+	inline void					SetInputContext( InputContextHandle_t hCtx ) { m_hImguiInputCtx = hCtx; };
 
 	// when explicitly disabled, surfaces such as the console could query
 	// whether to run code that isn't directly tied to rendering, i.e. to

@@ -14,6 +14,7 @@
 #include <engine/sys_mainwind.h>
 #include <materialsystem/cmatqueuedrendercontext.h>
 #include <tier0/frametask.h>
+#include <gameui/imgui_system.h>
 
 HANDLE CInputSystem::s_hRawInputThread = NULL;
 HANDLE CInputSystem::s_hRawInputShutdownEvent = NULL;
@@ -154,7 +155,7 @@ LRESULT CInputSystem::WindowProc(void* unused, HWND hwnd, UINT uMsg, WPARAM wPar
     {
         return 0;
     }
-
+    
 	return CInputSystem__WindowProc( unused, hwnd, uMsg, wParam, lParam );
 }
 
@@ -291,6 +292,17 @@ void CInputSystem::GetRawMouseAccumulators_(CInputSystem* thisp, int& accumX, in
     thisp->m_MouseAccum.Consume( accumX, accumY );
 }
 
+void CInputSystem__SetMouseCursorVisibleHk(CInputSystem* thisp, bool bVisible)
+{
+    if (!bVisible && ImguiSystem()->IsSurfaceActive())
+    {
+		CInputSystem__SetMouseCursorVisible( thisp, true );
+		return;
+    }
+
+    CInputSystem__SetMouseCursorVisible( thisp, bVisible );
+}
+
 void VInputSystem::Detour(const bool bAttach) const
 {
     DetourSetup( &CInputSystem__Connect, &CInputSystem::Connect_, bAttach );
@@ -300,6 +312,7 @@ void VInputSystem::Detour(const bool bAttach) const
 
     DetourSetup( &CInputSystem__EnableMouseCapture, &CInputSystem::EnableMouseCaptureExH, bAttach );
 	DetourSetup( &CInputSystem__DisableMouseCapture, &CInputSystem::DisableMouseCaptureH, bAttach );
+	DetourSetup( &CInputSystem__SetMouseCursorVisible, &CInputSystem__SetMouseCursorVisibleHk, bAttach );
 
 	DetourSetup( &v_SetCursor, &SetCursorThreadAware, bAttach );
 }

@@ -45,12 +45,13 @@ public:
 	virtual void SetCursorPosition( InputContextHandle_t hContext, int x, int y );
 	virtual bool IsTopmostEnabledContext( InputContextHandle_t hContext ) const;
 
-private:
 	// Updates the cursor based on the current state of the input stack
 	void UpdateCursorState();
 
 	CUtlStack< InputContext_t* > m_ContextStack;
 };
+
+inline void ( *CInputStackSystem__UpdateCursorState )( CInputStackSystem* thisp );
 
 // NOTE: we use the engine's implementation of CInputStackSystem, even though
 // we have the entire class implemented in the SDK. If, for whatever reason,
@@ -64,18 +65,22 @@ extern CInputStackSystem* g_pInputStackSystem;
 ///////////////////////////////////////////////////////////////////////////////
 class VInputStackSystem : public IDetour
 {
-	virtual void GetAdr(void) const
-	{
-		LogVarAdr("g_InputStackSystem", g_pInputStackSystem);
+	virtual void GetAdr( void ) const 
+    { 
+        LogFunAdr( "CInputStackSystem::UpdateCursorState", CInputStackSystem__UpdateCursorState );
 	}
-	virtual void GetFun(void) const { }
+
+	virtual void GetFun(void) const 
+    { 
+        Module_FindPattern( g_GameDll, "48 83 EC ?? 48 63 51 ?? 48 89 5C 24" ).GetPtr( CInputStackSystem__UpdateCursorState );
+    }
 	virtual void GetVar(void) const
 	{
 		g_pInputStackSystem = Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 48 8B F9 E8 ?? ?? ?? ?? 33 C9").OffsetSelf(0x120)
 			.FindPatternSelf("48 8D", CMemory::Direction::DOWN, 40).ResolveRelativeAddressSelf(0x3, 0x7).RCast<CInputStackSystem*>();
 	}
 	virtual void GetCon(void) const { }
-	virtual void Detour(const bool bAttach) const { };
+	virtual void Detour( const bool bAttach ) const;
 };
 ///////////////////////////////////////////////////////////////////////////////
 

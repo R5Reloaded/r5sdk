@@ -6,6 +6,7 @@
 
 #include "inputsystem.h"
 #include "inputstacksystem.h"
+#include "gameui/imgui_system.h"
 
 // NOTE: This has to be the last file included!
 #include "tier0/memdbgon.h"
@@ -85,7 +86,6 @@ void CInputStackSystem::EnableInputContext( InputContextHandle_t hContext, bool 
 	// Updates the cursor state since the stack changed
 	UpdateCursorState();
 }
-
 
 //-----------------------------------------------------------------------------
 // Allows a context to make the cursor visible;
@@ -206,7 +206,7 @@ void CInputStackSystem::UpdateCursorState()
 
 		if ( pContext->m_bMouseCaptureEnabled )
 		{
-			g_pInputSystem->EnableMouseCapture( g_pInputSystem->GetAttachedWindow() );
+			g_pInputSystem->EnableMouseCapture( );
 		}
 		else
 		{
@@ -232,6 +232,23 @@ void CInputStackSystem::Shutdown()
 	BaseClass::Shutdown();
 }
 
+
+static void CInputStackSystem__UpdateCursorStateHk( CInputStackSystem* thisp)
+{
+    if (ImguiSystem()->GetInputContext() != INPUT_CONTEXT_HANDLE_INVALID)
+    {
+		InputContext_t* pImguiCtx = (InputContext_t*)ImguiSystem()->GetInputContext();
+        if (pImguiCtx->m_bEnabled)
+		{
+			g_pInputSystem->SetCursorIcon( pImguiCtx->m_hCursorIcon );
+			g_pInputSystem->DisableMouseCapture();
+			return;
+        }
+    }
+
+    CInputStackSystem__UpdateCursorState(thisp);
+}
+
 //-----------------------------------------------------------------------------
 // Get dependencies
 //-----------------------------------------------------------------------------
@@ -244,6 +261,11 @@ static AppSystemInfo_t s_Dependencies[] =
 const AppSystemInfo_t* CInputStackSystem::GetDependencies()
 {
 	return s_Dependencies;
+}
+
+void VInputStackSystem::Detour( const bool bAttch ) const
+{
+	DetourSetup( &CInputStackSystem__UpdateCursorState, CInputStackSystem__UpdateCursorStateHk, bAttch );
 }
 
 //-----------------------------------------------------------------------------
