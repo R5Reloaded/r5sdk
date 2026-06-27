@@ -335,10 +335,10 @@ SocketHandle_t NetconShared_GetSocketHandle(CNetConBase* pBase, const int iSocke
 void RCON_KeyChanged_f(IConVar* pConVar, const char* pOldString, float flOldValue, ChangeUserData_t pUserData);
 void RCON_PasswordChanged_f(IConVar* pConVar, const char* pOldString, float flOldValue, ChangeUserData_t pUserData);
 
-ConVar rcon_debug("rcon_debug", "0", FCVAR_RELEASE, "Show rcon debug information ( !slower! )");
+ConVar rcon_debug("rcon_debug", "0", FCVAR_RELEASE, "Show RCON debug information ( !slower! )");
 ConVar rcon_encryptframes("rcon_encryptframes", "1", FCVAR_RELEASE, "Whether to encrypt RCON messages");
 ConVar rcon_key("rcon_key", "", FCVAR_SERVER_CANNOT_QUERY | FCVAR_DONTRECORD | FCVAR_RELEASE, "Base64 remote server access encryption key (random if empty or invalid)", &RCON_KeyChanged_f);
-ConVar rcon_maxframesize("rcon_maxframesize", "2048", FCVAR_RELEASE, "Max number of bytes allowed in a RCON message", true, 128.f, true, 4096.f);
+ConVar rcon_maxframesize("rcon_maxframesize", "2048", FCVAR_RELEASE, "Max number of bytes allowed in an RCON message", true, 128.f, true, 4096.f);
 
 //-----------------------------------------------------------------------------
 // Purpose: change RCON key on server and client
