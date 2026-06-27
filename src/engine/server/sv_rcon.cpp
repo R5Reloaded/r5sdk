@@ -91,6 +91,8 @@ void CRConServer::Init(const char* pPassword, const char* pNetKey)
 	}
 
 	const char* const pszAddress = sv_rcon_useloopbacksocket.GetBool() ? NET_IPV6_LOOPBACK : NET_IPV6_UNSPEC;
+	const bool reuseSocket = CommandLine()->FindParm("-reuse") != 0;
+
 	const static int maxRetries = 64;
 
 	for (int portOffset = 0; portOffset < maxRetries; portOffset++)
@@ -103,7 +105,7 @@ void CRConServer::Init(const char* pPassword, const char* pNetKey)
 			return;
 		}
 
-		m_bSocketFailure = !m_Socket.CreateListenSocket(m_Address);
+		m_bSocketFailure = !m_Socket.CreateListenSocket(m_Address, true, reuseSocket);
 
 		if (!m_bSocketFailure)
 			break; // Successful bind, break out early.
