@@ -91,7 +91,7 @@ bool CSocketCreator::CreateListenSocket(const netadr_t& netAdr, bool bDualStack,
 
 	if (m_hListenSocket != INVALID_SOCKET)
 	{
-		if (!ConfigureSocket(m_hListenSocket, bDualStack))
+		if (!ConfigureSocket(m_hListenSocket, bDualStack, bReuse))
 		{
 			CloseListenSocket();
 			return false;
