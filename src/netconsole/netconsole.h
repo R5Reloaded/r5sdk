@@ -36,13 +36,15 @@ public:
 	virtual bool Connect(const char* pHostName, const int nHostPort = SOCKET_ERROR) override;
 	virtual void Disconnect(const char* szReason = nullptr) override;
 
-	virtual bool ProcessMessage(const byte* pMsgBuf, const u32 nMsgLen, const u32 nMaxLen) override;
+	virtual bool ProcessMessage(ConnectedNetConsoleData_s& data, const u32 nMaxLen) override;
 
 	void TrySetKey(const char* const pKey);
-	bool Serialize(vector<byte>& vecBuf, const char* szReqBuf, const size_t nReqMsgLen,
+	bool Serialize(ConnectedNetConsoleData_s& data, vector<byte>& vecBuf, const char* szReqBuf, const size_t nReqMsgLen,
 		const char* szReqVal, const size_t nReqValLen, const netcon::request_e requestType) const;
 
 	SocketHandle_t GetSocket(void);
+	ConnectedNetConsoleData_s* GetData(void);
+
 	bool IsInitialized(void) const;
 	bool IsConnected(void);
 

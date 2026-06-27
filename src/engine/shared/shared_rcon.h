@@ -17,16 +17,16 @@ extern void RCON_InitClientAndTrySyncKeys();
 #endif // !DEDICATED
 #endif // _TOOLS
 
-bool NetconServer_Serialize(const CNetConBase* pBase, vector<byte>& vecBuf,
+bool NetconServer_Serialize(const CNetConBase* pBase, ConnectedNetConsoleData_s& data, vector<byte>& vecBuf,
 	const char* pResponseMsg, const size_t nResponseMsgLen, const char* pResponseVal, const size_t nResponseValLen,
 	const netcon::response_e responseType, const int nMessageId, const int nMessageType, const bool bEncrypt, const bool bDebug);
 
-bool NetconClient_Serialize(const CNetConBase* pBase, vector<byte>& vecBuf, const char* szReqBuf, const size_t nReqMsgLen,
+bool NetconClient_Serialize(const CNetConBase* pBase, ConnectedNetConsoleData_s& data, vector<byte>& vecBuf, const char* szReqBuf, const size_t nReqMsgLen,
 	const char* szReqVal, const size_t nReqValLen, const netcon::request_e requestType, const bool bEncrypt, const bool bDebug);
 bool NetconClient_Connect(CNetConBase* pBase, const char* pHostAdr, const int nHostPort);
 
-bool NetconShared_PackEnvelope(const CNetConBase* pBase, vector<byte>& outMsgBuf, const u32 nMsgLen, google::protobuf::MessageLite* const inMsg, const bool bEncrypt, const bool bDebug);
-bool NetconShared_UnpackEnvelope(const CNetConBase* pBase, const byte* pMsgBuf, const u32 nMsgLen, const u32 nMaxLen, google::protobuf::MessageLite* const outMsg, const bool bDebug);
+bool NetconShared_PackEnvelope(const CNetConBase* pBase, ConnectedNetConsoleData_s& data, vector<byte>& outMsgBuf, const u32 nMsgLen, google::protobuf::MessageLite* const inMsg, const bool bEncrypt, const bool bDebug);
+bool NetconShared_UnpackEnvelope(const CNetConBase* pBase, ConnectedNetConsoleData_s& data, const u32 nMaxLen, google::protobuf::MessageLite* const outMsg, const bool bDecrypt, const bool bDebug);
 
 ConnectedNetConsoleData_s* NetconShared_GetConnData(CNetConBase* pBase, const int iSocket);
 SocketHandle_t NetconShared_GetSocketHandle(CNetConBase* pBase, const int iSocket);

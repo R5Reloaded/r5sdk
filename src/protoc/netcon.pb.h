@@ -46,6 +46,9 @@ namespace netcon {
 class envelope;
 struct envelopeDefaultTypeInternal;
 extern envelopeDefaultTypeInternal _envelope_default_instance_;
+class header;
+struct headerDefaultTypeInternal;
+extern headerDefaultTypeInternal _header_default_instance_;
 class request;
 struct requestDefaultTypeInternal;
 extern requestDefaultTypeInternal _request_default_instance_;
@@ -55,6 +58,7 @@ extern responseDefaultTypeInternal _response_default_instance_;
 }  // namespace netcon
 PROTOBUF_NAMESPACE_OPEN
 template<> ::netcon::envelope* Arena::CreateMaybeMessage<::netcon::envelope>(Arena*);
+template<> ::netcon::header* Arena::CreateMaybeMessage<::netcon::header>(Arena*);
 template<> ::netcon::request* Arena::CreateMaybeMessage<::netcon::request>(Arena*);
 template<> ::netcon::response* Arena::CreateMaybeMessage<::netcon::response>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
@@ -515,6 +519,147 @@ class response final :
 };
 // -------------------------------------------------------------------
 
+class header final :
+    public ::PROTOBUF_NAMESPACE_ID::MessageLite /* @@protoc_insertion_point(class_definition:netcon.header) */ {
+ public:
+  inline header() : header(nullptr) {}
+  ~header() override;
+  explicit PROTOBUF_CONSTEXPR header(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  header(const header& from);
+  header(header&& from) noexcept
+    : header() {
+    *this = ::std::move(from);
+  }
+
+  inline header& operator=(const header& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline header& operator=(header&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const header& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const header* internal_default_instance() {
+    return reinterpret_cast<const header*>(
+               &_header_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    2;
+
+  friend void swap(header& a, header& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(header* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(header* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  header* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<header>(arena);
+  }
+  void CheckTypeAndMergeFrom(const ::PROTOBUF_NAMESPACE_ID::MessageLite& from)  final;
+  void CopyFrom(const header& from);
+  void MergeFrom(const header& from);
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  uint8_t* _InternalSerialize(
+      uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena, bool is_message_owned);
+  void SharedDtor();
+  void SetCachedSize(int size) const;
+  void InternalSwap(header* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "netcon.header";
+  }
+  protected:
+  explicit header(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  public:
+
+  std::string GetTypeName() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kSeqNrFieldNumber = 1,
+    kSessionIdFieldNumber = 2,
+  };
+  // uint64 seqNr = 1;
+  void clear_seqnr();
+  uint64_t seqnr() const;
+  void set_seqnr(uint64_t value);
+  private:
+  uint64_t _internal_seqnr() const;
+  void _internal_set_seqnr(uint64_t value);
+  public:
+
+  // uint64 sessionId = 2;
+  void clear_sessionid();
+  uint64_t sessionid() const;
+  void set_sessionid(uint64_t value);
+  private:
+  uint64_t _internal_sessionid() const;
+  void _internal_set_sessionid(uint64_t value);
+  public:
+
+  // @@protoc_insertion_point(class_scope:netcon.header)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    uint64_t seqnr_;
+    uint64_t sessionid_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_netcon_2eproto;
+};
+// -------------------------------------------------------------------
+
 class envelope final :
     public ::PROTOBUF_NAMESPACE_ID::MessageLite /* @@protoc_insertion_point(class_definition:netcon.envelope) */ {
  public:
@@ -554,7 +699,7 @@ class envelope final :
                &_envelope_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    2;
+    3;
 
   friend void swap(envelope& a, envelope& b) {
     a.Swap(&b);
@@ -618,25 +763,40 @@ class envelope final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kNonceFieldNumber = 2,
-    kDataFieldNumber = 3,
-    kEncryptedFieldNumber = 1,
+    kIvFieldNumber = 2,
+    kTagFieldNumber = 3,
+    kDataFieldNumber = 4,
+    kHeaderFieldNumber = 1,
   };
-  // bytes nonce = 2;
-  void clear_nonce();
-  const std::string& nonce() const;
+  // bytes iv = 2;
+  void clear_iv();
+  const std::string& iv() const;
   template <typename ArgT0 = const std::string&, typename... ArgT>
-  void set_nonce(ArgT0&& arg0, ArgT... args);
-  std::string* mutable_nonce();
-  PROTOBUF_NODISCARD std::string* release_nonce();
-  void set_allocated_nonce(std::string* nonce);
+  void set_iv(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_iv();
+  PROTOBUF_NODISCARD std::string* release_iv();
+  void set_allocated_iv(std::string* iv);
   private:
-  const std::string& _internal_nonce() const;
-  inline PROTOBUF_ALWAYS_INLINE void _internal_set_nonce(const std::string& value);
-  std::string* _internal_mutable_nonce();
+  const std::string& _internal_iv() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_iv(const std::string& value);
+  std::string* _internal_mutable_iv();
   public:
 
-  // bytes data = 3;
+  // bytes tag = 3;
+  void clear_tag();
+  const std::string& tag() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_tag(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_tag();
+  PROTOBUF_NODISCARD std::string* release_tag();
+  void set_allocated_tag(std::string* tag);
+  private:
+  const std::string& _internal_tag() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_tag(const std::string& value);
+  std::string* _internal_mutable_tag();
+  public:
+
+  // bytes data = 4;
   void clear_data();
   const std::string& data() const;
   template <typename ArgT0 = const std::string&, typename... ArgT>
@@ -650,14 +810,23 @@ class envelope final :
   std::string* _internal_mutable_data();
   public:
 
-  // bool encrypted = 1;
-  void clear_encrypted();
-  bool encrypted() const;
-  void set_encrypted(bool value);
+  // .netcon.header header = 1;
+  bool has_header() const;
   private:
-  bool _internal_encrypted() const;
-  void _internal_set_encrypted(bool value);
+  bool _internal_has_header() const;
   public:
+  void clear_header();
+  const ::netcon::header& header() const;
+  PROTOBUF_NODISCARD ::netcon::header* release_header();
+  ::netcon::header* mutable_header();
+  void set_allocated_header(::netcon::header* header);
+  private:
+  const ::netcon::header& _internal_header() const;
+  ::netcon::header* _internal_mutable_header();
+  public:
+  void unsafe_arena_set_allocated_header(
+      ::netcon::header* header);
+  ::netcon::header* unsafe_arena_release_header();
 
   // @@protoc_insertion_point(class_scope:netcon.envelope)
  private:
@@ -667,9 +836,10 @@ class envelope final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   struct Impl_ {
-    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr nonce_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr iv_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr tag_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr data_;
-    bool encrypted_;
+    ::netcon::header* header_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -1132,79 +1302,243 @@ inline void response::set_allocated_responseval(std::string* responseval) {
 
 // -------------------------------------------------------------------
 
+// header
+
+// uint64 seqNr = 1;
+inline void header::clear_seqnr() {
+  _impl_.seqnr_ = uint64_t{0u};
+}
+inline uint64_t header::_internal_seqnr() const {
+  return _impl_.seqnr_;
+}
+inline uint64_t header::seqnr() const {
+  // @@protoc_insertion_point(field_get:netcon.header.seqNr)
+  return _internal_seqnr();
+}
+inline void header::_internal_set_seqnr(uint64_t value) {
+  
+  _impl_.seqnr_ = value;
+}
+inline void header::set_seqnr(uint64_t value) {
+  _internal_set_seqnr(value);
+  // @@protoc_insertion_point(field_set:netcon.header.seqNr)
+}
+
+// uint64 sessionId = 2;
+inline void header::clear_sessionid() {
+  _impl_.sessionid_ = uint64_t{0u};
+}
+inline uint64_t header::_internal_sessionid() const {
+  return _impl_.sessionid_;
+}
+inline uint64_t header::sessionid() const {
+  // @@protoc_insertion_point(field_get:netcon.header.sessionId)
+  return _internal_sessionid();
+}
+inline void header::_internal_set_sessionid(uint64_t value) {
+  
+  _impl_.sessionid_ = value;
+}
+inline void header::set_sessionid(uint64_t value) {
+  _internal_set_sessionid(value);
+  // @@protoc_insertion_point(field_set:netcon.header.sessionId)
+}
+
+// -------------------------------------------------------------------
+
 // envelope
 
-// bool encrypted = 1;
-inline void envelope::clear_encrypted() {
-  _impl_.encrypted_ = false;
+// .netcon.header header = 1;
+inline bool envelope::_internal_has_header() const {
+  return this != internal_default_instance() && _impl_.header_ != nullptr;
 }
-inline bool envelope::_internal_encrypted() const {
-  return _impl_.encrypted_;
+inline bool envelope::has_header() const {
+  return _internal_has_header();
 }
-inline bool envelope::encrypted() const {
-  // @@protoc_insertion_point(field_get:netcon.envelope.encrypted)
-  return _internal_encrypted();
+inline void envelope::clear_header() {
+  if (GetArenaForAllocation() == nullptr && _impl_.header_ != nullptr) {
+    delete _impl_.header_;
+  }
+  _impl_.header_ = nullptr;
 }
-inline void envelope::_internal_set_encrypted(bool value) {
-  
-  _impl_.encrypted_ = value;
+inline const ::netcon::header& envelope::_internal_header() const {
+  const ::netcon::header* p = _impl_.header_;
+  return p != nullptr ? *p : reinterpret_cast<const ::netcon::header&>(
+      ::netcon::_header_default_instance_);
 }
-inline void envelope::set_encrypted(bool value) {
-  _internal_set_encrypted(value);
-  // @@protoc_insertion_point(field_set:netcon.envelope.encrypted)
+inline const ::netcon::header& envelope::header() const {
+  // @@protoc_insertion_point(field_get:netcon.envelope.header)
+  return _internal_header();
 }
-
-// bytes nonce = 2;
-inline void envelope::clear_nonce() {
-  _impl_.nonce_.ClearToEmpty();
-}
-inline const std::string& envelope::nonce() const {
-  // @@protoc_insertion_point(field_get:netcon.envelope.nonce)
-  return _internal_nonce();
-}
-template <typename ArgT0, typename... ArgT>
-inline PROTOBUF_ALWAYS_INLINE
-void envelope::set_nonce(ArgT0&& arg0, ArgT... args) {
- 
- _impl_.nonce_.SetBytes(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
-  // @@protoc_insertion_point(field_set:netcon.envelope.nonce)
-}
-inline std::string* envelope::mutable_nonce() {
-  std::string* _s = _internal_mutable_nonce();
-  // @@protoc_insertion_point(field_mutable:netcon.envelope.nonce)
-  return _s;
-}
-inline const std::string& envelope::_internal_nonce() const {
-  return _impl_.nonce_.Get();
-}
-inline void envelope::_internal_set_nonce(const std::string& value) {
-  
-  _impl_.nonce_.Set(value, GetArenaForAllocation());
-}
-inline std::string* envelope::_internal_mutable_nonce() {
-  
-  return _impl_.nonce_.Mutable(GetArenaForAllocation());
-}
-inline std::string* envelope::release_nonce() {
-  // @@protoc_insertion_point(field_release:netcon.envelope.nonce)
-  return _impl_.nonce_.Release();
-}
-inline void envelope::set_allocated_nonce(std::string* nonce) {
-  if (nonce != nullptr) {
+inline void envelope::unsafe_arena_set_allocated_header(
+    ::netcon::header* header) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.header_);
+  }
+  _impl_.header_ = header;
+  if (header) {
     
   } else {
     
   }
-  _impl_.nonce_.SetAllocated(nonce, GetArenaForAllocation());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  if (_impl_.nonce_.IsDefault()) {
-    _impl_.nonce_.Set("", GetArenaForAllocation());
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:netcon.envelope.header)
+}
+inline ::netcon::header* envelope::release_header() {
+  
+  ::netcon::header* temp = _impl_.header_;
+  _impl_.header_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
   }
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  // @@protoc_insertion_point(field_set_allocated:netcon.envelope.nonce)
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::netcon::header* envelope::unsafe_arena_release_header() {
+  // @@protoc_insertion_point(field_release:netcon.envelope.header)
+  
+  ::netcon::header* temp = _impl_.header_;
+  _impl_.header_ = nullptr;
+  return temp;
+}
+inline ::netcon::header* envelope::_internal_mutable_header() {
+  
+  if (_impl_.header_ == nullptr) {
+    auto* p = CreateMaybeMessage<::netcon::header>(GetArenaForAllocation());
+    _impl_.header_ = p;
+  }
+  return _impl_.header_;
+}
+inline ::netcon::header* envelope::mutable_header() {
+  ::netcon::header* _msg = _internal_mutable_header();
+  // @@protoc_insertion_point(field_mutable:netcon.envelope.header)
+  return _msg;
+}
+inline void envelope::set_allocated_header(::netcon::header* header) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete _impl_.header_;
+  }
+  if (header) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(header);
+    if (message_arena != submessage_arena) {
+      header = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, header, submessage_arena);
+    }
+    
+  } else {
+    
+  }
+  _impl_.header_ = header;
+  // @@protoc_insertion_point(field_set_allocated:netcon.envelope.header)
 }
 
-// bytes data = 3;
+// bytes iv = 2;
+inline void envelope::clear_iv() {
+  _impl_.iv_.ClearToEmpty();
+}
+inline const std::string& envelope::iv() const {
+  // @@protoc_insertion_point(field_get:netcon.envelope.iv)
+  return _internal_iv();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void envelope::set_iv(ArgT0&& arg0, ArgT... args) {
+ 
+ _impl_.iv_.SetBytes(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:netcon.envelope.iv)
+}
+inline std::string* envelope::mutable_iv() {
+  std::string* _s = _internal_mutable_iv();
+  // @@protoc_insertion_point(field_mutable:netcon.envelope.iv)
+  return _s;
+}
+inline const std::string& envelope::_internal_iv() const {
+  return _impl_.iv_.Get();
+}
+inline void envelope::_internal_set_iv(const std::string& value) {
+  
+  _impl_.iv_.Set(value, GetArenaForAllocation());
+}
+inline std::string* envelope::_internal_mutable_iv() {
+  
+  return _impl_.iv_.Mutable(GetArenaForAllocation());
+}
+inline std::string* envelope::release_iv() {
+  // @@protoc_insertion_point(field_release:netcon.envelope.iv)
+  return _impl_.iv_.Release();
+}
+inline void envelope::set_allocated_iv(std::string* iv) {
+  if (iv != nullptr) {
+    
+  } else {
+    
+  }
+  _impl_.iv_.SetAllocated(iv, GetArenaForAllocation());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (_impl_.iv_.IsDefault()) {
+    _impl_.iv_.Set("", GetArenaForAllocation());
+  }
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:netcon.envelope.iv)
+}
+
+// bytes tag = 3;
+inline void envelope::clear_tag() {
+  _impl_.tag_.ClearToEmpty();
+}
+inline const std::string& envelope::tag() const {
+  // @@protoc_insertion_point(field_get:netcon.envelope.tag)
+  return _internal_tag();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void envelope::set_tag(ArgT0&& arg0, ArgT... args) {
+ 
+ _impl_.tag_.SetBytes(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:netcon.envelope.tag)
+}
+inline std::string* envelope::mutable_tag() {
+  std::string* _s = _internal_mutable_tag();
+  // @@protoc_insertion_point(field_mutable:netcon.envelope.tag)
+  return _s;
+}
+inline const std::string& envelope::_internal_tag() const {
+  return _impl_.tag_.Get();
+}
+inline void envelope::_internal_set_tag(const std::string& value) {
+  
+  _impl_.tag_.Set(value, GetArenaForAllocation());
+}
+inline std::string* envelope::_internal_mutable_tag() {
+  
+  return _impl_.tag_.Mutable(GetArenaForAllocation());
+}
+inline std::string* envelope::release_tag() {
+  // @@protoc_insertion_point(field_release:netcon.envelope.tag)
+  return _impl_.tag_.Release();
+}
+inline void envelope::set_allocated_tag(std::string* tag) {
+  if (tag != nullptr) {
+    
+  } else {
+    
+  }
+  _impl_.tag_.SetAllocated(tag, GetArenaForAllocation());
+#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (_impl_.tag_.IsDefault()) {
+    _impl_.tag_.Set("", GetArenaForAllocation());
+  }
+#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:netcon.envelope.tag)
+}
+
+// bytes data = 4;
 inline void envelope::clear_data() {
   _impl_.data_.ClearToEmpty();
 }
@@ -1257,6 +1591,8 @@ inline void envelope::set_allocated_data(std::string* data) {
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

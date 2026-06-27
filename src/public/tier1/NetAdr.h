@@ -23,7 +23,7 @@ public:
 	inline void	SetPort(const uint16_t newport)     { port = newport; }
 	inline void	SetType(const netadrtype_t newtype) { type = newtype; }
 
-	bool	SetFromSockadr(struct sockaddr_storage* s);
+	bool	SetFromSockadr(struct sockaddr_in6* s);
 	bool	SetFromString(const char* const pch, const bool bUseDNS = false);
 
 	inline netadrtype_t	GetType(void) const { return type; }
@@ -37,7 +37,7 @@ public:
 	const char*	ToString(const bool onlyBase = false) const;
 	size_t		ToString(char* const pchBuffer, const size_t unBufferSize, const bool onlyBase = false) const;
 	void		ToAdrinfo(addrinfo* pHint) const;
-	void		ToSockadr(struct sockaddr_storage* const s) const;
+	void		ToSockadr(struct sockaddr_in6* const s) const;
 
 private:
 	netadrtype_t type;

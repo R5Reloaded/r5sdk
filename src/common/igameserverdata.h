@@ -38,6 +38,10 @@ struct ConnectedNetConsoleData_s
 	bool validated;        // Revalidates netconsole if false.
 	bool authorized;       // Set to true after successful netconsole auth.
 	bool inputOnly;        // If set, don't send spew to this netconsole.
+	bool isServer;         // Whether this netcon is the server.
+	u64 nextSendSeqNr;     // The sequence number to be used for the next msg to send.
+	u64 lastRecvSeqNr;     // The last recv'd data sequence number from remote.
+	u64 sessionId;         // Unique session ID for this connection.
 	NetConFrameHeader_s frameHeader; // Current frame header.
 	vector<byte> recvBuffer;
 
@@ -51,6 +55,10 @@ struct ConnectedNetConsoleData_s
 		validated = false;
 		authorized = false;
 		inputOnly = true;
+		isServer = false;
+		nextSendSeqNr = 1;
+		lastRecvSeqNr = 0;
+		sessionId = 0;
 		frameHeader.magic = 0;
 		frameHeader.length = 0;
 	}

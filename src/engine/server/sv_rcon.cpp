@@ -5,6 +5,7 @@
 //===========================================================================//
 
 #include "core/stdafx.h"
+#include "tier0/commandline.h"
 #include "tier1/cvar.h"
 #include "tier1/NetAdr.h"
 #include "tier2/socketcreator.h"
@@ -50,8 +51,8 @@ static ConVar sv_rcon_useloopbacksocket("sv_rcon_useloopbacksocket", "0", FCVAR_
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-CRConServer::CRConServer(void)
-	: m_nConnIndex(0)
+CRConServer::CRConServer(void) : CNetConBase(true)
+	, m_nConnIndex(0)
 	, m_nAuthConnections(0)
 	, m_bInitialized(false)
 	, m_bSocketFailure(false)
@@ -185,6 +186,30 @@ void CRConServer::Think(void)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: hashes provided password using sha-512
+// Input  : *password - 
+//			length - 
+//			*hashOut - buf must be as large as RCON_SHA512_HASH_SIZE
+// Output : true on success, false otherwise
+//-----------------------------------------------------------------------------
+static bool RCONServer_HashPassword(const char* const password, const size_t length, u8* const hashOut)
+{
+	const int nHashRet = mbedtls_sha512(reinterpret_cast<const u8*>(password), length, hashOut, NULL);
+
+	if (nHashRet == 0)
+	{
+		return true;
+	}
+
+	if (rcon_debug.GetBool())
+	{
+		Error(eDLL_T::SERVER, 0, "SHA-512 algorithm failed on RCON password \"%s\" [%i]\n", password, nHashRet);
+	}
+
+	return false;
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: changes the password
 // Input  : *pszPassword - 
 // Output : true on success, false otherwise
@@ -212,11 +237,16 @@ bool CRConServer::SetPassword(const char* pszPassword)
 	m_bInitialized = false;
 	m_Socket.CloseAllAcceptedSockets();
 
-	const int nHashRet = mbedtls_sha512(reinterpret_cast<const uint8_t*>(pszPassword), nLen, m_PasswordHash, NULL);
-
-	if (nHashRet != 0)
+	if (!RCONServer_HashPassword(pszPassword, nLen, m_PasswordHash))
 	{
-		Error(eDLL_T::SERVER, 0, "SHA-512 algorithm failed on RCON password [%i]\n", nHashRet);
+		// Note: inverted check because if this is cvar is set, the func
+		// RCONServer_HashPassword will print out a more detailed error.
+		// We want to inform the user either way that the hashing of the
+		// provided password has failed.
+		if (!rcon_debug.GetBool())
+		{
+			Error(eDLL_T::SERVER, 0, "Failed to hash RCON server password\n");
+		}
 
 		if (m_Socket.IsListening())
 		{
@@ -264,7 +294,7 @@ void CRConServer::RunFrame(void)
 
 			if (CheckForBan(data))
 			{
-				SendEncoded(data.socket, s_BannedMessage, sizeof(s_BannedMessage)-1, "", 0,
+				SendEncoded(data, s_BannedMessage, sizeof(s_BannedMessage)-1, "", 0,
 					netcon::response_e::SERVERDATA_RESPONSE_AUTH, int(eDLL_T::NETCON));
 
 				Disconnect("banned");
@@ -320,26 +350,46 @@ bool CRConServer::SendToAll(const byte* pMsgBuf, const u32 nMsgLen) const
 // Output: true on success, false otherwise
 //-----------------------------------------------------------------------------
 bool CRConServer::SendEncoded(const char* pResponseMsg, const size_t nResponseMsgLen, const char* pResponseVal, const size_t nResponseValLen,
-	const netcon::response_e responseType, const int nMessageId, const int nMessageType) const
+	const netcon::response_e responseType, const int nMessageId, const int nMessageType)
 {
-	vector<byte> vecMsg;
-	if (!Serialize(vecMsg, pResponseMsg, nResponseMsgLen, pResponseVal, nResponseValLen,
-		responseType, nMessageId, nMessageType))
+	const int nCount = m_Socket.GetAcceptedSocketCount();
+	bool bSuccess = true;
+
+	for (int i = nCount - 1; i >= 0; i--)
 	{
-		return false;
-	}
-	if (!SendToAll(vecMsg.data(), u32(vecMsg.size())))
-	{
-		Error(eDLL_T::SERVER, NO_ERROR, "Failed to send RCON message: (%s)\n", "SOCKET_ERROR");
-		return false;
+		ConnectedNetConsoleData_s& data = m_Socket.GetAcceptedSocketData(i);
+
+		if (!data.authorized || data.inputOnly)
+			continue;
+
+		vector<byte> vecMsg;
+
+		if (!Serialize(data, vecMsg, pResponseMsg, nResponseMsgLen, pResponseVal, nResponseValLen,
+			responseType, nMessageId, nMessageType))
+		{
+			Error(eDLL_T::SERVER, NO_ERROR, "Failed to serialize RCON message for socket #i\n", i);
+			continue;
+		}
+
+		const int ret = ::send(data.socket, (const char*)vecMsg.data(), (i32)vecMsg.size(), MSG_NOSIGNAL);
+
+		if (ret == SOCKET_ERROR)
+		{
+			Error(eDLL_T::SERVER, NO_ERROR, "Failed to send RCON message to socket #i: (%s)\n", i, "SOCKET_ERROR");
+
+			if (!bSuccess)
+			{
+				bSuccess = false;
+			}
+		}
 	}
 
-	return true;
+	return bSuccess;
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: encode and send message to specific socket
-// Input  : hSocket - 
+// Input  : &data - 
 //			*pResponseMsg - 
 //			nResponseMsgLen - 
 //			*pResponseVal - 
@@ -349,17 +399,17 @@ bool CRConServer::SendEncoded(const char* pResponseMsg, const size_t nResponseMs
 //			nMessageType - 
 // Output: true on success, false otherwise
 //-----------------------------------------------------------------------------
-bool CRConServer::SendEncoded(const SocketHandle_t hSocket, 
+bool CRConServer::SendEncoded(ConnectedNetConsoleData_s& data,
 	const char* pResponseMsg, const size_t nResponseMsgLen, const char* pResponseVal, const size_t nResponseValLen,
 	const netcon::response_e responseType, const int nMessageId, const int nMessageType) const
 {
 	vector<byte> vecMsg;
-	if (!Serialize(vecMsg, pResponseMsg, nResponseMsgLen, pResponseVal, nResponseValLen,
+	if (!Serialize(data, vecMsg, pResponseMsg, nResponseMsgLen, pResponseVal, nResponseValLen,
 		responseType, nMessageId, nMessageType))
 	{
 		return false;
 	}
-	if (!Send(hSocket, vecMsg.data(), u32(vecMsg.size())))
+	if (!Send(data.socket, vecMsg.data(), u32(vecMsg.size())))
 	{
 		Error(eDLL_T::SERVER, NO_ERROR, "Failed to send RCON message: (%s)\n", "SOCKET_ERROR");
 		return false;
@@ -370,7 +420,8 @@ bool CRConServer::SendEncoded(const SocketHandle_t hSocket,
 
 //-----------------------------------------------------------------------------
 // Purpose: serializes input
-// Input  : &vecBuf - 
+// Input  : &data - 
+//			&vecBuf - 
 //			*responseMsg - 
 //			nResponseMsgLen - 
 //			*responseVal - 
@@ -380,11 +431,11 @@ bool CRConServer::SendEncoded(const SocketHandle_t hSocket,
 //			nMessageType - 
 // Output : serialized results as string
 //-----------------------------------------------------------------------------
-bool CRConServer::Serialize(vector<byte>& vecBuf, 
+bool CRConServer::Serialize(ConnectedNetConsoleData_s& data, vector<byte>& vecBuf,
 	const char* pResponseMsg, const size_t nResponseMsgLen, const char* pResponseVal, const size_t nResponseValLen,
 	const netcon::response_e responseType, const int nMessageId, const int nMessageType) const
 {
-	return NetconServer_Serialize(this, vecBuf, pResponseMsg, nResponseMsgLen, pResponseVal, nResponseValLen, responseType, nMessageId, nMessageType,
+	return NetconServer_Serialize(this, data, vecBuf, pResponseMsg, nResponseMsgLen, pResponseVal, nResponseValLen, responseType, nMessageId, nMessageType,
 		rcon_encryptframes.GetBool(), rcon_debug.GetBool());
 }
 
@@ -412,7 +463,7 @@ void CRConServer::Authenticate(const netcon::request& request, ConnectedNetConso
 
 		const char* const pSendLogs = (!sv_rcon_sendlogs.GetBool() || data.inputOnly) ? "0" : "1";
 
-		SendEncoded(data.socket, s_AuthMessage, sizeof(s_AuthMessage)-1, pSendLogs, 1,
+		SendEncoded(data, s_AuthMessage, sizeof(s_AuthMessage)-1, pSendLogs, 1,
 			netcon::response_e::SERVERDATA_RESPONSE_AUTH, static_cast<int>(eDLL_T::NETCON));
 	}
 	else // Bad password.
@@ -423,7 +474,7 @@ void CRConServer::Authenticate(const netcon::request& request, ConnectedNetConso
 			Msg(eDLL_T::SERVER, "Bad RCON password attempt from '%s'\n", netAdr.ToString());
 		}
 
-		SendEncoded(data.socket, s_WrongPwMessage, sizeof(s_WrongPwMessage)-1, "", 0,
+		SendEncoded(data, s_WrongPwMessage, sizeof(s_WrongPwMessage)-1, "", 0,
 			netcon::response_e::SERVERDATA_RESPONSE_AUTH, static_cast<int>(eDLL_T::NETCON));
 
 		data.authorized = false;
@@ -439,9 +490,12 @@ void CRConServer::Authenticate(const netcon::request& request, ConnectedNetConso
 //-----------------------------------------------------------------------------
 bool CRConServer::Comparator(const string& svPassword) const
 {
-	uint8_t clientPasswordHash[RCON_SHA512_HASH_SIZE];
-	mbedtls_sha512(reinterpret_cast<const uint8_t*>(svPassword.c_str()), svPassword.length(),
-		clientPasswordHash, NULL);
+	u8 clientPasswordHash[RCON_SHA512_HASH_SIZE];
+
+	if (!RCONServer_HashPassword(svPassword.c_str(), svPassword.length(), clientPasswordHash))
+	{
+		return false;
+	}
 
 	if (memcmp(clientPasswordHash, m_PasswordHash, RCON_SHA512_HASH_SIZE) == 0)
 	{
@@ -453,28 +507,25 @@ bool CRConServer::Comparator(const string& svPassword) const
 
 //-----------------------------------------------------------------------------
 // Purpose: processes received message
-// Input  : *pMsgBuf - 
-//			nMsgLen - 
+// Input  : &data - 
 //			nMaxLen - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-bool CRConServer::ProcessMessage(const byte* pMsgBuf, const u32 nMsgLen, const u32 nMaxLen)
+bool CRConServer::ProcessMessage(ConnectedNetConsoleData_s& data, const u32 nMaxLen)
 {
 	netcon::request request;
 
-	if (!NetconShared_UnpackEnvelope(this, pMsgBuf, nMsgLen, nMaxLen, &request, rcon_debug.GetBool()))
+	if (!NetconShared_UnpackEnvelope(this, data, nMaxLen, &request, rcon_encryptframes.GetBool(), rcon_debug.GetBool()))
 	{
 		Disconnect("received invalid message");
 		return false;
 	}
 
-	ConnectedNetConsoleData_s& data = m_Socket.GetAcceptedSocketData(m_nConnIndex);
-
 	if (!data.authorized &&
 		request.requesttype() != netcon::request_e::SERVERDATA_REQUEST_AUTH)
 	{
 		// Notify netconsole that authentication is required.
-		SendEncoded(data.socket, s_NoAuthMessage, sizeof(s_NoAuthMessage)-1, "", 0,
+		SendEncoded(data, s_NoAuthMessage, sizeof(s_NoAuthMessage)-1, "", 0,
 			netcon::response_e::SERVERDATA_RESPONSE_AUTH, static_cast<int>(eDLL_T::NETCON));
 
 		data.validated = false;

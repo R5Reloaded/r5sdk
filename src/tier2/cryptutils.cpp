@@ -29,7 +29,7 @@ bool Plat_GenerateRandom(unsigned char* buffer, const uint32_t bufferSize, const
 	return true;
 }
 
-bool Crypto_GenerateIV(CryptoContext_s& ctx, const unsigned char* const data, const size_t size)
+bool Crypto_GenerateIV(CryptoContext_s& ctx, const u8* const data, const size_t size)
 {
 	mbedtls_entropy_context entropy;
 	mbedtls_entropy_init(&entropy);
@@ -39,14 +39,14 @@ bool Crypto_GenerateIV(CryptoContext_s& ctx, const unsigned char* const data, co
 
 	//mbedtls_ctr_drbg_seed will only accept a maximum of MBEDTLS_CTR_DRBG_MAX_SEED_INPUT - MBEDTLS_CTR_DRBG_ENTROPY_LEN as custom data for seed generation
 	//make sure to clamp the number of bytes we ask it to read
-	const size_t customDataLen = min(size, MBEDTLS_CTR_DRBG_MAX_SEED_INPUT - MBEDTLS_CTR_DRBG_ENTROPY_LEN);
+	const size_t customDataLen = Min<size_t>(size, MBEDTLS_CTR_DRBG_MAX_SEED_INPUT - MBEDTLS_CTR_DRBG_ENTROPY_LEN);
 
 	const int seedRet = mbedtls_ctr_drbg_seed(&drbg, mbedtls_entropy_func, &entropy, data, customDataLen);
 	int randRet = MBEDTLS_ERR_ERROR_GENERIC_ERROR;
 
 	if (seedRet == 0)
 	{
-		randRet = mbedtls_ctr_drbg_random(&drbg, ctx.ivData, sizeof(ctx.ivData));
+		randRet = mbedtls_ctr_drbg_random(&drbg, ctx.iv, sizeof(ctx.iv));
 	}
 
 	mbedtls_ctr_drbg_free(&drbg);
@@ -55,38 +55,65 @@ bool Crypto_GenerateIV(CryptoContext_s& ctx, const unsigned char* const data, co
 	return randRet == 0;
 }
 
-static bool Crypto_CTRCrypt(CryptoContext_s& ctx, const unsigned char* const inBuf,
-	unsigned char* const outBuf, const unsigned char* const key, const size_t size)
+bool Crypto_EncryptGCM(CryptoContext_s& ctx, const u8* const inBuf, u8* const outBuf,
+						const CryptoKey_t key, const size_t size,
+						const u8* const aad, const size_t aadSize)
 {
-	mbedtls_aes_context aes;
-	mbedtls_aes_init(&aes);
+	mbedtls_gcm_context gcm;
+	mbedtls_gcm_init(&gcm);
+
+	const int setRet =
+		mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, ctx.keyBits);
 
 	int cryptRet = MBEDTLS_ERR_ERROR_GENERIC_ERROR;
-	const int setRet = mbedtls_aes_setkey_enc(&aes, key, ctx.keyBits);
 
 	if (setRet == 0)
 	{
-		unsigned char nonceCounter[16];
-		unsigned char streamBlock[16];
-
-		size_t offset = 0;
-		memcpy(nonceCounter, ctx.ivData, sizeof(nonceCounter));
-
-		cryptRet = mbedtls_aes_crypt_ctr(&aes, size, &offset, nonceCounter, streamBlock, inBuf, outBuf);
+		cryptRet = mbedtls_gcm_crypt_and_tag(
+			&gcm,
+			MBEDTLS_GCM_ENCRYPT,
+			size,
+			ctx.iv,
+			sizeof(ctx.iv),
+			aad,
+			aadSize,
+			inBuf,
+			outBuf,
+			sizeof(CryptoTag_t),
+			ctx.tag);
 	}
 
-	mbedtls_aes_free(&aes);
+	mbedtls_gcm_free(&gcm);
 	return cryptRet == 0;
 }
 
-bool Crypto_CTREncrypt(CryptoContext_s& ctx, const unsigned char* const inBuf, unsigned char* const outBuf,
-	const unsigned char* const key, const size_t size)
+bool Crypto_DecryptGCM(CryptoContext_s& ctx, const u8* const inBuf, u8* const outBuf,
+						const CryptoKey_t key, const size_t size,
+						const u8* const aad, const size_t aadSize)
 {
-	return Crypto_CTRCrypt(ctx, inBuf, outBuf, key, size);
-}
+	mbedtls_gcm_context gcm;
+	mbedtls_gcm_init(&gcm);
 
-bool Crypto_CTRDecrypt(CryptoContext_s& ctx, const unsigned char* const inBuf, unsigned char* const outBuf,
-	const unsigned char* const key, const size_t size)
-{
-	return Crypto_CTRCrypt(ctx, inBuf, outBuf, key, size);
+	const int setRet =
+		mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, ctx.keyBits);
+
+	int cryptRet = MBEDTLS_ERR_ERROR_GENERIC_ERROR;
+
+	if (setRet == 0)
+	{
+		cryptRet = mbedtls_gcm_auth_decrypt(
+			&gcm,
+			size,
+			ctx.iv,
+			sizeof(ctx.iv),
+			aad,
+			aadSize,
+			ctx.tag,
+			sizeof(CryptoTag_t),
+			inBuf,
+			outBuf);
+	}
+
+	mbedtls_gcm_free(&gcm);
+	return cryptRet == 0;
 }

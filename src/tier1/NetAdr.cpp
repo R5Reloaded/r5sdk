@@ -108,8 +108,10 @@ void CNetAdr::ToAdrinfo(addrinfo* pHint) const
 //////////////////////////////////////////////////////////////////////
 // Converts address to socket address.
 //////////////////////////////////////////////////////////////////////
-void CNetAdr::ToSockadr(struct sockaddr_storage* const pSadr) const
+void CNetAdr::ToSockadr(struct sockaddr_in6* const pSadr) const
 {
+	memset(pSadr, 0, sizeof(sockaddr_in6));
+
 	reinterpret_cast<sockaddr_in6*>(pSadr)->sin6_family = AF_INET6;
 	reinterpret_cast<sockaddr_in6*>(pSadr)->sin6_port = port;
 
@@ -126,19 +128,19 @@ void CNetAdr::ToSockadr(struct sockaddr_storage* const pSadr) const
 //////////////////////////////////////////////////////////////////////
 // Sets address from socket address.
 //////////////////////////////////////////////////////////////////////
-bool CNetAdr::SetFromSockadr(struct sockaddr_storage* const s)
+bool CNetAdr::SetFromSockadr(struct sockaddr_in6* const s)
 {
-	char szAdrv6[INET6_ADDRSTRLEN];
-	sockaddr_in6* pAdrv6 = reinterpret_cast<sockaddr_in6*>(s);
-
-	if (inet_ntop(pAdrv6->sin6_family, &pAdrv6->sin6_addr, szAdrv6, sizeof(szAdrv6)) &&
-		SetFromString(szAdrv6))
+	if (s->sin6_family != AF_INET6 && s->sin6_family != AF_INET)
 	{
-		SetPort(pAdrv6->sin6_port);
-		return true;
+		Clear();
+		return false;
 	}
 
-	return false;
+	SetType(netadrtype_t::NA_IP);
+	SetIP(&s->sin6_addr);
+	SetPort(s->sin6_port);
+
+	return true;
 }
 
 //////////////////////////////////////////////////////////////////////

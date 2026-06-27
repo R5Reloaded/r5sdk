@@ -48,9 +48,16 @@ message response
 // Message envelope
 //////////////////////////////////////////////////////////////////////
 
+message header
+{
+    uint64      seqNr     = 1;
+    uint64      sessionId = 2;
+}
+
 message envelope
 {
-    bool  encrypted = 1;
-    bytes nonce     = 2;
-    bytes data      = 3;
+    header header = 1;
+    bytes  iv     = 2;
+    bytes  tag    = 3;
+    bytes  data   = 4;
 }

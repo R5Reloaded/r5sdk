@@ -8,20 +8,20 @@
 class CSocketCreator
 {
 public:
-	CSocketCreator(void);
+	CSocketCreator(const bool isServer);
 	~CSocketCreator(void);
 
 	void RunFrame(void);
 	void ProcessAccept(void);
 
-	bool CreateListenSocket(const netadr_t& netAdr, bool bDualStack = true);
+	bool CreateListenSocket(const netadr_t& netAdr, bool bDualStack = true, bool bReuse = false);
 	void CloseListenSocket(void);
 
 	int ConnectSocket(const netadr_t& netAdr, bool bSingleSocket);
 	void DisconnectSocket(SocketHandle_t hSocket);
 	void DisconnectSockets(void);
 
-	bool ConfigureSocket(SocketHandle_t hSocket, bool bDualStack = true);
+	bool ConfigureSocket(SocketHandle_t hSocket, bool bDualStack = true, bool bReuse = false);
 	int OnSocketAccepted(SocketHandle_t hSocket, const netadr_t& netAdr);
 
 	void CloseAcceptedSocket(int nIndex);
@@ -41,12 +41,6 @@ public:
 public:
 	struct AcceptedSocket_t
 	{
-		AcceptedSocket_t(SocketHandle_t hSocket)
-			: m_hSocket(hSocket)
-			, m_Data(hSocket)
-		{}
-
-		SocketHandle_t            m_hSocket;
 		netadr_t                  m_Address;
 		ConnectedNetConsoleData_s m_Data;
 	};
@@ -54,6 +48,7 @@ public:
 private:
 	CUtlVector<AcceptedSocket_t>  m_AcceptedSockets;
 	SocketHandle_t                m_hListenSocket; // Used to accept connections.
+	bool                          m_bIsServer;
 
 	enum
 	{
