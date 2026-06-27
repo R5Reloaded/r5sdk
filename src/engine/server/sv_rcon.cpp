@@ -90,16 +90,24 @@ void CRConServer::Init(const char* pPassword, const char* pNetKey)
 		return;
 	}
 
-	const char* pszAddress = sv_rcon_useloopbacksocket.GetBool() ? NET_IPV6_LOOPBACK : NET_IPV6_UNSPEC;
-	const string addressFormatted = Format("[%s]:%i", pszAddress, hostport->GetInt());
+	const char* const pszAddress = sv_rcon_useloopbacksocket.GetBool() ? NET_IPV6_LOOPBACK : NET_IPV6_UNSPEC;
+	const static int maxRetries = 64;
 
-	if (!m_Address.SetFromString(addressFormatted.c_str(), true))
+	for (int portOffset = 0; portOffset < maxRetries; portOffset++)
 	{
-		Error(eDLL_T::SERVER, 0, "Internal failure while initializing remote server access address ('%s')\n", addressFormatted.c_str());
-		return;
+		const string addressFormatted = Format("[%s]:%i", pszAddress, hostport->GetInt() + portOffset);
+
+		if (!m_Address.SetFromString(addressFormatted.c_str(), true))
+		{
+			Error(eDLL_T::SERVER, 0, "Internal failure while initializing remote server access address ('%s')\n", addressFormatted.c_str());
+			return;
+		}
+
+		m_bSocketFailure = !m_Socket.CreateListenSocket(m_Address);
+
+		if (!m_bSocketFailure)
+			break; // Successful bind, break out early.
 	}
-	
-	m_bSocketFailure = !m_Socket.CreateListenSocket(m_Address);
 
 	if (!m_bSocketFailure)
 	{
