@@ -114,7 +114,7 @@ class VMatSystemSurface : public IDetour
 
         Module_FindPattern( g_GameDll, "C6 05 ?? ?? ?? ?? ?? 83 FB" ).ResolveRelativeAddressSelf(0x2, 0x7).GetPtr( s_pbCursorVisible );
 		Module_FindPattern( g_GameDll, "4C 8B 05 ?? ?? ?? ?? FF 50" ).ResolveRelativeAddressSelf( 0x3, 0x7 ).GetPtr( s_phCurrentCursor );
-		Module_FindPattern( g_GameDll, "48 89 35 ?? ?? ?? ?? 48 8B 01 FF 90" )
+		Module_FindPattern( g_GameDll, "4C 8D 05 ?? ?? ?? ?? 4D 8B 04 D8" )
 			.ResolveRelativeAddressSelf( 0x3, 0x7 )
 			.GetPtr( s_hDefaultCursor );
 	}

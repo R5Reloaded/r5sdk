@@ -98,7 +98,7 @@ void CMatSystemSurface::_CalculateMouseVisible( CMatSystemSurface* thisp )
     if ( thisp->m_bNeedsMouse )
     {
 	    thisp->UnlockCursor();
-		thisp->SetCursor( vgui::dc_ibeam );
+		thisp->SetCursor( vgui::dc_arrow );
     }
     else
     {
@@ -108,7 +108,7 @@ void CMatSystemSurface::_CalculateMouseVisible( CMatSystemSurface* thisp )
         }
         else
         {
-			thisp->SetCursor( vgui::dc_arrow );
+			thisp->SetCursor( vgui::dc_none );
 			thisp->LockCursor();
         }
     }

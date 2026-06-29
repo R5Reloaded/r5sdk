@@ -19,6 +19,7 @@ namespace vgui
 
 enum CursorCode
 {
+    dc_user,
 	dc_none,
 	dc_arrow,
 	dc_ibeam,
