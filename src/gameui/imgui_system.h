@@ -34,6 +34,11 @@ public:
 
 	bool IsSurfaceActive() const;
 
+	bool IsOccluded() const;
+	void UpdateOcclusionStatus();
+
+	void ClampActiveWindowToScreenRect() const;
+
 	// statics:
 	static LRESULT MessageHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -63,6 +68,11 @@ private:
 
 	bool m_enabled;
 	bool m_initialized;
+	bool m_isOccluded;
+	bool m_hasActiveSurfaceThisFrame;
+
+	bool m_hasInputFocus;
+	bool m_wantsMouseDuringLastClick;
 
 	std::atomic_bool m_hasNewFrame;
 	std::atomic_bool m_repeatFrame;

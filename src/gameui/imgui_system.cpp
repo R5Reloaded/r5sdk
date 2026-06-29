@@ -10,6 +10,7 @@
 
 #include "tier1/keyvalues.h"
 #include "filesystem/filesystem.h"
+#include "inputsystem/inputsystem.h"
 #include "imgui_system.h"
 #include "imgui/misc/ImGuiNotify.hpp"
 
@@ -19,6 +20,10 @@
 CImguiSystem::CImguiSystem()
 	: m_enabled(false)
 	, m_initialized(false)
+	, m_isOccluded(false)
+	, m_hasActiveSurfaceThisFrame(false)
+	, m_hasInputFocus(false)
+	, m_wantsMouseDuringLastClick(true)
 	, m_hasNewFrame(false)
 	, m_repeatFrame(false)
 {
@@ -58,10 +63,21 @@ bool CImguiSystem::Init()
 
 	SetupIO();
 
-	if (!ImGui_ImplWin32_Init(g_pGame->GetWindow()) || 
-		!ImGui_ImplDX11_Init(D3D11Device(), D3D11DeviceContext()))
+	if (!ImGui_ImplWin32_Init(g_pGame->GetWindow()))
 	{
 		Assert(0);
+		ImGui::DestroyContext(context);
+
+		m_enabled = false;
+		return false;
+	}
+
+	if (!ImGui_ImplDX11_Init(D3D11Device(), D3D11DeviceContext()))
+	{
+		Assert(0);
+
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext(context);
 
 		m_enabled = false;
 		return false;
@@ -105,6 +121,9 @@ void CImguiSystem::SetupIO() const
 {
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_IsSRGB;
+
+	io.IniFilename = "platform\\cfg\\user\\imgui.ini";
+	io.LogFilename = "platform\\logs\\imgui_log.txt";
 
 	SetupFonts();
 }
@@ -241,7 +260,12 @@ void CImguiSystem::AddSurface(CImguiSurface* const surface)
 void CImguiSystem::RemoveSurface(CImguiSurface* const surface)
 {
 	Assert(!IsInitialized());
-	m_surfaceList.FindAndRemove(surface);
+	const int idx = m_surfaceList.Find(surface);
+
+	if (idx != m_surfaceList.InvalidIndex())
+		m_surfaceList.Remove(idx);
+	else
+		Assert(0);
 }
 
 inline void ImGuiSystem_RenderNotifications()
@@ -273,17 +297,86 @@ void CImguiSystem::SampleFrame()
 	Assert(ThreadInMainThread(), "CImguiSystem::SampleFrame() should only be called from the main thread!");
 	Assert(IsInitialized());
 
-	AUTO_LOCK(m_inputEventQueueMutex);
+	UpdateOcclusionStatus();
+
+	if (m_isOccluded)
+	{
+		// At least update the activity flag as surfaces can still be disabled
+		// while the game window is occluded.
+		bool active = false;
+
+		FOR_EACH_VEC(m_surfaceList, i)
+		{
+			if ((m_surfaceList[i])->IsActivated())
+			{
+				active = true;
+				break;
+			}
+		}
+
+		m_hasActiveSurfaceThisFrame = active;
+		return;
+	}
 
 	ImGui_ImplDX11_NewFrame();
-	ImGui_ImplWin32_NewFrame();
 
-	ImGui::NewFrame();
+	// See https://github.com/ocornut/imgui/issues/6895
+	// Only the following functions modify g.InputEventsQueue[],
+	// so we could get away with scoping the mutex.
+	{
+		AUTO_LOCK(m_inputEventQueueMutex);
+
+		ImGui_ImplWin32_NewFrame();
+		ImGui::NewFrame();
+	}
+
+	ClampActiveWindowToScreenRect();
+
+	const ImGuiIO& io = ImGui::GetIO(); // Check if we clicked outside any window.
+	bool closeAll = false;
+
+	if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+	{
+		// Make sure that during the time we clicked, that this took
+		// place while Dear ImGui still wants input (this is needed
+		// to avoid events such as clicking on the imgui window, then
+		// dragging the cursor outside of it and releasing as that
+		// would close them too with the old logic of just checking
+		// io.WantCaptureMouse directly after the release event!
+		m_wantsMouseDuringLastClick = io.WantCaptureMouse;
+	}
+	else if (!m_wantsMouseDuringLastClick && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+	{
+		m_wantsMouseDuringLastClick = true;
+		closeAll = true;
+	}
+
+	int numActiveSurfaces = 0;
 
 	FOR_EACH_VEC(m_surfaceList, i)
 	{
 		CImguiSurface* const surface = m_surfaceList[i];
 		surface->RunFrame();
+
+		if (surface->IsActivated())
+		{
+			if (closeAll)
+				surface->SetActive(false);
+			else
+				numActiveSurfaces++;
+		}
+	}
+
+	m_hasActiveSurfaceThisFrame = numActiveSurfaces > 0;
+	const bool shouldHaveInputFocus = m_hasActiveSurfaceThisFrame;
+
+	if (m_hasInputFocus != shouldHaveInputFocus)
+	{
+		g_pInputSystem->EnableInput(!shouldHaveInputFocus);
+		m_hasInputFocus = shouldHaveInputFocus;
+
+		DevMsg(eDLL_T::ENGINE, "%s: input focus to imgui system has been %s\n",
+			__FUNCTION__, shouldHaveInputFocus ? "enabled" : "disabled");
 	}
 
 	ImGuiSystem_RenderNotifications();
@@ -301,6 +394,9 @@ void CImguiSystem::SwapBuffers()
 {
 	Assert(ThreadInMainThread(), "CImguiSystem::SwapBuffers() should only be called from the main thread!");
 	Assert(IsInitialized());
+
+	if (m_isOccluded)
+		return;
 
 	ImDrawData* const drawData = ImGui::GetDrawData();
 	Assert(drawData);
@@ -336,13 +432,50 @@ void CImguiSystem::RenderFrame()
 //-----------------------------------------------------------------------------
 bool CImguiSystem::IsSurfaceActive() const
 {
-	FOR_EACH_VEC(m_surfaceList, i)
-	{
-		if (m_surfaceList[i]->IsActivated())
-			return true;
-	}
+	return m_hasActiveSurfaceThisFrame;
+}
 
-	return false;
+//-----------------------------------------------------------------------------
+// Checks whether our window has been occluded.
+//-----------------------------------------------------------------------------
+bool CImguiSystem::IsOccluded() const
+{
+	HWND window = g_pGame->GetWindow();
+	return IsIconic(window);
+}
+
+//-----------------------------------------------------------------------------
+// Updates the window occlusion state which is used to determine if we can
+// sample frames and swap them later on.
+//-----------------------------------------------------------------------------
+void CImguiSystem::UpdateOcclusionStatus()
+{
+	m_isOccluded = !IsInitialized()
+		? true
+		: IsOccluded();
+}
+
+//-----------------------------------------------------------------------------
+// Clamps the cursor to the rect of the game window
+//-----------------------------------------------------------------------------
+void CImguiSystem::ClampActiveWindowToScreenRect() const
+{
+	if (!ImGui::IsAnyItemActive() || !ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+		return; // Not dragging anything.
+
+	RECT rect;
+	if (!GetClientRect(g_pGame->GetWindow(), &rect))
+		return;
+
+	POINT pt;
+	if (!GetCursorPos(&pt))
+		return;
+
+	if (!ScreenToClient(g_pGame->GetWindow(), &pt))
+		return;
+
+	if (pt.x < 0 || pt.y < 0 || pt.x >= rect.right || pt.y >= rect.bottom)
+		ImGui::ClearActiveID(); // Drop it here so we won't drag it outside our game window.
 }
 
 //-----------------------------------------------------------------------------
