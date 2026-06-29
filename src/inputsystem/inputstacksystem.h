@@ -45,6 +45,7 @@ public:
 	virtual void SetCursorPosition( InputContextHandle_t hContext, int x, int y );
 	virtual bool IsTopmostEnabledContext( InputContextHandle_t hContext ) const;
 
+private:
 	// Updates the cursor based on the current state of the input stack
 	void UpdateCursorState();
 
