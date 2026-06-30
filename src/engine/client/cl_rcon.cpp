@@ -34,8 +34,8 @@ static ConCommand rcon("rcon", RCON_CmdQuery_f, "Forward RCON message to remote 
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-CRConClient::CRConClient()
-	: m_bInitialized(false)
+CRConClient::CRConClient() : CNetConBase(false)
+	, m_bInitialized(false)
 {
 }
 
@@ -102,15 +102,14 @@ void CRConClient::Disconnect(const char* szReason)
 
 //-----------------------------------------------------------------------------
 // Purpose: processes received message
-// Input  : *pMsgBug - 
-//			nMsgLen - 
+// Input  : &data - 
 //			nMaxLen - 
 //-----------------------------------------------------------------------------
-bool CRConClient::ProcessMessage(const byte* const pMsgBuf, const u32 nMsgLen, const u32 nMaxLen)
+bool CRConClient::ProcessMessage(ConnectedNetConsoleData_s& data, const u32 nMaxLen)
 {
 	netcon::response response;
 
-	if (!NetconShared_UnpackEnvelope(this, pMsgBuf, nMsgLen, nMaxLen, &response, rcon_debug.GetBool()))
+	if (!NetconShared_UnpackEnvelope(this, data, nMaxLen, &response, rcon_encryptframes.GetBool(), rcon_debug.GetBool()))
 	{
 		Disconnect("received invalid message");
 		return false;
@@ -162,14 +161,20 @@ void CRConClient::RequestConsoleLog(const bool bWantLog)
 	// a listen server. Listen server's already log to the same console,
 	// sending logs will cause the print func to get called recursively forever.
 	Assert(!(bWantLog && IsRemoteLocal()));
+	ConnectedNetConsoleData_s* pData = GetData();
+
+	if (!pData)
+	{
+		Assert(0);
+		return;
+	}
 
 	const char* const szEnable = bWantLog ? "1" : "0";
-	const SocketHandle_t hSocket = GetSocket();
 
 	vector<byte> vecMsg;
-	const bool ret = Serialize(vecMsg, "", 0, szEnable, 1, netcon::request_e::SERVERDATA_REQUEST_SEND_CONSOLE_LOG);
+	const bool ret = Serialize(*pData, vecMsg, "", 0, szEnable, 1, netcon::request_e::SERVERDATA_REQUEST_SEND_CONSOLE_LOG);
 
-	if (ret && !Send(hSocket, vecMsg.data(), (u32)vecMsg.size()))
+	if (ret && !Send(pData->socket, vecMsg.data(), (u32)vecMsg.size()))
 	{
 		Error(eDLL_T::CLIENT, NO_ERROR, "Failed to send RCON message: (%s)\n", "SOCKET_ERROR");
 	}
@@ -177,17 +182,18 @@ void CRConClient::RequestConsoleLog(const bool bWantLog)
 
 //-----------------------------------------------------------------------------
 // Purpose: serializes input
-// Input  : *svReqBuf - 
+// Input  : &data - 
+//			*svReqBuf - 
 //			nReqMsgLen - 
 //			*svReqVal - 
 //			nReqValLen -
 //			request_t - 
 // Output : serialized results as string
 //-----------------------------------------------------------------------------
-bool CRConClient::Serialize(vector<byte>& vecBuf, const char* szReqBuf, const size_t nReqMsgLen,
+bool CRConClient::Serialize(ConnectedNetConsoleData_s& data, vector<byte>& vecBuf, const char* szReqBuf, const size_t nReqMsgLen,
 	const char* szReqVal, const size_t nReqValLen, const netcon::request_e requestType) const
 {
-	return NetconClient_Serialize(this, vecBuf, szReqBuf, nReqMsgLen, szReqVal, nReqValLen, requestType,
+	return NetconClient_Serialize(this, data, vecBuf, szReqBuf, nReqMsgLen, szReqVal, nReqValLen, requestType,
 		rcon_encryptframes.GetBool(), rcon_debug.GetBool());
 }
 
@@ -326,7 +332,13 @@ static void RCON_CmdQuery_f(const CCommand& args)
 		{
 			vector<byte> vecMsg;
 			bool bSuccess = false;
-			const SocketHandle_t hSocket = RCONClient()->GetSocket();
+			ConnectedNetConsoleData_s* pData = RCONClient()->GetData();
+
+			if (!pData)
+			{
+				Assert(0);
+				return;
+			}
 
 			if (strcmp(args.Arg(1), "PASS") == 0)
 			{
@@ -335,7 +347,7 @@ static void RCON_CmdQuery_f(const CCommand& args)
 					const char* const pass = args.Arg(2);
 					const size_t passLen = strlen(pass);
 
-					bSuccess = RCONClient()->Serialize(vecMsg, pass, passLen, "", 0, netcon::request_e::SERVERDATA_REQUEST_AUTH);
+					bSuccess = RCONClient()->Serialize(*pData, vecMsg, pass, passLen, "", 0, netcon::request_e::SERVERDATA_REQUEST_AUTH);
 				}
 				else // Need at least 3 arguments for a password in PASS command (rcon PASS <password>)
 				{
@@ -345,7 +357,7 @@ static void RCON_CmdQuery_f(const CCommand& args)
 
 				if (bSuccess)
 				{
-					RCONClient()->Send(hSocket, vecMsg.data(), (u32)vecMsg.size());
+					RCONClient()->Send(pData->socket, vecMsg.data(), (u32)vecMsg.size());
 				}
 
 				return;
@@ -362,10 +374,10 @@ static void RCON_CmdQuery_f(const CCommand& args)
 			const char* const value = args.ArgS();
 			const size_t valueLen = strlen(value);
 
-			bSuccess = RCONClient()->Serialize(vecMsg, request, requestLen, value, valueLen, netcon::request_e::SERVERDATA_REQUEST_EXECCOMMAND);
+			bSuccess = RCONClient()->Serialize(*pData, vecMsg, request, requestLen, value, valueLen, netcon::request_e::SERVERDATA_REQUEST_EXECCOMMAND);
 			if (bSuccess)
 			{
-				RCONClient()->Send(hSocket, vecMsg.data(), (u32)vecMsg.size());
+				RCONClient()->Send(pData->socket, vecMsg.data(), (u32)vecMsg.size());
 			}
 			return;
 		}

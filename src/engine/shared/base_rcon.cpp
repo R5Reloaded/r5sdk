@@ -159,7 +159,7 @@ bool CNetConBase::ProcessBuffer(ConnectedNetConsoleData_s& data, const byte* pRe
 
 			if (data.payloadRead == data.payloadLen)
 			{
-				if (!ProcessMessage(data.recvBuffer.data(), data.payloadLen, nMaxLen))
+				if (!ProcessMessage(data, nMaxLen))
 					return false;
 
 				// Reset state.
@@ -233,10 +233,10 @@ bool CNetConBase::ProcessBuffer(ConnectedNetConsoleData_s& data, const byte* pRe
 //			nDataLen - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-bool CNetConBase::Encrypt(CryptoContext_s& ctx, const byte* pInBuf, byte* pOutBuf, const u32 nDataLen) const
+bool CNetConBase::Encrypt(CryptoContext_s& ctx, const byte* pInBuf, byte* pOutBuf, const u32 nDataLen, const u8* pAad, const size_t nAadLen) const
 {
 	if (Crypto_GenerateIV(ctx, pInBuf, nDataLen))
-		return Crypto_CTREncrypt(ctx, pInBuf, pOutBuf, m_NetKey, nDataLen);
+		return Crypto_EncryptGCM(ctx, pInBuf, pOutBuf, m_NetKey, nDataLen, pAad, nAadLen);
 
 	Assert(0);
 	return false; // failure
@@ -250,9 +250,9 @@ bool CNetConBase::Encrypt(CryptoContext_s& ctx, const byte* pInBuf, byte* pOutBu
 //			nDataLen - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-bool CNetConBase::Decrypt(CryptoContext_s& ctx, const byte* pInBuf, byte* pOutBuf, const u32 nDataLen) const
+bool CNetConBase::Decrypt(CryptoContext_s& ctx, const byte* pInBuf, byte* pOutBuf, const u32 nDataLen, const u8* pAad, const size_t nAadLen) const
 {
-	return Crypto_CTRDecrypt(ctx, pInBuf, pOutBuf, m_NetKey, nDataLen);
+	return Crypto_DecryptGCM(ctx, pInBuf, pOutBuf, m_NetKey, nDataLen, pAad, nAadLen);
 }
 
 //-----------------------------------------------------------------------------

@@ -20,8 +20,8 @@
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-CNetCon::CNetCon(void)
-	: m_bInitialized(false)
+CNetCon::CNetCon(void) : CNetConBase(false)
+	, m_bInitialized(false)
 	, m_bQuitting(false)
 	, m_bPromptConnect(true)
 	, m_bEncryptFrames(false)
@@ -235,8 +235,8 @@ void CNetCon::RunInput(const string& lineInput)
 		}
 
 		vector<byte> vecMsg;
+		ConnectedNetConsoleData_s* pData = GetData();
 
-		const SocketHandle_t hSocket = GetSocket();
 		bool bSend = false;
 
 		if (cmd.ArgC() > 1)
@@ -246,7 +246,7 @@ void CNetCon::RunInput(const string& lineInput)
 				const char* const pass = cmd.Arg(1);
 				const size_t passLen = strlen(pass);
 
-				bSend = Serialize(vecMsg, pass, passLen, "", 0,
+				bSend = Serialize(*pData, vecMsg, pass, passLen, "", 0,
 					netcon::request_e::SERVERDATA_REQUEST_AUTH);
 			}
 			else // Execute command query.
@@ -257,18 +257,18 @@ void CNetCon::RunInput(const string& lineInput)
 				const char* const command = cmd.GetCommandString();
 				const size_t commandLen = strlen(command);
 
-				bSend = Serialize(vecMsg, request, requestLen, command, commandLen,
+				bSend = Serialize(*pData, vecMsg, request, requestLen, command, commandLen,
 					netcon::request_e::SERVERDATA_REQUEST_EXECCOMMAND);
 			}
 		}
 		else // Single arg command query.
 		{
-			bSend = Serialize(vecMsg, lineInput.c_str(), lineInput.length(), "", 0, netcon::request_e::SERVERDATA_REQUEST_EXECCOMMAND);
+			bSend = Serialize(*pData, vecMsg, lineInput.c_str(), lineInput.length(), "", 0, netcon::request_e::SERVERDATA_REQUEST_EXECCOMMAND);
 		}
 
 		if (bSend) // Only send if serialization process was successful.
 		{
-			if (!Send(hSocket, vecMsg.data(), u32(vecMsg.size())))
+			if (!Send(pData->socket, vecMsg.data(), u32(vecMsg.size())))
 			{
 				Error(eDLL_T::CLIENT, NO_ERROR, "Failed to send RCON message: (%s)\n", "SOCKET_ERROR");
 			}
@@ -419,16 +419,15 @@ void CNetCon::Disconnect(const char* szReason)
 
 //-----------------------------------------------------------------------------
 // Purpose: processes received message
-// Input  : *pMsgBuf - 
-//			nMsgLen - 
+// Input  : &data - 
 //			nMaxLen - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-bool CNetCon::ProcessMessage(const byte* pMsgBuf, const u32 nMsgLen, const u32 nMaxLen)
+bool CNetCon::ProcessMessage(ConnectedNetConsoleData_s& data, const u32 nMaxLen)
 {
 	netcon::response response;
 
-	if (!NetconShared_UnpackEnvelope(this, pMsgBuf, nMsgLen, nMaxLen, &response, true))
+	if (!NetconShared_UnpackEnvelope(this, data, nMaxLen, &response, m_bEncryptFrames, true))
 	{
 		Disconnect("received invalid message");
 		return false;
@@ -444,7 +443,7 @@ bool CNetCon::ProcessMessage(const byte* pMsgBuf, const u32 nMsgLen, const u32 n
 			if (!i) // Means we are marked 'input only' on the rcon server.
 			{
 				vector<byte> vecMsg;
-				const bool ret = Serialize(vecMsg, "", 0, "1", 1, netcon::request_e::SERVERDATA_REQUEST_SEND_CONSOLE_LOG);
+				const bool ret = Serialize(data, vecMsg, "", 0, "1", 1, netcon::request_e::SERVERDATA_REQUEST_SEND_CONSOLE_LOG);
 
 				if (ret && !Send(GetSocket(), vecMsg.data(), (u32)vecMsg.size()))
 				{
@@ -474,7 +473,8 @@ bool CNetCon::ProcessMessage(const byte* pMsgBuf, const u32 nMsgLen, const u32 n
 
 //-----------------------------------------------------------------------------
 // Purpose: serializes message to vector
-// Input  : &vecBuf - 
+// Input  : &data,
+//			&vecBuf - 
 //			*szReqBuf - 
 //			nReqMsgLen - 
 //			*svReqVal - 
@@ -482,10 +482,10 @@ bool CNetCon::ProcessMessage(const byte* pMsgBuf, const u32 nMsgLen, const u32 n
 //			requestType - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-bool CNetCon::Serialize(vector<byte>& vecBuf, const char* szReqBuf, const size_t nReqMsgLen,
+bool CNetCon::Serialize(ConnectedNetConsoleData_s& data, vector<byte>& vecBuf, const char* szReqBuf, const size_t nReqMsgLen,
 	const char* szReqVal, const size_t nReqValLen, const netcon::request_e requestType) const
 {
-	return NetconClient_Serialize(this, vecBuf, szReqBuf, nReqMsgLen, szReqVal, nReqValLen, requestType, m_bEncryptFrames, true);
+	return NetconClient_Serialize(this, data, vecBuf, szReqBuf, nReqMsgLen, szReqVal, nReqValLen, requestType, m_bEncryptFrames, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -495,6 +495,15 @@ bool CNetCon::Serialize(vector<byte>& vecBuf, const char* szReqBuf, const size_t
 SocketHandle_t CNetCon::GetSocket(void)
 {
 	return NetconShared_GetSocketHandle(this, 0);
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: retrieves the remote socket data
+// Output : NULL on failure
+//-----------------------------------------------------------------------------
+ConnectedNetConsoleData_s* CNetCon::GetData(void)
+{
+	return NetconShared_GetConnData(this, 0);
 }
 
 //-----------------------------------------------------------------------------

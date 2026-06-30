@@ -5,6 +5,7 @@ bool Plat_GenerateRandom(unsigned char* pBuffer, const uint32_t nBufLen, const c
 
 typedef unsigned char CryptoIV_t[16];
 typedef unsigned char CryptoKey_t[16];
+typedef unsigned char CryptoTag_t[16];
 
 struct CryptoContext_s
 {
@@ -12,17 +13,22 @@ struct CryptoContext_s
 		: keyBits(setKeyBits)
 	{
 		Assert(setKeyBits == 128 || setKeyBits == 192 || setKeyBits == 256);
-		memset(ivData, 0, sizeof(ivData));
+		memset(iv, 0, sizeof(iv));
 	}
 
-	CryptoIV_t ivData;
+	CryptoIV_t iv;
+	CryptoTag_t tag;
 	int keyBits;
 };
 
-bool Crypto_GenerateIV(CryptoContext_s& ctx, const unsigned char* const data, const size_t size);
-bool Crypto_CTREncrypt(CryptoContext_s& ctx, const unsigned char* const inBuf, unsigned char* const outBuf,
-	const unsigned char* const key, const size_t size);
-bool Crypto_CTRDecrypt(CryptoContext_s& ctx, const unsigned char* const inBuf, unsigned char* const outBuf,
-	const unsigned char* const key, const size_t size);
+bool Crypto_GenerateIV(CryptoContext_s& ctx, const u8* const data, const size_t size);
+
+bool Crypto_EncryptGCM(CryptoContext_s& ctx, const u8* const inBuf, u8* const outBuf,
+						const CryptoKey_t key,const size_t size,
+						const u8* const aad = nullptr, const size_t aadSize = 0);
+
+bool Crypto_DecryptGCM(CryptoContext_s& ctx, const u8* const inBuf, u8* const outBuf,
+						const CryptoKey_t key, const size_t size,
+						const u8* const aad = nullptr, const size_t aadSize = 0);
 
 #endif // TIER2_CRYPTUTILS_H

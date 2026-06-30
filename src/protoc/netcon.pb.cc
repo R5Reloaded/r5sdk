@@ -54,11 +54,26 @@ struct responseDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 responseDefaultTypeInternal _response_default_instance_;
+PROTOBUF_CONSTEXPR header::header(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.seqnr_)*/uint64_t{0u}
+  , /*decltype(_impl_.sessionid_)*/uint64_t{0u}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct headerDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR headerDefaultTypeInternal()
+      : _instance(::_pbi::ConstantInitialized{}) {}
+  ~headerDefaultTypeInternal() {}
+  union {
+    header _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 headerDefaultTypeInternal _header_default_instance_;
 PROTOBUF_CONSTEXPR envelope::envelope(
     ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.nonce_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
+    /*decltype(_impl_.iv_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
+  , /*decltype(_impl_.tag_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
   , /*decltype(_impl_.data_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
-  , /*decltype(_impl_.encrypted_)*/false
+  , /*decltype(_impl_.header_)*/nullptr
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct envelopeDefaultTypeInternal {
   PROTOBUF_CONSTEXPR envelopeDefaultTypeInternal()
@@ -944,10 +959,228 @@ std::string response::GetTypeName() const {
 
 // ===================================================================
 
-class envelope::_Internal {
+class header::_Internal {
  public:
 };
 
+header::header(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                         bool is_message_owned)
+  : ::PROTOBUF_NAMESPACE_ID::MessageLite(arena, is_message_owned) {
+  SharedCtor(arena, is_message_owned);
+  // @@protoc_insertion_point(arena_constructor:netcon.header)
+}
+header::header(const header& from)
+  : ::PROTOBUF_NAMESPACE_ID::MessageLite() {
+  header* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_.seqnr_){}
+    , decltype(_impl_.sessionid_){}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
+  ::memcpy(&_impl_.seqnr_, &from._impl_.seqnr_,
+    static_cast<size_t>(reinterpret_cast<char*>(&_impl_.sessionid_) -
+    reinterpret_cast<char*>(&_impl_.seqnr_)) + sizeof(_impl_.sessionid_));
+  // @@protoc_insertion_point(copy_constructor:netcon.header)
+}
+
+inline void header::SharedCtor(
+    ::_pb::Arena* arena, bool is_message_owned) {
+  (void)arena;
+  (void)is_message_owned;
+  new (&_impl_) Impl_{
+      decltype(_impl_.seqnr_){uint64_t{0u}}
+    , decltype(_impl_.sessionid_){uint64_t{0u}}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+header::~header() {
+  // @@protoc_insertion_point(destructor:netcon.header)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<std::string>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void header::SharedDtor() {
+  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void header::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void header::Clear() {
+// @@protoc_insertion_point(message_clear_start:netcon.header)
+  uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  ::memset(&_impl_.seqnr_, 0, static_cast<size_t>(
+      reinterpret_cast<char*>(&_impl_.sessionid_) -
+      reinterpret_cast<char*>(&_impl_.seqnr_)) + sizeof(_impl_.sessionid_));
+  _internal_metadata_.Clear<std::string>();
+}
+
+const char* header::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // uint64 seqNr = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 8)) {
+          _impl_.seqnr_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // uint64 sessionId = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 16)) {
+          _impl_.sessionid_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<std::string>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+uint8_t* header::_InternalSerialize(
+    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:netcon.header)
+  uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // uint64 seqNr = 1;
+  if (this->_internal_seqnr() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(1, this->_internal_seqnr(), target);
+  }
+
+  // uint64 sessionId = 2;
+  if (this->_internal_sessionid() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(2, this->_internal_sessionid(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = stream->WriteRaw(_internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString).data(),
+        static_cast<int>(_internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString).size()), target);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:netcon.header)
+  return target;
+}
+
+size_t header::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:netcon.header)
+  size_t total_size = 0;
+
+  uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // uint64 seqNr = 1;
+  if (this->_internal_seqnr() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(this->_internal_seqnr());
+  }
+
+  // uint64 sessionId = 2;
+  if (this->_internal_sessionid() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(this->_internal_sessionid());
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    total_size += _internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString).size();
+  }
+  int cached_size = ::_pbi::ToCachedSize(total_size);
+  SetCachedSize(cached_size);
+  return total_size;
+}
+
+void header::CheckTypeAndMergeFrom(
+    const ::PROTOBUF_NAMESPACE_ID::MessageLite& from) {
+  MergeFrom(*::_pbi::DownCast<const header*>(
+      &from));
+}
+
+void header::MergeFrom(const header& from) {
+  header* const _this = this;
+  // @@protoc_insertion_point(class_specific_merge_from_start:netcon.header)
+  GOOGLE_DCHECK_NE(&from, _this);
+  uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from._internal_seqnr() != 0) {
+    _this->_internal_set_seqnr(from._internal_seqnr());
+  }
+  if (from._internal_sessionid() != 0) {
+    _this->_internal_set_sessionid(from._internal_sessionid());
+  }
+  _this->_internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
+}
+
+void header::CopyFrom(const header& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:netcon.header)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool header::IsInitialized() const {
+  return true;
+}
+
+void header::InternalSwap(header* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(header, _impl_.sessionid_)
+      + sizeof(header::_impl_.sessionid_)
+      - PROTOBUF_FIELD_OFFSET(header, _impl_.seqnr_)>(
+          reinterpret_cast<char*>(&_impl_.seqnr_),
+          reinterpret_cast<char*>(&other->_impl_.seqnr_));
+}
+
+std::string header::GetTypeName() const {
+  return "netcon.header";
+}
+
+
+// ===================================================================
+
+class envelope::_Internal {
+ public:
+  static const ::netcon::header& header(const envelope* msg);
+};
+
+const ::netcon::header&
+envelope::_Internal::header(const envelope* msg) {
+  return *msg->_impl_.header_;
+}
 envelope::envelope(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
   : ::PROTOBUF_NAMESPACE_ID::MessageLite(arena, is_message_owned) {
@@ -958,18 +1191,27 @@ envelope::envelope(const envelope& from)
   : ::PROTOBUF_NAMESPACE_ID::MessageLite() {
   envelope* const _this = this; (void)_this;
   new (&_impl_) Impl_{
-      decltype(_impl_.nonce_){}
+      decltype(_impl_.iv_){}
+    , decltype(_impl_.tag_){}
     , decltype(_impl_.data_){}
-    , decltype(_impl_.encrypted_){}
+    , decltype(_impl_.header_){nullptr}
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
-  _impl_.nonce_.InitDefault();
+  _impl_.iv_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    _impl_.nonce_.Set("", GetArenaForAllocation());
+    _impl_.iv_.Set("", GetArenaForAllocation());
   #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  if (!from._internal_nonce().empty()) {
-    _this->_impl_.nonce_.Set(from._internal_nonce(), 
+  if (!from._internal_iv().empty()) {
+    _this->_impl_.iv_.Set(from._internal_iv(), 
+      _this->GetArenaForAllocation());
+  }
+  _impl_.tag_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+    _impl_.tag_.Set("", GetArenaForAllocation());
+  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_tag().empty()) {
+    _this->_impl_.tag_.Set(from._internal_tag(), 
       _this->GetArenaForAllocation());
   }
   _impl_.data_.InitDefault();
@@ -980,7 +1222,9 @@ envelope::envelope(const envelope& from)
     _this->_impl_.data_.Set(from._internal_data(), 
       _this->GetArenaForAllocation());
   }
-  _this->_impl_.encrypted_ = from._impl_.encrypted_;
+  if (from._internal_has_header()) {
+    _this->_impl_.header_ = new ::netcon::header(*from._impl_.header_);
+  }
   // @@protoc_insertion_point(copy_constructor:netcon.envelope)
 }
 
@@ -989,14 +1233,19 @@ inline void envelope::SharedCtor(
   (void)arena;
   (void)is_message_owned;
   new (&_impl_) Impl_{
-      decltype(_impl_.nonce_){}
+      decltype(_impl_.iv_){}
+    , decltype(_impl_.tag_){}
     , decltype(_impl_.data_){}
-    , decltype(_impl_.encrypted_){false}
+    , decltype(_impl_.header_){nullptr}
     , /*decltype(_impl_._cached_size_)*/{}
   };
-  _impl_.nonce_.InitDefault();
+  _impl_.iv_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    _impl_.nonce_.Set("", GetArenaForAllocation());
+    _impl_.iv_.Set("", GetArenaForAllocation());
+  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.tag_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+    _impl_.tag_.Set("", GetArenaForAllocation());
   #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   _impl_.data_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -1015,8 +1264,10 @@ envelope::~envelope() {
 
 inline void envelope::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  _impl_.nonce_.Destroy();
+  _impl_.iv_.Destroy();
+  _impl_.tag_.Destroy();
   _impl_.data_.Destroy();
+  if (this != internal_default_instance()) delete _impl_.header_;
 }
 
 void envelope::SetCachedSize(int size) const {
@@ -1029,9 +1280,13 @@ void envelope::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  _impl_.nonce_.ClearToEmpty();
+  _impl_.iv_.ClearToEmpty();
+  _impl_.tag_.ClearToEmpty();
   _impl_.data_.ClearToEmpty();
-  _impl_.encrypted_ = false;
+  if (GetArenaForAllocation() == nullptr && _impl_.header_ != nullptr) {
+    delete _impl_.header_;
+  }
+  _impl_.header_ = nullptr;
   _internal_metadata_.Clear<std::string>();
 }
 
@@ -1041,26 +1296,35 @@ const char* envelope::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx)
     uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // bool encrypted = 1;
+      // .netcon.header header = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 8)) {
-          _impl_.encrypted_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+          ptr = ctx->ParseMessage(_internal_mutable_header(), ptr);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // bytes nonce = 2;
+      // bytes iv = 2;
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
-          auto str = _internal_mutable_nonce();
+          auto str = _internal_mutable_iv();
           ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
         } else
           goto handle_unusual;
         continue;
-      // bytes data = 3;
+      // bytes tag = 3;
       case 3:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 26)) {
+          auto str = _internal_mutable_tag();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // bytes data = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 34)) {
           auto str = _internal_mutable_data();
           ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
           CHK_(ptr);
@@ -1096,22 +1360,29 @@ uint8_t* envelope::_InternalSerialize(
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // bool encrypted = 1;
-  if (this->_internal_encrypted() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteBoolToArray(1, this->_internal_encrypted(), target);
+  // .netcon.header header = 1;
+  if (this->_internal_has_header()) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(1, _Internal::header(this),
+        _Internal::header(this).GetCachedSize(), target, stream);
   }
 
-  // bytes nonce = 2;
-  if (!this->_internal_nonce().empty()) {
+  // bytes iv = 2;
+  if (!this->_internal_iv().empty()) {
     target = stream->WriteBytesMaybeAliased(
-        2, this->_internal_nonce(), target);
+        2, this->_internal_iv(), target);
   }
 
-  // bytes data = 3;
+  // bytes tag = 3;
+  if (!this->_internal_tag().empty()) {
+    target = stream->WriteBytesMaybeAliased(
+        3, this->_internal_tag(), target);
+  }
+
+  // bytes data = 4;
   if (!this->_internal_data().empty()) {
     target = stream->WriteBytesMaybeAliased(
-        3, this->_internal_data(), target);
+        4, this->_internal_data(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -1130,23 +1401,32 @@ size_t envelope::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // bytes nonce = 2;
-  if (!this->_internal_nonce().empty()) {
+  // bytes iv = 2;
+  if (!this->_internal_iv().empty()) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
-        this->_internal_nonce());
+        this->_internal_iv());
   }
 
-  // bytes data = 3;
+  // bytes tag = 3;
+  if (!this->_internal_tag().empty()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
+        this->_internal_tag());
+  }
+
+  // bytes data = 4;
   if (!this->_internal_data().empty()) {
     total_size += 1 +
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
         this->_internal_data());
   }
 
-  // bool encrypted = 1;
-  if (this->_internal_encrypted() != 0) {
-    total_size += 1 + 1;
+  // .netcon.header header = 1;
+  if (this->_internal_has_header()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+        *_impl_.header_);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -1170,14 +1450,18 @@ void envelope::MergeFrom(const envelope& from) {
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  if (!from._internal_nonce().empty()) {
-    _this->_internal_set_nonce(from._internal_nonce());
+  if (!from._internal_iv().empty()) {
+    _this->_internal_set_iv(from._internal_iv());
+  }
+  if (!from._internal_tag().empty()) {
+    _this->_internal_set_tag(from._internal_tag());
   }
   if (!from._internal_data().empty()) {
     _this->_internal_set_data(from._internal_data());
   }
-  if (from._internal_encrypted() != 0) {
-    _this->_internal_set_encrypted(from._internal_encrypted());
+  if (from._internal_has_header()) {
+    _this->_internal_mutable_header()->::netcon::header::MergeFrom(
+        from._internal_header());
   }
   _this->_internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
 }
@@ -1199,14 +1483,18 @@ void envelope::InternalSwap(envelope* other) {
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &_impl_.nonce_, lhs_arena,
-      &other->_impl_.nonce_, rhs_arena
+      &_impl_.iv_, lhs_arena,
+      &other->_impl_.iv_, rhs_arena
+  );
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
+      &_impl_.tag_, lhs_arena,
+      &other->_impl_.tag_, rhs_arena
   );
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
       &_impl_.data_, lhs_arena,
       &other->_impl_.data_, rhs_arena
   );
-  swap(_impl_.encrypted_, other->_impl_.encrypted_);
+  swap(_impl_.header_, other->_impl_.header_);
 }
 
 std::string envelope::GetTypeName() const {
@@ -1224,6 +1512,10 @@ Arena::CreateMaybeMessage< ::netcon::request >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::netcon::response*
 Arena::CreateMaybeMessage< ::netcon::response >(Arena* arena) {
   return Arena::CreateMessageInternal< ::netcon::response >(arena);
+}
+template<> PROTOBUF_NOINLINE ::netcon::header*
+Arena::CreateMaybeMessage< ::netcon::header >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::netcon::header >(arena);
 }
 template<> PROTOBUF_NOINLINE ::netcon::envelope*
 Arena::CreateMaybeMessage< ::netcon::envelope >(Arena* arena) {
