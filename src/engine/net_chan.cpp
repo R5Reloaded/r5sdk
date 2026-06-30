@@ -22,6 +22,9 @@
 //-----------------------------------------------------------------------------
 static ConVar net_processTimeBudget("net_processTimeBudget", "200", FCVAR_RELEASE, "Net message process time budget in milliseconds (removing netchannel if exceeded).", true, 0.f, false, 0.f, "0 = disabled");
 
+extern ConVar net_compression_method;
+extern ConVar net_compression_debug;
+
 //-----------------------------------------------------------------------------
 // Purpose: gets the netchannel resend rate
 // Output : float
@@ -418,10 +421,346 @@ bool CNetChan::ProcessMessages(bf_read* buf)
     }
 }
 
-bool CNetChan::ReadSubChannelData(bf_read& buf)
+void CNetChan::CreateFragmentsFromBuffer(bf_write* pBuff)
 {
-    // TODO: rebuild this and hook
-    return false;
+    _CreateFragmentsFromBuffer(this, pBuff);
+}
+
+void CNetChan::_CreateFragmentsFromBuffer(CNetChan* thisp, bf_write* pBuff)
+{
+    //byte align
+    const int nBitsWritten = pBuff->GetNumBitsWritten();
+    if (8 - nBitsWritten % 8 < 8)
+    {
+        pBuff->WriteUBitLong(0, 8 - nBitsWritten % 8);
+    }
+
+    size_t nBytes = pBuff->GetNumBytesWritten();
+    const size_t nUncompressedSize = nBytes;
+    const uint8_t* pData = pBuff->GetData();
+    bool bIsCompressed = false;
+
+    if (nBytes > 512)
+    {
+        const NetPacketCompressionMethod_e eCompressionMethod = static_cast<NetPacketCompressionMethod_e>(net_compression_method.GetInt());
+
+        size_t nNeededCompressionBufferLen = 0;
+        if (!NET_BufferToBufferCompressMultiMethodNeededCapactity(nBytes, nNeededCompressionBufferLen, eCompressionMethod))
+            return;
+
+        unsigned char* pCompressedBuffer = new unsigned char[nNeededCompressionBufferLen];
+        if (!NET_BufferToBufferCompressMultiMethod(pCompressedBuffer, nNeededCompressionBufferLen, pData, nBytes, eCompressionMethod))
+        {
+            delete[] pCompressedBuffer;
+            return;
+        }
+
+        nBytes = nNeededCompressionBufferLen;
+        pData = pCompressedBuffer;
+        bIsCompressed = true;
+    }
+
+    if (nBytes)
+    {
+        size_t nBytesLeft = nBytes;
+        while (nBytesLeft > 0)
+        {
+            dataFragments_t* pFragment = new dataFragments_t;
+            const size_t nFragmentBlockSize = min(nBytesLeft, 560);
+            char* pFragmentBlock = new char[nFragmentBlockSize];
+
+            pFragment->blockSize = nFragmentBlockSize;
+            pFragment->buffer = pFragmentBlock;
+            pFragment->firstFragment = nBytesLeft == nBytes;
+            pFragment->isCompressed = bIsCompressed;
+            pFragment->transferSize = (int)nBytes;
+            pFragment->uncompressedSize = nUncompressedSize;
+            pFragment->transferID = -1;
+
+            memcpy(pFragment->buffer, &pData[nBytes - nBytesLeft], nFragmentBlockSize);
+
+            nBytesLeft -= nFragmentBlockSize;
+            pFragment->lastFragment = nBytesLeft == 0;
+
+            thisp->m_WaitingList.AddToTail(pFragment);
+        }
+    }
+
+    thisp->m_nSubOutSequenceNr = thisp->m_nOutSequenceNrAck;
+
+    if (bIsCompressed)
+        delete[] pData;
+}
+
+bool CNetChan::ReadSubChannelData(bf_read* pBuff)
+{
+    return _ReadSubChannelData(this, pBuff);
+}
+
+bool CNetChan::SendSubChannelData(bf_write* pBuff)
+{
+    return _SendSubChannelData(this, pBuff);
+}
+
+bool CNetChan::_SendSubChannelData(CNetChan* thisp, bf_write* pBuff)
+{
+    if (thisp->m_bShuttingDown)
+        return false;
+
+    if (thisp->m_WaitingList.IsEmpty())
+        return false;
+
+    const int subOutFragmentsAckClamped = thisp->m_nSubOutFragmentsAck & 1023;
+
+    pBuff->WriteUBitLong(0xABCDEF01, 32);
+    pBuff->WriteUBitLong(thisp->m_nSubOutFragmentsAck, 32);
+    pBuff->WriteUBitLong(subOutFragmentsAckClamped, 10);
+
+    if (!subOutFragmentsAckClamped)
+    {
+        if (thisp->m_nSubOutFragmentsAck)
+        {
+            pBuff->WriteOneBit(false);
+        }
+        else
+        {
+            pBuff->WriteOneBit(true);
+            pBuff->WriteUBitLong(thisp->m_nNonceHost, 32);
+        }
+    }
+
+    thisp->m_nSubOutSequenceNr = thisp->m_nOutSequenceNr;
+    const int nFragmentsToCreate = min(1023, thisp->m_WaitingList.Count());
+    for (int iFragment = 0; iFragment < nFragmentsToCreate; iFragment++)
+    {
+        dataFragments_t* pFragment = thisp->m_WaitingList.Element(iFragment);
+        
+        if(iFragment)
+            pBuff->WriteOneBit(true);
+
+        const int nFragmentOffset = iFragment + thisp->m_nSubOutFragmentsAck;
+        pBuff->WriteUBitLong(nFragmentOffset, 32);
+        pBuff->WriteOneBit(pFragment->firstFragment);
+
+        if (pFragment->firstFragment)
+        {
+            pBuff->WriteUBitLong(pFragment->transferSize, 19);
+            pBuff->WriteOneBit(pFragment->isCompressed);
+            if (pFragment->isCompressed)
+            {
+                pBuff->WriteUBitLong(static_cast<NetPacketCompressionMethod_e>(net_compression_method.GetInt()), 8);
+                pBuff->WriteUBitLong(static_cast<unsigned int>(pFragment->uncompressedSize), 22);
+            }
+        }
+        else
+        {
+            if (pFragment->lastFragment)
+            {
+                pBuff->WriteOneBit(true);
+                pBuff->WriteUBitLong(static_cast<unsigned int>(pFragment->blockSize), 10);
+            }
+            else
+            {
+                pBuff->WriteOneBit(false);
+            }
+        }
+
+        pBuff->WriteBytes(pFragment->buffer, static_cast<unsigned int>(pFragment->blockSize));
+        if (!pFragment->isOutbound)
+        {
+            pFragment->isOutbound = true;
+            pFragment->transferID = thisp->m_nOutSequenceNr;
+        }
+    }
+
+    pBuff->WriteOneBit(false);
+    return true;
+}
+
+bool CNetChan::ProcessSubChannelBuffer()
+{
+    if (m_ReceiveList.isCompressed)
+    {
+        const NetPacketCompressionMethod_e compressionMethod = m_ReceiveList.eCompressionMethod;
+        const size_t nCompressedDataLen = m_ReceiveList.transferSize;
+        const uint8_t* const pCompressedBuffer = reinterpret_cast<const uint8_t* const>(m_ReceiveList.buffer);
+
+        size_t nNeededDecompressionBufferSize = 0;
+        if (!NET_BufferToBufferDecompressGetNeededDecompressionBufferSize(pCompressedBuffer,
+            nCompressedDataLen, nNeededDecompressionBufferSize, compressionMethod))
+            return false;
+        
+        uint8_t* const pDecompressionBuffer = new uint8_t[nNeededDecompressionBufferSize];
+        if (!NET_BufferToBufferDecompressMultiMode(pCompressedBuffer, nCompressedDataLen, pDecompressionBuffer, nNeededDecompressionBufferSize, compressionMethod))
+        {
+            delete[] pDecompressionBuffer;
+            return false;
+        }
+
+        if (nNeededDecompressionBufferSize != static_cast<size_t>(m_ReceiveList.uncompressedSize))
+        {
+            delete[] pDecompressionBuffer;
+            return false;
+        }
+
+        delete[] m_ReceiveList.buffer;
+        m_ReceiveList.buffer = reinterpret_cast<char*>(pDecompressionBuffer);
+        m_ReceiveList.blockSize = nNeededDecompressionBufferSize;
+        m_ReceiveList.isCompressed = false;
+    }
+  
+    bf_read messageBuffer(m_ReceiveList.buffer, static_cast<int>(m_ReceiveList.uncompressedSize));
+
+    if (!ProcessMessages(&messageBuffer))
+        return false;
+
+    return true;
+}
+
+bool CNetChan::_ReadSubChannelData(CNetChan* thisp, bf_read* pBuff)
+{
+    thisp->m_bInReliableState = true;
+    NetPacketCompressionMethod_e compressionMethod = INVALID;
+    const unsigned int nAlignmentCheck = pBuff->ReadUBitLong(32);
+    if (nAlignmentCheck != 0xABCDEF01)
+        return false;
+
+    const unsigned int nSubOutFragmentsAck = pBuff->ReadUBitLong(32);
+    const unsigned int nSubOutFragmentsAckClamped = pBuff->ReadUBitLong(10);
+
+    if (thisp->m_bReceivedRemoteNonce && nSubOutFragmentsAck > (unsigned int)thisp->m_nSubInFragments)
+    {
+        Assert(0);
+        return false;
+    }
+
+    if (nSubOutFragmentsAckClamped || !pBuff->ReadOneBit())
+    {
+        thisp->m_bPendingRemoteNonceAck = false;
+    }
+    else
+    {
+        const uint32_t nNonce = pBuff->ReadUBitLong(32);
+        if (nNonce != thisp->m_nNonceRemote)
+        {
+            thisp->m_nNonceRemote = nNonce;
+            thisp->m_bReceivedRemoteNonce = true;
+            thisp->m_bInReliableState = false;
+            thisp->m_nSubInFragments = 0;
+            thisp->FreeReceiveList();
+            thisp->m_bPendingRemoteNonceAck = true;
+        }
+    }
+
+    int nFragmentCatchUp = INT32_MAX;
+    if (thisp->m_bReceivedRemoteNonce)
+    {
+        nFragmentCatchUp = (thisp->m_nSubInFragments & 1023) - nSubOutFragmentsAckClamped;
+        if (nFragmentCatchUp < 0)
+        {
+            nFragmentCatchUp += 1024;
+        }
+    }
+ 
+    do
+    {
+        int nBlockSize = 560;
+        int nUncompressedSize = 0;
+        int nTransferSize = 0;
+        bool bCompressed = false;
+
+        const int nFragment = pBuff->ReadUBitLong(32);
+        if (thisp->m_bReceivedRemoteNonce && nFragment + nFragmentCatchUp != thisp->m_nSubInFragments)
+        {
+            Assert(0);
+            return false;
+        }
+
+        const bool bFirstFragment = pBuff->ReadOneBit();
+        if (bFirstFragment)
+        {
+            if (nFragmentCatchUp <= 0 && thisp->m_ReceiveList.buffer)
+            {
+                Assert(0);
+                return false;
+            }
+
+            nTransferSize = pBuff->ReadUBitLong(19);
+
+            if (nTransferSize > NET_MAX_PAYLOAD)
+                return false;
+
+            bCompressed = pBuff->ReadOneBit();
+            if (bCompressed)
+            {
+                compressionMethod = static_cast<NetPacketCompressionMethod_e>(pBuff->ReadUBitLong(8));
+                nUncompressedSize = pBuff->ReadUBitLong(22);
+            }
+            else
+                nUncompressedSize = nTransferSize;
+
+            nBlockSize = min(nTransferSize, 560);
+        }
+        else
+        {
+            const bool bIsLastFragment = pBuff->ReadOneBit();
+            if (bIsLastFragment)
+            {
+                nBlockSize = pBuff->ReadUBitLong(10);
+                thisp->m_ReceiveList.blockSize = nBlockSize;
+            }
+        }
+
+        if (nFragmentCatchUp > 0)
+        {
+            pBuff->SeekRelative(nBlockSize * 8);
+            nFragmentCatchUp--;
+        }
+        else
+        {
+            if (nFragment != thisp->m_nSubInFragments)
+            {
+                Assert(0);
+                return false;
+            }
+
+            if (bFirstFragment)
+            {
+                thisp->FreeReceiveList();
+                thisp->m_ReceiveList.blockSize = nBlockSize;
+                thisp->m_ReceiveList.uncompressedSize = nUncompressedSize;
+                thisp->m_ReceiveList.transferSize = nTransferSize;
+                thisp->m_ReceiveList.isCompressed = bCompressed;
+                thisp->m_ReceiveList.eCompressionMethod = compressionMethod;
+                thisp->m_ReceiveList.currentOffset = 0;
+                thisp->m_ReceiveList.buffer = new char[nTransferSize];
+            }
+
+            if (!thisp->m_ReceiveList.buffer)
+                return false;
+
+            if (thisp->m_ReceiveList.currentOffset + nBlockSize > thisp->m_ReceiveList.transferSize)
+            {
+                thisp->FreeReceiveList();
+                return false;
+            }
+
+            pBuff->ReadBytes(&thisp->m_ReceiveList.buffer[thisp->m_ReceiveList.currentOffset], nBlockSize);
+            thisp->m_ReceiveList.currentOffset += nBlockSize;
+            thisp->m_nSubInFragments++;
+
+            if (thisp->m_ReceiveList.currentOffset == thisp->m_ReceiveList.transferSize)
+            {
+                if (!thisp->ProcessSubChannelBuffer())
+                    return false;
+
+                thisp->FreeReceiveList();
+            }
+        }
+
+    } while (pBuff->ReadOneBit());
+
+    return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -569,4 +908,7 @@ void VNetChan::Detour(const bool bAttach) const
 	DetourSetup(&CNetChan__Shutdown, &CNetChan::_Shutdown, bAttach);
 	DetourSetup(&CNetChan__FlowNewPacket, &CNetChan::_FlowNewPacket, bAttach);
 	DetourSetup(&CNetChan__ProcessMessages, &CNetChan::_ProcessMessages, bAttach);
+    DetourSetup(&CNetChan__CreateFragmentsFromBuffer, &CNetChan::_CreateFragmentsFromBuffer, bAttach);
+    DetourSetup(&CNetChan__SendSubChannelData, &CNetChan::_SendSubChannelData, bAttach);
+    DetourSetup(&CNetChan__ReadSubChannelData, &CNetChan::_ReadSubChannelData, bAttach);
 }

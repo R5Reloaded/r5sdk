@@ -1,5 +1,15 @@
 #ifndef TSLIST_H
 #define TSLIST_H
+#include <tier0/imemalloc.h>
+
+#define TSLIST_HEAD_ALIGNMENT 16
+#define TSLIST_NODE_ALIGNMENT 16
+
+#define TSLIST_HEAD_ALIGN DECL_ALIGN(TSLIST_HEAD_ALIGNMENT)
+#define TSLIST_NODE_ALIGN DECL_ALIGN(TSLIST_NODE_ALIGNMENT)
+
+typedef SLIST_ENTRY TSLNodeBase_t;
+typedef SLIST_HEADER TSLHead_t;
 
 //-----------------------------------------------------------------------------
 // 
@@ -37,6 +47,182 @@ inline CAlignedMemAlloc* AlignedMemAlloc()
 {
 	return g_pAlignedMemAlloc;
 }
+
+class CTSListBase
+{
+public:
+    TSLNodeBase_t* Pop() { return static_cast<TSLNodeBase_t*>(InterlockedPopEntrySList(&m_Head)); }
+private:
+    TSLHead_t m_Head;
+};
+
+template<typename T>
+class CTSQueue
+{
+public:
+    // override new/delete so we can guarantee 8-byte aligned allocs
+    static void* operator new(size_t size)
+    {
+        CTSQueue* pNode = (CTSQueue*)MemAlloc_AllocAlignedFileLine(size, TSLIST_HEAD_ALIGNMENT, __FILE__, __LINE__);
+        return pNode;
+    }
+
+    static void operator delete(void* p)
+    {
+        MemAlloc_FreeAligned(p);
+    }
+
+    static void* operator new[](size_t size) = delete;
+    static void operator delete[](void* p) = delete;
+
+    struct TSLIST_NODE_ALIGN Node_t
+    {
+        Node_t() {}
+        Node_t(const T& init) : elem(init) {}
+
+        static void* operator new(size_t size)
+        {
+            return static_cast<Node_t*>(MemAlloc_AllocAlignedFileLine(size, TSLIST_HEAD_ALIGNMENT, __FILE__, __LINE__));
+        }
+
+        static void operator delete(void* p)
+        {
+            MemAlloc_FreeAligned(p);
+        }
+
+        Node_t* pNext;
+        T elem;
+    };
+
+    struct TSLIST_HEAD_ALIGN NodeLink_t
+    {
+        Node_t* pNode;
+        uint64_t sequence;
+    };
+
+    void FinishPush(Node_t* pNode, NodeLink_t& oldTail)
+    {
+        AUTO_LOCK(m_Mutex);
+        if (memcmp(&m_Tail, &oldTail, sizeof(NodeLink_t)))
+            return;
+
+        m_Tail.pNode = pNode;
+        m_Tail.sequence++;
+    }
+
+    Node_t* End() { return (Node_t*)this; };
+
+    Node_t* Pop()
+    {
+        NodeLink_t* volatile pHead = &m_Head;
+        NodeLink_t* volatile pTail = &m_Tail;
+
+        Node_t* volatile* pHeadNode = &m_Head.pNode;
+        volatile uint64_t* volatile pHeadSequence = &m_Head.sequence;
+
+        Node_t* volatile* pTailNode = &pTail->pNode;
+
+        NodeLink_t head;
+        Node_t* pNext;
+        uint64_t tailSequence;
+        T elem;
+
+        for (;;)
+        {
+            head.sequence = *pHeadSequence;
+            head.pNode = *pHeadNode;
+            tailSequence = pTail->sequence;
+            pNext = head.pNode->pNext;
+
+            if (!pNext || head.sequence != *pHeadSequence)
+                continue;
+
+            if (head.pNode == *pTailNode)
+            {
+                if (pNext == End())
+                    return nullptr;
+
+                NodeLink_t& oldTail = head;
+                oldTail.sequence = tailSequence;
+                FinishPush(pNext, oldTail);
+                continue;
+            }
+
+            if (pNext != End())
+            {
+                //Why are respawn using a lock here instead of atomic ops?
+                AUTO_LOCK(m_Mutex);
+                if (pHead->pNode == head.pNode && pHead->sequence == head.sequence)
+                {
+                    NodeLink_t newHead;
+                    newHead.pNode = pNext;
+                    newHead.sequence = head.sequence + 1;
+
+                    *pHead = newHead;
+                    elem = pNext->elem;
+                    break;
+                }
+            }
+        }
+
+        head.pNode->elem = elem;
+        InterlockedDecrement((volatile LONG*)&m_Count);
+        return head.pNode;
+    }
+
+    Node_t* Push(Node_t* pNode)
+    {
+        NodeLink_t oldTail;
+        Node_t* pOldNext;
+        pNode->pNext = End();
+        
+        for (;;)
+        {
+            oldTail.pNode = m_Tail.pNode;
+            oldTail.sequence = m_Tail.sequence;
+
+            {
+                AUTO_LOCK(m_Mutex);
+                pOldNext = oldTail.pNode->pNext;
+                
+                if (oldTail.pNode->pNext == End())
+                    oldTail.pNode->pNext = pNode;
+            }
+
+            if (pOldNext == End())
+                break;
+
+            FinishPush(oldTail.pNode->pNext, oldTail);
+        }
+
+        FinishPush(pNode, oldTail);
+        InterlockedIncrement((volatile LONG*)&m_Count);
+        return oldTail.pNode;
+    }
+
+    void PushItem(const T& init)
+    {
+        Node_t* pNode = reinterpret_cast<Node_t*>(m_FreeNodes.Pop());
+        if (pNode)
+        {
+            pNode->elem = init;
+        }
+        else 
+        {
+            pNode = new Node_t(init);
+        }
+
+        Push(pNode);
+    }
+
+    NodeLink_t m_Head;
+    NodeLink_t m_Tail;
+    volatile int m_Count;
+    char m_gap024[12];
+    CTSListBase m_FreeNodes;
+    CThreadMutex m_Mutex;
+    char m_gap040[8];
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 class VTSListBase : public IDetour

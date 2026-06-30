@@ -18,7 +18,19 @@
 #endif // !CLIENT_DLL
 #endif // !_TOOLS
 
+#define NET_HEADER_SIZE sizeof(unsigned int)
+#define MAX_ROUTABLE_PAYLOAD 1200
+#define MIN_USER_MAXROUTABLE_SIZE 576
+#define MAX_USER_MAXROUTABLE_SIZE MAX_ROUTABLE_PAYLOAD
+#define NET_COMPRESSION_STACKBUF_SIZE 4096
+
+#define NET_HEADER_FLAG_SPLITPACKET -2
+#define NET_HEADER_FLAG_COMPRESSEDPACKET -3
+#define NET_HEADER_FLAG_ZSTDCOMPRESSEDPACKET -4
+
 #ifndef _TOOLS
+typedef CUtlMemoryFixedGrowable<uint8_t, NET_COMPRESSION_STACKBUF_SIZE> CUtlMemoryNetCompressionBuffer;
+
 static void NET_GetKey_f()
 {
 	NET_PrintKey();
@@ -55,31 +67,289 @@ ConVar net_useRandomKey("net_useRandomKey", "1", FCVAR_RELEASE, "Use random AES 
 
 static ConVar net_tracePayload("net_tracePayload", "0", FCVAR_DEVELOPMENTONLY, "Log the payload of the send/recv datagram to a file on the disk.");
 static ConVar net_encryptionEnable("net_encryptionEnable", "1", FCVAR_DEVELOPMENTONLY | FCVAR_REPLICATED, "Use AES encryption on game packets.");
+static ConVar net_maxRecvCall("net_maxRecvCall", "1000", FCVAR_DEVELOPMENTONLY);
+static ConVar net_maxDatagramReceiveAttempts("net_maxDatagramReceiveAttempts", "1000", FCVAR_DEVELOPMENTONLY);
+
+ConVar net_compression_method("net_compression_method", "0", FCVAR_RELEASE, "Sets the compression method used for net packets", "0 = LZSS, 1 = ZSTD");
+ConVar net_compression_debug("net_compression_debug", "0", FCVAR_DEVELOPMENTONLY);
+static ConVar net_zstd_compression_level("net_zstd_compression_level", "7", FCVAR_RELEASE, "Sets the compression level used by the zstd packet compressor", true, 1.f, true, 19.f);
 
 static ConCommand net_getkey("net_getkey", NET_GetKey_f, "Gets the installed base64 net key", FCVAR_RELEASE);
 static ConCommand net_setkey("net_setkey", NET_SetKey_f, "Sets user specified base64 net key", FCVAR_RELEASE);
 static ConCommand net_generatekey("net_generatekey", NET_GenerateKey_f, "Generates and sets a random base64 net key", FCVAR_RELEASE);
 
 //-----------------------------------------------------------------------------
-// Purpose: hook and log the receive datagram
+// Purpose: Gets the packet header
+// NOTE: packet buffer size must be ensured by caller
+// Input  : *pPacket 
+// Output : packet header
+//-----------------------------------------------------------------------------
+static int NET_GetPacketFlag(const uint8_t* const pPacket, const size_t nPacketLen)
+{
+    Assert(nPacketLen >= NET_HEADER_SIZE);
+    int netHeader;
+    memcpy(&netHeader, pPacket, sizeof(netHeader));
+    return netHeader;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Checks if the packet buffer has a compression flag or not
+// NOTE: packet buffer size must be ensured by caller
+// Input  : *pPacket 
+// Output : true if packet has compressed flag, false if not
+//-----------------------------------------------------------------------------
+static bool NET_IsCompressedPacket(const uint8_t* const pPacket, const unsigned int nPacketLen)
+{
+    Assert(nPacketLen >= NET_HEADER_SIZE);
+    int header = NET_GetPacketFlag(pPacket, nPacketLen);
+    switch (header)
+    {
+    case NET_HEADER_FLAG_COMPRESSEDPACKET:
+    case NET_HEADER_FLAG_ZSTDCOMPRESSEDPACKET:
+        return true;
+    default:
+        return false;
+    }
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Checks if the packet is marked as a split packet or not
+// NOTE: packet buffer size must be ensured by caller
+// Input  : *pPacket 
+// Output : true if packet has split flag, false if not
+//-----------------------------------------------------------------------------
+static inline bool NET_IsSplitPacket(const uint8_t* const pPacket, const size_t nDataLen)
+{
+    return NET_GetPacketFlag(pPacket, nDataLen) == NET_HEADER_FLAG_SPLITPACKET;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Decompresses a net packet into an output buffer
+// Input  : *pPacketData
+//          nPacketLen
+//          &decompressionBuffer
+//          nMaxDecompressedSize
+//          nDecompressedSize
+// Output : True if packet decompresses successfully, false if not
+//-----------------------------------------------------------------------------
+static bool NET_DecompressPacket(const uint8_t* const pPacketData, const unsigned int nPacketLen, 
+    CUtlMemoryNetCompressionBuffer& decompressionBuffer, unsigned int nMaxDecompressedSize, unsigned int& nDecompressedSize)
+{
+    //Do we actually have enough bytes to decompress
+    if (nPacketLen <= NET_HEADER_SIZE)
+        return false;
+
+    const uint8_t* const pCompressedData = pPacketData + NET_HEADER_SIZE;
+    const size_t nCompressedDataLen = nPacketLen - NET_HEADER_SIZE;
+
+    int compressionTypeFlag;
+    memcpy(&compressionTypeFlag, pPacketData, sizeof(compressionTypeFlag));
+
+    NetPacketCompressionMethod_e compressionMethod;
+
+    switch (compressionTypeFlag)
+    {
+    case NET_HEADER_FLAG_COMPRESSEDPACKET:
+        compressionMethod = LZSS;
+        break;
+    case NET_HEADER_FLAG_ZSTDCOMPRESSEDPACKET:
+        compressionMethod = ZSTD;
+        break;
+    default:
+        return false;
+    }
+
+    size_t nNeededDecompressionBufferSize;
+    if (!NET_BufferToBufferDecompressGetNeededDecompressionBufferSize(pCompressedData, nCompressedDataLen, nNeededDecompressionBufferSize, compressionMethod))
+        return false;
+
+    decompressionBuffer.EnsureCapacity(nNeededDecompressionBufferSize);
+
+    if (!NET_BufferToBufferDecompressMultiMode(pCompressedData, nCompressedDataLen, decompressionBuffer.Base(), nNeededDecompressionBufferSize, compressionMethod))
+        return false;
+
+    nDecompressedSize = static_cast<unsigned int>(nNeededDecompressionBufferSize);
+    return true;
+}
+
+struct NetEncryptionHeader_t
+{
+    char m_IV[12];
+    char m_TAG[16];
+    const char* const GetData() const { return reinterpret_cast<const char* const>(this + 1); };
+    char* const       GetData() { return reinterpret_cast<char* const>(this + 1); };
+};
+static_assert(sizeof(NetEncryptionHeader_t) == 28);
+
+//-----------------------------------------------------------------------------
+// Purpose: Decrypts an input buffer with a given key
+// NOTE: Data must be prefixed by a valid NetEncryptionHeader_t
+// Input  : *pNetKey
+//          *pInputBuffer
+//          nInputBufferLen
+//          pOutputBuffer
+//          nOutputBufferLength
+// Output : -1 if packet fails to decrypt, bytes decrypted on success
+//-----------------------------------------------------------------------------
+int NET_DecryptPacket(netkey_t* const pNetKey, const uint8_t* const pInputBuffer, const int nInputBufferLen, uint8_t* const pOutputBuffer, const int nOutputBufferLength)
+{
+    //Cant do anything with no net key
+    if (!pNetKey)
+        return -1;
+
+    //Are we actually gonna have data after our header
+    if (nInputBufferLen <= sizeof(NetEncryptionHeader_t))
+        return -1;
+
+    const int nDataSize = nInputBufferLen - sizeof(NetEncryptionHeader_t);
+
+    if (nOutputBufferLength < nDataSize)
+        return -1;
+
+    const NetEncryptionHeader_t* pEncHdr = reinterpret_cast<const NetEncryptionHeader_t*>(pInputBuffer);
+    return v_NET_DecryptPacket(pNetKey, pEncHdr->GetData(), nDataSize, pEncHdr->m_IV, nullptr, nullptr, nullptr, pEncHdr->m_TAG, nullptr, pOutputBuffer);
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Attempts to recieve data from a socket up to net_maxRecvCall times
+// Input  : *pPacket - 
+//			*pSocketRecieveBuffer - 
+//			nSocketRecieveBufferLen - 
+//          &nBytesRecieved -
+// Output : true on packet read, false on no packet read
+//-----------------------------------------------------------------------------
+static bool NET_TryRecieveRawDatagram(netpacket_t* const pPacket, uint8_t* const pSocketRecieveBuffer, const int nSocketRecieveBufferLen, int& nBytesRecieved)
+{
+    int nRecvAttempt = 0;
+    const int nMaxRecvAttempts = net_maxRecvCall.GetInt();
+
+    netsocket_t& socket = g_pNetSockets->Element(pPacket->source);
+    sockaddr_storage recvAddr;
+
+    for (;;)
+    {
+        socket.nLastUsed = static_cast<float>(*g_pNetTime);
+        int sockAddrSize = sizeof(recvAddr);
+        const int res = recvfrom(socket.hUDP, reinterpret_cast<char* const>(pSocketRecieveBuffer), nSocketRecieveBufferLen, 0, reinterpret_cast<sockaddr*>(&recvAddr), &sockAddrSize);
+
+        if (res > 0) //Has data
+        {
+            nBytesRecieved = res;
+            break;
+        }
+        else if (res == 0) //Connection closed
+        {
+            return false;
+        }
+        else //Error
+        {
+            const int error = NET_GetLastError();
+            if (error == WSAEWOULDBLOCK || error == WSAEMSGSIZE)
+                return false;
+        }
+
+        if (nRecvAttempt++ >= nMaxRecvAttempts)
+            return false;
+    }
+
+    if (recvAddr.ss_family == AF_INET6 || recvAddr.ss_family == AF_INET)
+        pPacket->from.SetFromSockadr(&recvAddr);
+    else
+        pPacket->from.Clear();
+
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Handles packet data setup from a raw data buffer
+// Input  : iSocket - 
+//			*pRawDataBuffer - 
+//			nRawDataLen - 
+//          *pPacket -
+//          bEncrypted -
+// Output : true on packet successfully created, false on failure
+//-----------------------------------------------------------------------------
+static bool NET_ProcessRawRecievedPacket(const int iSocket, const uint8_t* const pRawDataBuffer, const int nRawDataLen, netpacket_s* pPacket, bool bEncrypted)
+{
+    unsigned int nDecompressedSize = 0;
+    CUtlMemoryNetCompressionBuffer decompressionBuffer;
+    int nDataSize = nRawDataLen;
+    pPacket->wiresize = nRawDataLen;
+
+    if(bEncrypted)
+    {
+        netkey_t* const pNetKey = v_NET_GetKeyForAdr(&pPacket->from);
+        const int res = NET_DecryptPacket(pNetKey, pRawDataBuffer, nRawDataLen, pPacket->pData, NET_MAX_MESSAGE);
+
+        if (res < 0)
+            return false;
+
+        nDataSize = res;
+    }
+
+    pPacket->size = nDataSize;
+
+    //If there is no chance we can have a header we are done with this packet
+    if (nDataSize <= NET_HEADER_SIZE)
+        return true;
+
+    //If the packet is split and we havent got the long packet yet we need to loop again to get more data
+    if (NET_IsSplitPacket(pPacket->pData, pPacket->size) && !v_NET_GetLongPacket(iSocket, pPacket))
+        return false;
+
+    //If the packet isnt compressed we are done
+    if (!NET_IsCompressedPacket(pPacket->pData, pPacket->size))
+        return true;
+
+    //TODO: The decompression buffer should be allocated in here to support decompression algs that can do decompression on overlapped buffers
+    if (!NET_DecompressPacket(pPacket->pData, pPacket->size, decompressionBuffer, NET_MAX_PAYLOAD, nDecompressedSize))
+        return false;
+
+    pPacket->size = nDecompressedSize;
+    memcpy(pPacket->pData, decompressionBuffer.Base(), nDecompressedSize);
+    return true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Forms a completed net packet from data on a raw socket
 // Input  : iSocket - 
 //			*pInpacket - 
 //			bEncrypted - 
-// Output : true on success, false otherwise
+// Output : true on success, false on no data on socket
 //-----------------------------------------------------------------------------
 bool NET_ReceiveDatagram(int iSocket, netpacket_s* pInpacket, bool bEncrypted)
 {
-	const bool decryptPacket = (bEncrypted && net_encryptionEnable.GetBool());
-	const bool result = v_NET_ReceiveDatagram(iSocket, pInpacket, decryptPacket);
+    const bool bEncryptPacket = (bEncrypted && net_encryptionEnable.GetBool());
 
-	if (result && net_tracePayload.GetBool())
-	{
-		// Log received packet data.
-		HexDump("[+] NET_ReceiveDatagram ", "net_trace",
-			pInpacket->pData, size_t(pInpacket->wiresize));
-	}
+    //This buffer should never be larger than NET_MAX_MESSAGE or it will exceed the size of the allocated scratch buffer
+    //which would make copying this buffer into the scratch buffer unsafe
+    //This exact size is probably based off MAX_ROUTABLE_PAYLOAD with some extra padding im not sure of
+    uint8_t sockReadBuff[1264];
+    static_assert(sizeof(sockReadBuff) <= NET_MAX_MESSAGE);
 
-	return result;
+    const int nMaxAttempts = net_maxDatagramReceiveAttempts.GetInt();
+
+    for (int iAttempt = 0; iAttempt < nMaxAttempts; iAttempt++)
+    {
+        int nBytesRecieved = 0;
+        if (!NET_TryRecieveRawDatagram(pInpacket, sockReadBuff, sizeof(sockReadBuff), nBytesRecieved))
+            return false;
+
+        //Did we successfully decode a packet, if yes we are done, if no we will keep looping till we have no data in the socket or we get a good packet
+        if (NET_ProcessRawRecievedPacket(iSocket, (const uint8_t*)sockReadBuff, nBytesRecieved, pInpacket, bEncryptPacket))
+        {
+            if (net_tracePayload.GetBool())
+            {
+                // Log received packet data.
+                HexDump("[+] NET_ReceiveDatagram ", "net_trace",
+                    pInpacket->pData, size_t(pInpacket->wiresize));
+            }
+
+            return true;
+        }
+    }
+
+    return false;
 }
 
 //-----------------------------------------------------------------------------
@@ -106,6 +376,132 @@ int NET_SendDatagram(SOCKET s, void* pPayload, int iLenght, netadr_t* pAdr, bool
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: Compresses a net packet and appends a compression flag
+// Input  : pRawData - 
+//			nLen - 
+//			compressionBuffer - 
+//			nCompressedSize - 
+// Output : True on success false on failure
+//-----------------------------------------------------------------------------
+static bool NET_CompressPacket(const uint8_t* pRawData, unsigned int nLen, CUtlMemoryNetCompressionBuffer& compressionBuffer, unsigned int& nCompressedSize)
+{
+    const NetPacketCompressionMethod_e compressionMethod = static_cast<NetPacketCompressionMethod_e>(net_compression_method.GetInt());
+
+    size_t nCompressionBufferLen = 0;
+    if (!NET_BufferToBufferCompressMultiMethodNeededCapactity(nLen, nCompressionBufferLen, compressionMethod))
+        return false;
+
+    compressionBuffer.EnsureCapacity(nCompressionBufferLen + NET_HEADER_SIZE);
+
+    uint8_t* const pCompressionBuffer = compressionBuffer.Base() + NET_HEADER_SIZE;
+    
+    if (!NET_BufferToBufferCompressMultiMethod(pCompressionBuffer, nCompressionBufferLen, pRawData, nLen, compressionMethod))
+        return false;
+
+    int compressionFlag;
+    switch (compressionMethod)
+    {
+    case LZSS:
+        compressionFlag = LittleLong(NET_HEADER_FLAG_COMPRESSEDPACKET);
+        break;
+    case ZSTD:
+        compressionFlag = LittleLong(NET_HEADER_FLAG_ZSTDCOMPRESSEDPACKET);
+        break;
+    NO_DEFAULT;
+    }
+
+    memcpy(compressionBuffer.Base(), &compressionFlag, sizeof(int));
+    nCompressedSize = static_cast<unsigned int>(nCompressionBufferLen + NET_HEADER_SIZE);
+    return true;
+}
+
+static void NET_SendLoopPacket(const int iSocket, const unsigned int nLen, const uint8_t* const pData)
+{
+    if (nLen > NET_MAX_PAYLOAD)
+        return;
+
+    if (iSocket != NS_CLIENT && iSocket != NS_SERVER)
+        return;
+
+    loopback_t* const loop = static_cast<loopback_t*>(loopback_t::s_pAllocator->Alloc());
+    
+    if (nLen > sizeof(loopback_t::m_FixedBuffer))
+        loop->m_pData = new char[nLen];
+    else
+        loop->m_pData = loop->m_FixedBuffer;
+
+    loop->m_nDataLen = nLen;
+    memcpy(loop->m_pData, pData, nLen);
+
+    g_pLoopBacks[!iSocket].PushItem(loop);
+}
+
+int NET_SendPacket(CNetChan* pChan, int iSocket, const netadr_t& toAdr, const uint8_t* pData, unsigned int nLen, void* unused0, bool bCompress, void* unused1, bool bEncrypt)
+{
+    if (toAdr.IsLoopback() || (toAdr.IsLocalhost() && !net_usesocketsforloopback->GetBool()))
+    {
+        NET_SendLoopPacket(iSocket, nLen, pData);
+        return static_cast<int>(nLen);
+    }
+
+    if (toAdr.GetType() != netadrtype_t::NA_IP)
+        return nLen;
+
+    const netsocket_t& netsocket = g_pNetSockets->Element(iSocket);
+    const int hUDP = netsocket.hUDP;
+
+    if (!hUDP)
+        return nLen;
+
+    if (iSocket == NS_CLIENT && net_droppackets->GetInt() < 0)
+    {
+        net_droppackets->SetValue(net_droppackets->GetInt() + 1);
+        return nLen;
+    }
+
+    const uint8_t* pDataToSend = pData;
+    unsigned int nBytesToSend = nLen;
+    CUtlMemoryNetCompressionBuffer compressionBuffer;
+
+    if (bCompress)
+    {
+        unsigned int nCompressedSize = 0;
+        if (NET_CompressPacket(pData, nLen, compressionBuffer, nCompressedSize))
+        {
+            pDataToSend = compressionBuffer.Base();
+            nBytesToSend = nCompressedSize;
+        }
+    }
+
+    //On the server always clamp the max routable to whatever the sv var is set to
+#ifndef CLIENT_DLL
+    const unsigned int nMaxRoutable = pChan
+        ? clamp(pChan->GetMaxRoutablePayloadSize(), MIN_USER_MAXROUTABLE_SIZE, min(sv_maxroutable->GetInt(), MAX_USER_MAXROUTABLE_SIZE))
+        : MAX_USER_MAXROUTABLE_SIZE;
+#else
+    const unsigned int nMaxRoutable = pChan
+        ? clamp(pChan->GetMaxRoutablePayloadSize(), MIN_USER_MAXROUTABLE_SIZE, MAX_USER_MAXROUTABLE_SIZE)
+        : MAX_USER_MAXROUTABLE_SIZE;
+#endif
+
+    int nBytesProcessed = 0;
+
+    if (nBytesToSend > nMaxRoutable || (net_queued_packet_thread->GetInt() == 0x8DEB8 && pChan))
+        nBytesProcessed = v_NET_SendLong(pChan, iSocket, hUDP, pDataToSend, nBytesToSend, &toAdr, nMaxRoutable, bEncrypt);
+    else
+        nBytesProcessed = v_NET_SendTo_Async(nullptr, hUDP, pDataToSend, nBytesToSend, &toAdr, bEncrypt);
+    
+    if (nBytesProcessed == -1)
+    {
+        const int err = NET_GetLastError();
+        if (err == WSAEWOULDBLOCK || err == WSAECONNRESET)
+            return 0;
+    }
+
+    return nBytesToSend;
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: compresses the input buffer into the output buffer
 // Input  : *dest - 
 //			*destLen - 
@@ -113,7 +509,7 @@ int NET_SendDatagram(SOCKET s, void* pPayload, int iLenght, netadr_t* pAdr, bool
 //			sourceLen - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint8_t* const source, const size_t sourceLen)
+bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, const uint8_t* const source, const size_t sourceLen)
 {
 	CLZSS lzss;
 	uint32_t compLen = (uint32_t)sourceLen;
@@ -131,6 +527,67 @@ bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: Gets the minimum buffer required to compress data of a given length
+// Input  : *dest - 
+//			&nNeededLength -
+//          mode -
+// Output : true on success, false otherwise
+//-----------------------------------------------------------------------------
+bool NET_BufferToBufferCompressMultiMethodNeededCapactity(const size_t nInputLen, size_t& nNeededLength, NetPacketCompressionMethod_e mode)
+{
+    switch (mode) 
+    {
+    case LZSS:
+        nNeededLength = nInputLen;
+        return true;
+    case ZSTD:
+    {
+        size_t res = ZSTD_compressBound(nInputLen);
+        
+        if (ZSTD_isError(res))
+            return false;
+        
+        nNeededLength = res;
+        return true;
+    }
+    default:
+        Assert(0);
+        return false;
+    }
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Compresses data in source into dest
+// Input  : *dest - 
+//			&destLen -
+//          source -
+//          sourceLen -
+//          mode -
+// Output : true on success, false otherwise, destLen is set to compressed size
+//-----------------------------------------------------------------------------
+bool NET_BufferToBufferCompressMultiMethod(uint8_t* const dest, size_t& destLen, const uint8_t* const source, const size_t sourceLen, NetPacketCompressionMethod_e mode)
+{
+    switch (mode)
+    {
+    case LZSS:
+        return NET_BufferToBufferCompress(dest, &destLen, source, sourceLen);
+    case ZSTD:
+    {
+        const size_t res = ZSTD_compress(dest, destLen, source, sourceLen, net_zstd_compression_level.GetInt());
+        
+        if (ZSTD_isError(res))
+            return false;
+        
+        destLen = res;
+        return true;
+    }
+    default:
+        Assert(0);
+        return false;
+    }
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: decompresses the input buffer into the output buffer
 // Input  : *source - 
 //			&sourceLen - 
@@ -138,12 +595,13 @@ bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint
 //			destLen - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-unsigned int NET_BufferToBufferDecompress(uint8_t* const source, size_t& sourceLen, uint8_t* const dest, const size_t destLen)
+unsigned int NET_BufferToBufferDecompress(const uint8_t* const source, const size_t& sourceLen, uint8_t* const dest, const size_t destLen)
 {
 	Assert(source);
-	Assert(sourceLen);
 
 	CLZSS lzss;
+    if (sourceLen < CLZSS::GetHeaderSize())
+        return false;
 
 	if (lzss.IsCompressed(source))
 	{
@@ -151,6 +609,98 @@ unsigned int NET_BufferToBufferDecompress(uint8_t* const source, size_t& sourceL
 	}
 
 	return 0;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Gets the minimum size buffer needed to decompress a given input buffer
+// Input  : *pInput - 
+//			nInputBufferLen - 
+//			nOutputSize - 
+//			mode - 
+// Output : true on success, false otherwise
+//-----------------------------------------------------------------------------
+bool NET_BufferToBufferDecompressGetNeededDecompressionBufferSize(const uint8_t* const pInput, const size_t nInputBufferLen, size_t& nOutputSize, NetPacketCompressionMethod_e mode)
+{
+    switch (mode)
+    {
+    case LZSS:
+    {
+        if (nInputBufferLen < CLZSS::GetHeaderSize())
+            return false;
+
+        if (!CLZSS::IsCompressed(pInput))
+            return false;
+
+        nOutputSize = CLZSS::GetActualSize(pInput);
+        return true;
+    }
+    case ZSTD:
+    {
+        const size_t res = ZSTD_getFrameContentSize(pInput, nInputBufferLen);
+        
+        if (ZSTD_isError(res))
+        {
+            if (net_compression_debug.GetBool())
+            {
+                const char* const pszErrorString = ZSTD_getErrorString(ZSTD_getErrorCode(res));
+                Warning(eDLL_T::ENGINE, __FUNCTION__": Failed to get frame content size for data buffer: '%s'\n", pszErrorString);
+            }
+
+            return false;
+        }
+
+        nOutputSize = res;
+        return true;
+    }
+    default:
+        Assert(0);
+        return false;
+    }
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Decompresses data from input to output
+// NOTE: Buffer should be allocated based on NET_BufferToBufferDecompressGetNeededDecompressionBufferSize
+// Input  : *pInput - 
+//			nInputBufferLen - 
+//			pOutputBuffer - 
+//			nOutputSize - 
+//          mode
+// Output : true on success, false otherwise, nOutputSize is set to the size of decompressed data
+//-----------------------------------------------------------------------------
+bool NET_BufferToBufferDecompressMultiMode(const uint8_t* const pInput, const size_t nInputBufferLen, uint8_t* const pOutputBuffer, size_t& nOutputSize, NetPacketCompressionMethod_e mode)
+{
+    switch (mode)
+    {
+    case LZSS:
+    {
+        const int res = NET_BufferToBufferDecompress(pInput, nInputBufferLen, pOutputBuffer, nOutputSize);
+        if (res == 0)
+            return false;
+        nOutputSize = res;
+        return true;
+    }
+    case ZSTD:
+    {
+        const size_t res = ZSTD_decompress(pOutputBuffer, nOutputSize, pInput, nInputBufferLen);
+        
+        if (ZSTD_isError(res))
+        {
+            if (net_compression_debug.GetBool())
+            {
+                const char* const pszErrorString = ZSTD_getErrorString(ZSTD_getErrorCode(res));
+                Warning(eDLL_T::ENGINE, __FUNCTION__": Decompression failed: '%s'\n", pszErrorString);
+            }
+            return false;
+        }
+        
+        nOutputSize = res;
+        return true;
+    }
+    default:
+        Assert(0);
+        return false;
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -293,6 +843,13 @@ bool NET_IsRemoteLocal(const CNetAdr& netAdr)
 	return (g_pNetAdr->ComparePort(netAdr) && g_pNetAdr->CompareAdr(netAdr));
 }
 
+int NET_GetLastError()
+{
+    const int error = WSAGetLastError();
+    *g_pNetError = error;
+    return error;
+}
+
 #endif // !_TOOLS
 
 //-----------------------------------------------------------------------------
@@ -408,6 +965,8 @@ void VNet::Detour(const bool bAttach) const
 	DetourSetup(&v_NET_BufferToBufferCompress, &NET_BufferToBufferCompress, bAttach);
 	DetourSetup(&v_NET_BufferToBufferDecompress_LZSS, &NET_BufferToBufferDecompress_LZSS, bAttach);
 	DetourSetup(&v_NET_PrintFunc, &NET_PrintFunc, bAttach);
+
+    DetourSetup(&v_NET_SendPacket, &NET_SendPacket, bAttach);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
