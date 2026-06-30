@@ -3,9 +3,13 @@
 // Purpose: Playlists system
 //
 //===========================================================================//
+#include "tier0/commandline.h"
 #include "engine/sys_dll2.h"
 #include "engine/cmodel_bsp.h"
+#include "pluginsystem/modsystem.h"
 #include "playlists.h"
+
+#define DEFAULT_PLAYLISTS_FILE_NAME "playlists_r5.txt"
 
 KeyValues** g_pPlaylistKeyValues = nullptr; // The KeyValue for the playlist file.
 char* g_pPlaylistMapToLoad = nullptr;
@@ -46,6 +50,74 @@ void Playlists_SDKInit(void)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: dumps the merged playlists data to a file on the disk for debugging
+// Input  : *playlistPath - 
+//-----------------------------------------------------------------------------
+static void Playlists_DumpMerged(const char* const playlistPath)
+{
+	CUtlBuffer outBuf(0ll, 0, CUtlBuffer::TEXT_BUFFER);
+	(*g_pPlaylistKeyValues)->RecursiveSaveToFile(outBuf, 0);
+
+	CUtlString finalPath;
+	finalPath.Format("merged_%s", playlistPath);
+
+	Msg(eDLL_T::RTECH, "%s: Writing merged playlists file \"%s\"\n", __FUNCTION__, finalPath.String());
+
+	if (!FileSystem()->WriteFile(finalPath.String(), "PLATFORM", outBuf))
+		Warning(eDLL_T::RTECH, "%s: Failed to write merged playlists file: '%s'\n", __FUNCTION__, finalPath.String());
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: merges mod playlists deltas into the main playlists
+// Input  : *szPlaylist - 
+//-----------------------------------------------------------------------------
+static void Playlists_MergeMods()
+{
+	if (!ModSystem()->IsEnabled())
+		return;
+
+	if (!*g_pPlaylistKeyValues)
+		return;
+
+	ModSystem()->LockModList();
+
+	const char* playlistPath = nullptr;
+	bool hasMerges = false;
+
+	// Preload mod paks.
+	FOR_EACH_VEC(ModSystem()->GetModList(), i)
+	{
+		const CModSystem::ModInstance_t* const mod = ModSystem()->GetModList()[i];
+
+		if (!mod->IsEnabled())
+			continue;
+
+		if (!playlistPath)
+		{
+			if (!CommandLine()->CheckParm("-playlistFile", &playlistPath) || !playlistPath)
+				playlistPath = DEFAULT_PLAYLISTS_FILE_NAME;
+		}
+
+		CUtlString modLookupPath = mod->GetBasePath() + playlistPath;
+		const char* const pModLookupPath = modLookupPath.String();
+
+		KeyValues modPlaylists("playlists");
+		modPlaylists.UsesEscapeSequences(true);
+
+		if (!modPlaylists.LoadFromFile(FileSystem(), pModLookupPath, "GAME"))
+			continue;
+
+		(*g_pPlaylistKeyValues)->MergeFrom(&modPlaylists);
+		hasMerges = true; // Deltas have been applied.
+	}
+
+	ModSystem()->UnlockModList();
+
+	if (playlist_debug->GetBool() && hasMerges)
+		Playlists_DumpMerged(playlistPath);
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: loads the playlists
 // Input  : *szPlaylist - 
 // Output : true on success, false on failure
@@ -53,8 +125,9 @@ void Playlists_SDKInit(void)
 bool Playlists_Load(const char* pszPlaylist)
 {
 	ThreadJoinServerJob();
-
 	const bool bResults = v_Playlists_Load(pszPlaylist);
+
+	Playlists_MergeMods();
 	Playlists_SDKInit();
 
 	return bResults;
