@@ -77,6 +77,9 @@ inline void(*CMaterialSystem__Disconnect)(CMaterialSystem*);
 
 inline CMaterialSystem* g_pMaterialSystem = nullptr;
 inline void* g_pMaterialVFTable = nullptr;
+
+inline void ( *CMaterialSystem__SyncToMessagePump )( CMaterialSystem* pMatSys );
+
 #ifndef MATERIALSYSTEM_NODX
 inline void*(*CMaterialSystem__SwapBuffers)(CMaterialSystem* pMatSys);
 
@@ -111,6 +114,7 @@ class VMaterialSystem : public IDetour
 		LogFunAdr("CMaterialSystem::Shutdown", CMaterialSystem__Shutdown);
 		LogFunAdr("CMaterialSystem::Connect", CMaterialSystem__Connect);
 		LogFunAdr("CMaterialSystem::Disconnect", CMaterialSystem__Disconnect);
+		LogFunAdr( "CMaterialSystem::SyncToMessagePump", CMaterialSystem__SyncToMessagePump );
 #ifndef MATERIALSYSTEM_NODX
 		LogFunAdr("CMaterialSystem::SwapBuffers", CMaterialSystem__SwapBuffers);
 		LogFunAdr("CMaterialSystem::FindMaterialEx", CMaterialSystem__FindMaterialEx);
@@ -134,6 +138,8 @@ class VMaterialSystem : public IDetour
 
 		Module_FindPattern(g_GameDll, "48 89 54 24 ?? 56 48 83 EC 50").GetPtr(CMaterialSystem__Connect);
 		Module_FindPattern(g_GameDll, "48 83 EC 28 8B 0D ?? ?? ?? ?? 48 89 6C 24 ??").GetPtr(CMaterialSystem__Disconnect);
+		Module_FindPattern( g_GameDll, "48 83 EC ?? 48 8B 0D ?? ?? ?? ?? 8B 51 ?? 83 EA" )
+			.GetPtr(CMaterialSystem__SyncToMessagePump);
 #ifndef MATERIALSYSTEM_NODX
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 41 56 41 57 48 83 EC 40 65 48 8B 04 25 ?? ?? ?? ??").GetPtr(CMaterialSystem__SwapBuffers);
 

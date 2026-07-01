@@ -42,7 +42,7 @@ public:
 	virtual InputContextHandle_t PushInputContext() = 0;
 
 	/// Pops the top input context off the input stack, and destroys it.
-	virtual void PopInputContext( InputContextHandle_t hContext ) = 0;
+	virtual void PopInputContext( InputContextHandle_t& hContext ) = 0;
 
 	/// Enables/disables an input context, allowing something lower on the
 	/// stack to have control of input. Disabling an input context which
