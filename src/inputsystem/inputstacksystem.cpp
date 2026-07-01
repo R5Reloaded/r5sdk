@@ -241,6 +241,7 @@ static void CInputStackSystem__UpdateCursorStateHk( CInputStackSystem* thisp)
         if (pImguiCtx->m_bEnabled)
 		{
 			g_pInputSystem->SetCursorIcon( pImguiCtx->m_hCursorIcon );
+			g_pInputSystem->SetMouseCursorVisible( true );
 			g_pInputSystem->DisableMouseCapture();
 			return;
         }
