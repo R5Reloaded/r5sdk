@@ -206,6 +206,56 @@ static ConVar player_applyViewPunch("player_applyViewPunch", "0", FCVAR_RELEASE,
 static ConVar player_applyViewPunchDuringAim("player_applyViewPunchDuringAim", "0", FCVAR_RELEASE, "Whether to apply view punch from damage while aiming.");
 
 //------------------------------------------------------------------------------
+// Purpose: updates the collision bounds if the edited hull is currently active
+//------------------------------------------------------------------------------
+static void Player_UpdateCollisionBoundsForHull(CPlayer* const player, const bool duckHull)
+{
+	const bool isDuckHullActive = player->IsDucked();
+
+	if (duckHull != isDuckHullActive)
+		return;
+
+	CCollisionProperty* const collision = player->CollisionProp();
+	Vector3D& collisionMins = const_cast<Vector3D&>(collision->OBBMins());
+	Vector3D& collisionMaxs = const_cast<Vector3D&>(collision->OBBMaxs());
+
+	if (duckHull)
+	{
+		collisionMins = player->GetDuckHullMin();
+		collisionMaxs = player->GetDuckHullMax();
+	}
+	else
+	{
+		collisionMins = player->GetStandHullMin();
+		collisionMaxs = player->GetStandHullMax();
+	}
+}
+
+void CPlayer::SetStandHullMin(const Vector3D& mins)
+{
+	m_StandHullMin = mins;
+	Player_UpdateCollisionBoundsForHull(this, false);
+}
+
+void CPlayer::SetStandHullMax(const Vector3D& maxs)
+{
+	m_StandHullMax = maxs;
+	Player_UpdateCollisionBoundsForHull(this, false);
+}
+
+void CPlayer::SetDuckHullMin(const Vector3D& mins)
+{
+	m_DuckHullMin = mins;
+	Player_UpdateCollisionBoundsForHull(this, true);
+}
+
+void CPlayer::SetDuckHullMax(const Vector3D& maxs)
+{
+	m_DuckHullMax = maxs;
+	Player_UpdateCollisionBoundsForHull(this, true);
+}
+
+//------------------------------------------------------------------------------
 // Purpose: applies view punch to player view angles when taking damage
 // Input  : *player (this) - 
 //			inputInfo - 
@@ -281,6 +331,79 @@ static void CC_CreateFakePlayer_f(const CCommand& args)
 }
 
 static ConCommand sv_addbot("sv_addbot", CC_CreateFakePlayer_f, "Creates a bot on the server", FCVAR_RELEASE);
+
+//------------------------------------------------------------------------------
+// Purpose: parses a vector from a console command
+//------------------------------------------------------------------------------
+static bool Player_ParseHullVectorArgs(const CCommand& args, Vector3D* const out)
+{
+	if (args.ArgC() < 4)
+		return false;
+
+	out->x = float(atof(args.Arg(1)));
+	out->y = float(atof(args.Arg(2)));
+	out->z = float(atof(args.Arg(3)));
+	return true;
+}
+
+//------------------------------------------------------------------------------
+// Purpose: updates a hull vector on the command client
+//------------------------------------------------------------------------------
+static void Player_HullVectorCommand(const CCommand& args, const char* const usage, void(CPlayer::*setter)(const Vector3D&), const Vector3D&(CPlayer::*getter)() const)
+{
+	CPlayer* const player = UTIL_GetCommandClient();
+
+	if (!player)
+	{
+		Msg(eDLL_T::SERVER, "%s can only be used by an in game player\n", args.Arg(0));
+		return;
+	}
+
+	if (args.ArgC() < 4)
+	{
+		const Vector3D& current = (player->*getter)();
+		Msg(eDLL_T::SERVER, "%s = <%f, %f, %f>\n", args.Arg(0), current.x, current.y, current.z);
+		Msg(eDLL_T::SERVER, "usage: %s\n", usage);
+		return;
+	}
+
+	Vector3D value;
+	if (!Player_ParseHullVectorArgs(args, &value))
+		return;
+
+	(player->*setter)(value);
+}
+
+static void CC_m_standhullmin_f(const CCommand& args)
+{
+	Player_HullVectorCommand(args, "m_standhullmin <x> <y> <z>", &CPlayer::SetStandHullMin, &CPlayer::GetStandHullMin);
+}
+
+static void CC_m_standhullmax_f(const CCommand& args)
+{
+	Player_HullVectorCommand(args, "m_standhullmax <x> <y> <z>", &CPlayer::SetStandHullMax, &CPlayer::GetStandHullMax);
+}
+
+static void CC_m_crouchhullmin_f(const CCommand& args)
+{
+	Player_HullVectorCommand(args, "m_crouchhullmin <x> <y> <z>", &CPlayer::SetDuckHullMin, &CPlayer::GetDuckHullMin);
+}
+
+static void CC_m_crouchhullmax_f(const CCommand& args)
+{
+	Player_HullVectorCommand(args, "m_crouchhullmax <x> <y> <z>", &CPlayer::SetDuckHullMax, &CPlayer::GetDuckHullMax);
+}
+
+static void CC_m_viewoffset_f(const CCommand& args)
+{
+	Player_HullVectorCommand(args, "m_vecviewoffset <x> <y> <z>", &CPlayer::SetViewOffset, &CPlayer::GetViewOffset);
+}
+
+static ConCommand m_standhullmin("m_standhullmin", CC_m_standhullmin_f, "Sets the players standing hull mins", FCVAR_GAMEDLL | FCVAR_CHEAT);
+static ConCommand m_standhullmax("m_standhullmax", CC_m_standhullmax_f, "Sets the players standing hull maxs", FCVAR_GAMEDLL | FCVAR_CHEAT);
+static ConCommand m_crouchhullmin("m_crouchhullmin", CC_m_crouchhullmin_f, "Sets the players crouch hull mins", FCVAR_GAMEDLL | FCVAR_CHEAT);
+static ConCommand m_crouchhullmax("m_crouchhullmax", CC_m_crouchhullmax_f, "Sets players crouch hull maxs", FCVAR_GAMEDLL | FCVAR_CHEAT);
+static ConCommand m_vecviewoffset("m_vecviewoffset", CC_m_viewoffset_f, "Sets players view offset", FCVAR_GAMEDLL | FCVAR_CHEAT);
 
 void VPlayer::Detour(const bool bAttach) const
 {

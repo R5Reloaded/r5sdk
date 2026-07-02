@@ -195,12 +195,21 @@ public:
 
 	void PlayerRunCommand(CUserCmd* pUserCmd, IMoveHelper* pMover);
 	void SetLastUserCommand(CUserCmd* pUserCmd);
+	const Vector3D& GetStandHullMin() const { return m_StandHullMin; }
+	const Vector3D& GetStandHullMax() const { return m_StandHullMax; }
+	const Vector3D& GetDuckHullMin() const { return m_DuckHullMin; }
+	const Vector3D& GetDuckHullMax() const { return m_DuckHullMax; }
+	void SetStandHullMin(const Vector3D& mins);
+	void SetStandHullMax(const Vector3D& maxs);
+	void SetDuckHullMin(const Vector3D& mins);
+	void SetDuckHullMax(const Vector3D& maxs);
 	void UpdateLastActiveTime(float flTime) { m_lastActiveTime = fmaxf(m_lastActiveTime, flTime); }
 
 	inline bool	IsConnected() const { return m_iConnected != PlayerDisconnected; }
 	inline bool	IsDisconnecting() const { return m_iConnected == PlayerDisconnecting; }
 
 	inline bool IsBot() const { return (GetFlags() & FL_FAKECLIENT) != 0; }
+	inline bool IsDucked() const { return m_duckState != 0; }
 
 	inline NucleusID_t GetPlatformUserId() const { return m_platformUserId; };
 

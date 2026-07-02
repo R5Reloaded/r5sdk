@@ -58,6 +58,11 @@ inline int CBaseEntity::GetModelIndex(void) const
 	return m_nModelIndex;
 }
 
+void CBaseEntity::SetViewOffset(const Vector3D& viewOffset)
+{
+	m_vecViewOffset = viewOffset;
+}
+
 const HSCRIPT CBaseEntity::GetScriptInstance()
 {
 	return v_CBaseEntity__GetScriptInstance(this);

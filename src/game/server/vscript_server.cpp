@@ -427,6 +427,109 @@ static SQRESULT ServerScript_ScriptSetClassVar(HSQUIRRELVM v)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: gets the player from a script instance call
+//-----------------------------------------------------------------------------
+static CPlayer* Internal_ServerScript_GetPlayer(HSQUIRRELVM v)
+{
+    CPlayer* player = nullptr;
+
+    if (!v_sq_getentity(v, (SQEntity*)&player))
+        return nullptr;
+
+    return player;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: gets a hull vector from a player
+//-----------------------------------------------------------------------------
+static SQRESULT Internal_ServerScript_GetPlayerHullVector(HSQUIRRELVM v, const Vector3D&(CPlayer::*getter)() const)
+{
+    CPlayer* const player = Internal_ServerScript_GetPlayer(v);
+
+    if (!player)
+        return SQ_ERROR;
+
+    const Vector3D& value = (player->*getter)();
+    const SQVector3D result(value.x, value.y, value.z);
+
+    sq_pushvector(v, &result);
+    SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: sets a hull vector on a player
+//-----------------------------------------------------------------------------
+static SQRESULT Internal_ServerScript_SetPlayerHullVector(HSQUIRRELVM v, void(CPlayer::*setter)(const Vector3D&))
+{
+    CPlayer* const player = Internal_ServerScript_GetPlayer(v);
+
+    if (!player)
+        return SQ_ERROR;
+
+    const SQVector3D* value = nullptr;
+    sq_getvector(v, 2, &value);
+
+    if (!value)
+    {
+        v_SQVM_ScriptError("Expected a vector argument");
+        SCRIPT_CHECK_AND_RETURN(v, SQ_ERROR);
+    }
+
+    (player->*setter)(Vector3D(value->x, value->y, value->z));
+    SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
+}
+
+static SQRESULT ServerScript_GetStandHullMin(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_GetPlayerHullVector(v, &CPlayer::GetStandHullMin);
+}
+
+static SQRESULT ServerScript_GetStandHullMax(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_GetPlayerHullVector(v, &CPlayer::GetStandHullMax);
+}
+
+static SQRESULT ServerScript_GetCrouchHullMin(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_GetPlayerHullVector(v, &CPlayer::GetDuckHullMin);
+}
+
+static SQRESULT ServerScript_GetCrouchHullMax(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_GetPlayerHullVector(v, &CPlayer::GetDuckHullMax);
+}
+
+static SQRESULT ServerScript_SetStandHullMin(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_SetPlayerHullVector(v, &CPlayer::SetStandHullMin);
+}
+
+static SQRESULT ServerScript_SetStandHullMax(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_SetPlayerHullVector(v, &CPlayer::SetStandHullMax);
+}
+
+static SQRESULT ServerScript_SetCrouchHullMin(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_SetPlayerHullVector(v, &CPlayer::SetDuckHullMin);
+}
+
+static SQRESULT ServerScript_SetCrouchHullMax(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_SetPlayerHullVector(v, &CPlayer::SetDuckHullMax);
+}
+
+static SQRESULT ServerScript_GetViewOffset(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_GetPlayerHullVector(v, &CPlayer::GetViewOffset);
+}
+
+static SQRESULT ServerScript_SetViewOffset(HSQUIRRELVM v)
+{
+    return Internal_ServerScript_SetPlayerHullVector(v, &CPlayer::SetViewOffset);
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: checks if the provided hull type is valid
 //-----------------------------------------------------------------------------
 static bool Internal_ServerScript_ValidateHull(const SQInteger hull)
@@ -811,6 +914,86 @@ static void Script_RegisterServerPlayerClassFuncs()
         "string prefix, string message, bool adminMsg",
         false,
         ServerScript_SendServerTextMessage);
+
+    g_serverScriptPlayerStruct->AddFunction("GetStandHullMin",
+        "ScriptGetStandHullMin",
+        "Gets the player's standing hull mins",
+        "vector",
+        "",
+        false,
+        ServerScript_GetStandHullMin);
+
+    g_serverScriptPlayerStruct->AddFunction("GetStandHullMax",
+        "ScriptGetStandHullMax",
+        "Gets the player's standing hull maxs",
+        "vector",
+        "",
+        false,
+        ServerScript_GetStandHullMax);
+
+    g_serverScriptPlayerStruct->AddFunction("GetCrouchHullMin",
+        "ScriptGetCrouchHullMin",
+        "Gets the player's crouch hull mins",
+        "vector",
+        "",
+        false,
+        ServerScript_GetCrouchHullMin);
+
+    g_serverScriptPlayerStruct->AddFunction("GetCrouchHullMax",
+        "ScriptGetCrouchHullMax",
+        "Gets the player's crouch hull maxs",
+        "vector",
+        "",
+        false,
+        ServerScript_GetCrouchHullMax);
+
+    g_serverScriptPlayerStruct->AddFunction("SetStandHullMin",
+        "ScriptSetStandHullMin",
+        "Sets the player's standing hull mins",
+        "void",
+        "vector mins",
+        false,
+        ServerScript_SetStandHullMin);
+
+    g_serverScriptPlayerStruct->AddFunction("SetStandHullMax",
+        "ScriptSetStandHullMax",
+        "Sets the player's standing hull maxs",
+        "void",
+        "vector maxs",
+        false,
+        ServerScript_SetStandHullMax);
+
+    g_serverScriptPlayerStruct->AddFunction("SetCrouchHullMin",
+        "ScriptSetCrouchHullMin",
+        "Sets the player's crouch hull mins",
+        "void",
+        "vector mins",
+        false,
+        ServerScript_SetCrouchHullMin);
+
+    g_serverScriptPlayerStruct->AddFunction("SetCrouchHullMax",
+        "ScriptSetCrouchHullMax",
+        "Sets the player's crouch hull maxs",
+        "void",
+        "vector maxs",
+        false,
+        ServerScript_SetCrouchHullMax);
+
+    g_serverScriptPlayerStruct->AddFunction("GetViewOffset",
+        "ScriptGetViewOffset",
+        "Gets the player's current view offset",
+        "vector",
+        "",
+        false,
+        ServerScript_GetViewOffset);
+
+    g_serverScriptPlayerStruct->AddFunction("SetViewOffset",
+        "ScriptSetViewOffset",
+        "Sets the player's current view offset",
+        "void",
+        "vector viewOffset",
+        false,
+        ServerScript_SetViewOffset);
 }
 //---------------------------------------------------------------------------------
 static void Script_RegisterServerAIClassFuncs()

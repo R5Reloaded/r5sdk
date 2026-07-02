@@ -120,6 +120,7 @@ public:
 	int				GetModelIndex(void) const; // Virtual in-engine!
 	string_t		GetModelName(void) const;  // Virtual in-engine!
 	const Vector3D& GetViewOffset(void) const { return m_vecViewOffset; }
+	void SetViewOffset(const Vector3D& viewOffset);
 	const Vector3D& GetVecPrevAbsOrigin(void) const { return m_vecPrevAbsOrigin; }
 
 	inline edict_t GetEdict(void) const { return NetworkProp()->GetEdict(); }
