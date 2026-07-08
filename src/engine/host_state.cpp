@@ -67,6 +67,11 @@ static ConVar host_sessionId("host_sessionId", "", FCVAR_REPLICATED|FCVAR_DEVELO
 ConVar hostdesc("hostdesc", "", FCVAR_RELEASE, "Host game server description.");
 
 #ifdef DEDICATED
+static bool HostState_IsUsablePylonHostIP(const CNetAdr& hostIp)
+{
+	return hostIp.GetType() == netadrtype_t::NA_IP && hostIp.GetPort() != 0;
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: Send keep alive request to Pylon Master Server.
 // Output : Returns true on success, false otherwise.
@@ -126,9 +131,12 @@ static void HostState_KeepAlive()
 								g_svReset.c_str(), g_svGreyB.c_str(),
 								hostToken.c_str(), g_svReset.c_str());
 						}
-					}
 
-					g_ServerHostManager.SetHostIP(hostIp);
+						if (HostState_IsUsablePylonHostIP(hostIp))
+						{
+							g_ServerHostManager.SetHostIP(hostIp);
+						}
+					}
 
 				}, 0);
 		}

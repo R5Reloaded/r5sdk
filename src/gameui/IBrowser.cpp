@@ -860,10 +860,13 @@ void CBrowser::InstallHostingDetails(const bool postFailed, const string& hostMe
     m_hostMessage = hostMessage;
     m_hostToken = hostToken;
 
-    g_ServerHostManager.SetHostIP(hostIp);
-
     if (postFailed)
     {
+        if (hostIp.GetType() == netadrtype_t::NA_IP && hostIp.GetPort() != 0)
+        {
+            g_ServerHostManager.SetHostIP(hostIp);
+        }
+
         m_hostMessageColor = ImVec4(0.00f, 1.00f, 0.00f, 1.00f);
 
         m_hostMessage = m_hostToken.empty()
