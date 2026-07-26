@@ -7,6 +7,9 @@
 #define CSOM_MAX_FILE_NAME 64
 #define CSOM_MAX_LOADED_BANKS 16
 
+struct PakAsset_s;
+struct PakFile_s;
+
 struct CSOM_AsyncFile_s
 {
 	u64 asyncRequestId;
@@ -40,6 +43,13 @@ inline s32(*v_CSOM_MilesAsync_FileStatus)(MilesAsyncRead* const request, const u
 inline s32(*v_CSOM_MilesAsync_FileCancel)(MilesAsyncRead* const request);
 
 inline void(*v_CSOM_AddEventToQueue)(const char* eventName);
+
+void RPakWav_StopAllPackedVoices();
+void RPakWav_StopPackedMusicVoices();
+void RPakWav_StopPackedVoiceByEventName(const char* eventName);
+void RPakWav_BeginManualMilesPlay();
+void RPakWav_EndManualMilesPlay();
+void RPakWav_RegisterPakAsset(PakFile_s* pak, const PakAsset_s* asset);
 
 struct CSOM_GlobalState_s
 {

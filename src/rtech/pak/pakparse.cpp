@@ -19,6 +19,13 @@
 static ConVar pak_debugrelations("pak_debugrelations", "0", FCVAR_DEVELOPMENTONLY | FCVAR_ACCESSIBLE_FROM_THREADS, "Debug RPAK asset dependency resolving");
 static ConVar pak_debugchannel("pak_debugchannel", "4", FCVAR_DEVELOPMENTONLY | FCVAR_ACCESSIBLE_FROM_THREADS, "Log RPAK files loaded or unloaded with this channel ID", false, 0.f, false, 0.f, "0 = disabled, -1 = all");
 
+static PakAssetProcessedCallback_t s_pakAssetProcessedCallback = nullptr;
+
+void Pak_SetAssetProcessedCallback(PakAssetProcessedCallback_t callback)
+{
+	s_pakAssetProcessedCallback = callback;
+}
+
 //-----------------------------------------------------------------------------
 // resolve the target guid from lookup table
 //-----------------------------------------------------------------------------
@@ -169,8 +176,13 @@ static void Pak_RunAssetLoadingJobs(PakFile_s* const pak)
         }
         else
         {
-            if (_InterlockedExchangeAdd16(&pakAsset->numRemainingDependencies, -1) == 1)
-                Pak_ProcessAssetRelationsAndResolveDependencies(pak, pakAsset, currentAsset, assetBind);
+			if (_InterlockedExchangeAdd16(&pakAsset->numRemainingDependencies, -1) == 1)
+			{
+				Pak_ProcessAssetRelationsAndResolveDependencies(pak, pakAsset, currentAsset, assetBind);
+
+				if (s_pakAssetProcessedCallback)
+					s_pakAssetProcessedCallback(pak, pakAsset);
+			}
 
             _InterlockedDecrement16(&g_pakGlobals->numAssetLoadJobs);
         }

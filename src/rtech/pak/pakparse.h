@@ -26,6 +26,9 @@ inline void (*Pak_ProcessAssetRelationsAndResolveDependencies)(PakFile_s* pak_ar
 
 inline int  (*Pak_TrackAsset)(PakFile_s* const a1, PakAsset_s* a2);
 
+using PakAssetProcessedCallback_t = void(*)(PakFile_s* pak, const PakAsset_s* asset);
+void Pak_SetAssetProcessedCallback(PakAssetProcessedCallback_t callback);
+
 // TODO: name these!
 inline void (*sub_14043D870)(PakLoadedInfo_s* a1, int a2);
 
