@@ -43,6 +43,7 @@
 #include "vgui/vgui_baseui_interface.h"
 #include "client/vengineclient_impl.h"
 #include "client/cdll_engine_int.h"
+#include "client/discord_presence.h"
 #include "gameui/imgui_system.h"
 #endif // DEDICATED
 #include "networksystem/pylon.h"
@@ -198,6 +199,7 @@ void CHostState::FrameUpdate(CHostState* pHostState, double flCurrentTime, float
 #endif // !CLIENT_DLL
 #ifndef DEDICATED
 	RCONClient()->RunFrame();
+	CDiscordPresence::Update();
 #endif // !DEDICATED
 
 	// Disable "warning C4611: interaction between '_setjmp' and C++ object destruction is non-portable"
@@ -350,6 +352,10 @@ void CHostState::Setup(void)
 #ifndef CLIENT_DLL
 	LiveAPISystem()->Init();
 #endif // !CLIENT_DLL
+
+#ifndef DEDICATED
+	CDiscordPresence::Initialize();
+#endif // !DEDICATED
 
 	if (CommandLine()->CheckParm("-norandomkey"))
 	{

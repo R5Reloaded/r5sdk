@@ -147,6 +147,12 @@ if( NOT ${PROJECT_NAME} STREQUAL "engine_ds" )
 add_sources( SOURCE_GROUP "Client" # Client only.
     "client/clientstate.cpp"
     "client/clientstate.h"
+    "client/discord_ipc.cpp"
+    "client/discord_ipc.h"
+    "client/discord_presence.cpp"
+    "client/discord_presence.h"
+    "client/discord_rpc.cpp"
+    "client/discord_rpc.h"
     "client/cl_main.cpp"
     "client/cl_main.h"
     "client/cl_splitscreen.cpp"
