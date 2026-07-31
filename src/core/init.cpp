@@ -132,6 +132,7 @@
 #include "vscript/languages/squirrel_re/vsquirrel.h"
 #include "vscript/vscript.h"
 #include "game/shared/r1/weapon_parse.h"
+#include "game/shared/r1/blast_pattern.h"
 #include "game/shared/r1/weapon_bolt.h"
 #include "game/shared/util_shared.h"
 #include "game/shared/usercmd.h"
@@ -702,6 +703,7 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(V_UTIL_Shared);
 
 	REGISTER(V_Weapon_Parse);
+	REGISTER(VBlastPattern);
 
 #ifndef CLIENT_DLL
 
