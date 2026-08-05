@@ -7,6 +7,7 @@ constexpr const char DEFAULT_NET_ENCRYPTION_KEY[AES_128_B64_ENCODED_SIZE+1] = "W
 #ifndef _TOOLS
 #include "engine/net_chan.h"
 #include "tier1/lzss.h"
+#include "tier1/mempool.h"
 #define MAX_STREAMS         2
 #define FRAGMENT_BITS       8
 #define FRAGMENT_SIZE       (1<<FRAGMENT_BITS)
@@ -17,22 +18,37 @@ constexpr const char DEFAULT_NET_ENCRYPTION_KEY[AES_128_B64_ENCODED_SIZE+1] = "W
 #define NETMSG_TYPE_BITS	7	// must be 2^NETMSG_TYPE_BITS > SVC_LASTMSG (6 in Valve Source).
 #define NETMSG_LENGTH_BITS	12	// 512 bytes (11 in Valve Source, 256 bytes).
 #define NET_MIN_MESSAGE 5 // Even connectionless packets require int32 value (-1) + 1 byte content
+#define NET_MAX_PAYLOAD 262144
+
+// Pad this to next higher 16 byte boundary
+// This is the largest packet that can come in/out over the wire, before processing the header
+// bytes will be stripped by the networking channel layer
+#define	NET_MAX_MESSAGE	 PAD_NUMBER( ( NET_MAX_PAYLOAD + 9 ), 16 )
+#define DEF_LOOPBACK_SIZE 2048
 
 /* ==== CNETCHAN ======================================================================================================================================================== */
 inline void*(*v_NET_Init)(bool bDeveloper);
 inline void(*v_NET_SetKey)(netkey_t* pKey, const char* szHash);
+inline netkey_t* (*v_NET_GetKeyForAdr)(const netadr_t* pNetAdr);
 inline void(*v_NET_Config)(void);
 
 inline int(*v_NET_GetPacket)(int iSocket, uint8_t* pScratch, bool bEncrypted);
+inline bool(*v_NET_GetLongPacket)(int iSock, netpacket_t* pPacket);
 inline int(*v_NET_SendPacket)(CNetChan* pChan, int iSocket, const netadr_t& toAdr, const uint8_t* pData, unsigned int nLen, void* unused0, bool bCompress, void* unused1, bool bEncrypt);
 
 inline bool(*v_NET_ReceiveDatagram)(int iSocket, netpacket_s* pInpacket, bool bRaw);
 inline int(*v_NET_SendDatagram)(SOCKET s, void* pPayload, int iLenght, netadr_t* pAdr, bool bEncrypted);
 
-inline bool(*v_NET_BufferToBufferCompress)(uint8_t* const dest, size_t* const destLen, uint8_t* const source, const size_t sourceLen);
+inline int (*v_NET_DecryptPacket)(netkey_t* pNetKey, const char* pData, int nDataLen, const char* pIV, void* unused, void* unused1, 
+    void* unused2, const char* pTag, void* unused3, uint8_t* pOutputBuffer);
+
+inline bool(*v_NET_BufferToBufferCompress)(uint8_t* const dest, size_t* const destLen, const uint8_t* const source, const size_t sourceLen);
 inline unsigned int(*v_NET_BufferToBufferDecompress_LZSS)(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize);
 
 inline void(*v_NET_PrintFunc)(const char* fmt, ...);
+
+inline int(*v_NET_SendLong)(CNetChan* pChan, int iSock, SOCKET hUDP, const uint8_t* pData, const unsigned int nLen, const netadr_t* pAdr, int nMaxRoutable, bool bEncrypt);
+inline int(*v_NET_SendTo_Async)(void* unused, SOCKET hUDP, const uint8_t* pData, const unsigned int nLen, const netadr_t* pAdr, bool bEncrypt);
 
 ///////////////////////////////////////////////////////////////////////////////
 bool NET_ReceiveDatagram(int iSocket, netpacket_s* pInpacket, bool bRaw);
@@ -43,13 +59,22 @@ void NET_GenerateKey();
 void NET_PrintFunc(const char* fmt, ...);
 void NET_RemoveChannel(CClient* pClient, int nIndex, const char* szReason, uint8_t bBadRep, bool bRemoveNow);
 
-bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint8_t* const source, const size_t sourceLen);
-unsigned int NET_BufferToBufferDecompress(uint8_t* pInput, size_t& coBufsize, uint8_t* pOutput, const size_t unBufSize);
+bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, const uint8_t* const source, const size_t sourceLen);
+unsigned int NET_BufferToBufferDecompress(const uint8_t* const pInput, const size_t& coBufsize, uint8_t* pOutput, const size_t unBufSize);
 
+bool NET_BufferToBufferDecompressGetNeededDecompressionBufferSize(const uint8_t* const pInput, const size_t nInputBufferLen, size_t& nOutputSize, NetPacketCompressionMethod_e mode);
+bool NET_BufferToBufferDecompressMultiMode(const uint8_t* const pInput, const size_t nInputBufferLen, uint8_t* const pOutputBuffer, size_t& nOutputSize, NetPacketCompressionMethod_e mode);
+
+bool NET_BufferToBufferCompressMultiMethodNeededCapactity(const size_t nInputLen, size_t& nNeededLength, NetPacketCompressionMethod_e mode);
+bool NET_BufferToBufferCompressMultiMethod(uint8_t* const dest, size_t& destLen, const uint8_t* const source, const size_t sourceLen, NetPacketCompressionMethod_e mode);
 unsigned int NET_BufferToBufferDecompress_LZSS(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize);
 
 bool NET_ReadMessageType(int* outType, bf_read* buffer);
 bool NET_IsRemoteLocal(const CNetAdr& netAdr);
+
+int NET_SendPacket(CNetChan* pChan, int iSocket, const netadr_t& toAdr, const uint8_t* pData, unsigned int nLen, void* unused0, bool bCompress, void* unused1, bool bEncrypt);
+
+int NET_GetLastError();
 
 ///////////////////////////////////////////////////////////////////////////////
 extern netadr_t* g_pNetAdr;
@@ -59,6 +84,28 @@ extern double* g_pNetTime;
 
 extern ConVar net_useRandomKey;
 
+struct loopback_t
+{
+    char* m_pData;
+    unsigned int m_nDataLen;
+    char m_FixedBuffer[DEF_LOOPBACK_SIZE];
+    static CMemoryPoolMT* s_pAllocator;
+};
+
+struct netsocket_t
+{
+    int nPort;
+    bool bListening;
+    int hUDP;
+    int hTCP;
+    float nLastUsed;
+};
+
+inline CMemoryPoolMT* loopback_t::s_pAllocator = nullptr;
+inline CUtlVector<netsocket_t>* g_pNetSockets;
+inline CTSQueue<loopback_t*>* g_pLoopBacks = nullptr;
+inline int* g_pNetError = nullptr;
+
 ///////////////////////////////////////////////////////////////////////////////
 class VNet : public IDetour
 {
@@ -67,44 +114,68 @@ class VNet : public IDetour
 		LogFunAdr("NET_Init", v_NET_Init);
 		LogFunAdr("NET_Config", v_NET_Config);
 		LogFunAdr("NET_SetKey", v_NET_SetKey);
+        LogFunAdr("NET_GetKeyForAdr", v_NET_GetKeyForAdr);
 
 		LogFunAdr("NET_GetPacket", v_NET_GetPacket);
+		LogFunAdr("NET_GetLongPacket", v_NET_GetLongPacket);
 		LogFunAdr("NET_SendPacket", v_NET_SendPacket);
 
 		LogFunAdr("NET_ReceiveDatagram", v_NET_ReceiveDatagram);
 		LogFunAdr("NET_SendDatagram", v_NET_SendDatagram);
 
+        LogFunAdr("NET_DecryptPacket", v_NET_DecryptPacket);
+
 		LogFunAdr("NET_BufferToBufferCompress", v_NET_BufferToBufferCompress);
 		LogFunAdr("NET_BufferToBufferDecompress_LZSS", v_NET_BufferToBufferDecompress_LZSS);
 
 		LogFunAdr("NET_PrintFunc", v_NET_PrintFunc);
+
+        LogFunAdr("NET_SendLong", v_NET_SendLong);
+        LogFunAdr("NET_SendTo_Async", v_NET_SendTo_Async);
+
 		LogVarAdr("g_NetAdr", g_pNetAdr);
 		LogVarAdr("g_NetKey", g_pNetKey);
 		LogVarAdr("g_NetTime", g_pNetTime);
+
+        LogVarAdr("g_NetSockets", g_pNetSockets);
+        LogVarAdr("g_LoopBacks", g_pLoopBacks);
+        LogVarAdr("loopback_t::s_pAllocator", loopback_t::s_pAllocator);
+        LogVarAdr("g_NetError", g_pNetError);
 	}
 	virtual void GetFun(void) const
 	{
 		Module_FindPattern(g_GameDll, "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 48 89 7C 24 20 41 54 41 56 41 57 48 81 EC F0 01 ??").GetPtr(v_NET_Init);
 		Module_FindPattern(g_GameDll, "48 81 EC ?? ?? ?? ?? E8 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? ?? 0F 57 C0").GetPtr(v_NET_Config);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 48 8B F9 41 B8").GetPtr(v_NET_SetKey);
-
+        Module_FindPattern(g_GameDll, "48 8B 05 ?? ?? ?? ?? 4C 8B C1 83 78 ?? ?? 75 ?? 48 8D 05").GetPtr(v_NET_GetKeyForAdr);
 
 		Module_FindPattern(g_GameDll, "48 8B C4 44 88 40 18 48 89 50 10 41 55").GetPtr(v_NET_GetPacket);
+        Module_FindPattern(g_GameDll, "40 57 48 83 EC ?? 83 7A").GetPtr(v_NET_GetLongPacket);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 74 24 ?? 55 57 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 2B E0 4C 63 F2").GetPtr(v_NET_SendPacket);
 
 		Module_FindPattern(g_GameDll, "48 89 74 24 18 48 89 7C 24 20 55 41 54 41 55 41 56 41 57 48 8D AC 24 50 EB").GetPtr(v_NET_ReceiveDatagram);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 41 56 41 57 48 81 EC ?? 05 ?? ??").GetPtr(v_NET_SendDatagram);
 
+        Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 41 54 41 55 41 56 41 57 48 83 EC ?? 48 8B AC 24").GetPtr(v_NET_DecryptPacket);
+
 		Module_FindPattern(g_GameDll, "48 89 6C 24 ?? 48 89 74 24 ?? 57 41 56 41 57 48 83 EC 50 48 8B 05 ?? ?? ?? ?? 49 8B E9").GetPtr(v_NET_BufferToBufferCompress);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 41 56 45 33 F6").GetPtr(v_NET_BufferToBufferDecompress_LZSS);
 
 		Module_FindPattern(g_GameDll, "48 89 54 24 10 4C 89 44 24 18 4C 89 4C 24 20 C3 48").GetPtr(v_NET_PrintFunc);
+
+        Module_FindPattern(g_GameDll, "4C 89 4C 24 ?? 4C 89 44 24 ?? 55 57").GetPtr(v_NET_SendLong);
+        Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC ?? 48 8B 05 ?? ?? ?? ?? 49 8B F8").GetPtr(v_NET_SendTo_Async);
 	}
 	virtual void GetVar(void) const
 	{
 		g_pNetAdr = CMemory(v_NET_Config).FindPatternSelf("89 05 AC").ResolveRelativeAddressSelf(2, 6).RCast<netadr_t*>();
 		g_pNetKey = CMemory(v_NET_Init).OffsetSelf(0x300).FindPatternSelf("48 8D 0D").ResolveRelativeAddressSelf(3, 7).RCast<CNetKey*>();
 		g_pNetTime = CMemory(v_NET_Config).FindPatternSelf("F2 0F").ResolveRelativeAddressSelf(4, 8).RCast<double*>();
+
+        CMemory(v_NET_SendPacket).OffsetSelf(0x328).FindPatternSelf("48 63 05").ResolveRelativeAddressSelf(0x3, 0x7).GetPtr(loopback_t::s_pAllocator);
+        CMemory(v_NET_SendPacket).OffsetSelf(0x3F2).FindPatternSelf("48 8D 0D").ResolveRelativeAddressSelf(0x3, 0x7).GetPtr(g_pLoopBacks);
+        CMemory(v_NET_SendPacket).OffsetSelf(0x5D1).FindPatternSelf("48 8B 05").ResolveRelativeAddressSelf(0x3, 0x7).GetPtr(g_pNetSockets);
+        CMemory(v_NET_SendPacket).OffsetSelf(0x249).FindPatternSelf("89 05").ResolveRelativeAddressSelf(0x2, 0x6).GetPtr(g_pNetError);
 	}
 	virtual void GetCon(void) const { }
 	virtual void Detour(const bool bAttach) const;

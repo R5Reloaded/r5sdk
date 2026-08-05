@@ -91,6 +91,8 @@ extern ConVar sv_onlineAuthEnable;
 
 extern ConVar* sv_clampPlayerFrameTime;
 
+extern ConVar* sv_maxroutable;
+
 extern ConVar* playerframetimekick_margin;
 extern ConVar* playerframetimekick_decayrate;
 
@@ -140,6 +142,8 @@ extern ConVar* net_usesocketsforloopback;
 extern ConVar* net_data_block_enabled;
 extern ConVar* net_datablock_networkLossForSlowSpeed;
 extern ConVar* net_compressDataBlock;
+extern ConVar* net_queued_packet_thread;
+extern ConVar* net_droppackets;
 
 extern ConVar* net_showmsg;
 extern ConVar* net_blockmsg;
