@@ -6,6 +6,7 @@ start_sources()
 add_sources( SOURCE_GROUP "Runtime"
     "vgui_baseui_interface.cpp"
     "vgui_baseui_interface.h"
+	"VPanel.h"
 )
 
 add_sources( SOURCE_GROUP "Public"
@@ -22,6 +23,11 @@ add_sources( SOURCE_GROUP "Debug"
 
 add_sources( SOURCE_GROUP "Controls"
     "vgui_controls/RichText.cpp"
+)
+
+add_sources( SOURCE_GROUP "Input"
+    "input/inputwin32.cpp"
+    "input/inputwin32.h"
 )
 
 end_sources()

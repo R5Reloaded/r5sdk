@@ -170,6 +170,7 @@
 #ifndef DEDICATED
 #include "inputsystem/inputsystem.h"
 #include "inputsystem/inputstacksystem.h"
+#include "vgui/input/inputwin32.h"
 #include "windows/id3dx.h"
 #endif // !DEDICATED
 
@@ -588,6 +589,7 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(VEngineVGui); // REGISTER CLIENT ONLY!
 	REGISTER(VFPSPanel); // REGISTER CLIENT ONLY!
 	REGISTER(VVGUIRichTextCommon); // REGISTER CLIENT ONLY!
+	REGISTER( VInputWin32 );
 	REGISTER(VMatSystemSurface);
 
 	// Particles
