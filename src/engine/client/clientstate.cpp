@@ -20,6 +20,7 @@
 #include "clientstate.h"
 #include "common/callback.h"
 #include "cdll_engine_int.h"
+#include "discord_presence.h"
 #include "vgui/vgui_baseui_interface.h"
 #include "rtech/playlists/playlists.h"
 #include <ebisusdk/EbisuSDK.h>
@@ -171,7 +172,12 @@ float CClientState::GetFrameTime() const
 bool CClientState::VConnectionStart(CClientState* pClient, CNetChan* pChan)
 {
     pClient->RegisterNetMsgs(pChan);
-    return CClientState__ConnectionStart(pClient, pChan);
+    const bool result = CClientState__ConnectionStart(pClient, pChan);
+
+    if (result)
+        CDiscordPresence::SetGameState("Connecting to server", "Joining game");
+
+    return result;
 }
 
 //------------------------------------------------------------------------------
@@ -180,6 +186,8 @@ bool CClientState::VConnectionStart(CClientState* pClient, CNetChan* pChan)
 void CClientState::VConnectionClosing(CClientState* thisptr, const char* szReason)
 {
     CClientState__ConnectionClosing(thisptr, szReason);
+    CDiscordPresence::ClearServerInfo();
+    CDiscordPresence::SetGameState("In menu", "Disconnected from server");
 
     // Delay execution to the next frame; this is required to avoid a rare crash.
     // Cannot reload playlists while still disconnecting.
