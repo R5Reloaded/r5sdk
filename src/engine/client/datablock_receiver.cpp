@@ -121,9 +121,8 @@ bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const shor
 		m_BlockStatus[currentBlockId] = true;
 	}
 
-	// check if we have recv'd enough fragments to decode the data
-	if (m_nBlockAckTick != m_nTotalBlocks)
-		return true;
+	if (m_copiedFragmentsCount != m_totalFragments)
+		return true; // Not complete yet.
 
 	const ClientDataBlockHeader_s* const pHeader = reinterpret_cast<ClientDataBlockHeader_s*>(m_scratchBuffer);
 
