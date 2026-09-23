@@ -108,8 +108,8 @@ void ServerDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, cons
 
 	if (net_compressDataBlock->GetBool())
 	{
-		const int encodedSize = LZ4_compress_fast((const char*)sourceData, (char*)m_pScratchBuffer + sizeof(ServerDataBlockHeader_s),
-			dataSize, SNAPSHOT_SCRATCH_BUFFER_SIZE, net_compressDataBlockLzAcceleration.GetInt());
+		const int encodedSize = LZ4_compress_fast((const char*)sourceData, (char*)m_scratchBuffer + sizeof(ServerDataBlockHeader_s),
+			dataSize, MAX_DATABLOCK_TRANSFER_SIZE, net_compressDataBlockLzAcceleration.GetInt());
 
 		// this shouldn't happen at all
 		if (!encodedSize)

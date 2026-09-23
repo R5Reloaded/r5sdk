@@ -94,10 +94,10 @@ protected:
 	// the debug name used when details get dumped to the console
 	char m_szDebugName[DATABLOCK_DEBUG_NAME_LEN];
 
-	// if a data block has been acknowledged by the receiver, we mark that
-	// particular block as acknowledged
-	bool m_bBlockAckStatus[MAX_DATABLOCK_FRAGMENTS];
-	uint8_t* m_pScratchBuffer;
+	// if a fragment has been acknowledged by the receiver, we mark that
+	// particular fragment as acknowledged
+	bool m_fragmentsAcked[MAX_DATABLOCK_FRAGMENTS];
+	unsigned char* m_scratchBuffer; // size = sizeof(ServerDataBlockHeader_s) + MAX_DATABLOCK_TRANSFER_SIZE
 
 	// this member is true when:
 	// net_debugDataBlockSender.GetBool() == true, or:
