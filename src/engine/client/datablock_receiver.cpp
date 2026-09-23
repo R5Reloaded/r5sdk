@@ -19,7 +19,7 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 
 	if (!cl)
 	{
-		Assert(0, "ClientDataBlockReceiver::AcknowledgeTransmission() called without a valid client handle!");
+		Assert(0, __FUNC_PFX__"Null client handle!");
 		return;
 	}
 
@@ -27,7 +27,7 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 
 	if (!chan)
 	{
-		Assert(0, "ClientDataBlockReceiver::AcknowledgeTransmission() called without a net channel!");
+		Assert(0, __FUNC_PFX__"Null net channel!");
 		return;
 	}
 
