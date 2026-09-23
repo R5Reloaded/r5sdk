@@ -80,9 +80,24 @@ bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const shor
 	if (transferId != m_TransferId || m_bCompletedRecv)
 		return false;
 
-	// initialize the receiver if this is the firs fragment
-	if (!m_bStartedRecv)
-		StartBlockReceiver(transferSize, startTime);
+	// initialize the receiver if this is the first fragment
+	if (!m_copyingFragments)
+	{
+		if (!StartBlockReceiver(transferSize, startTime))
+		{
+			Assert(0, __FUNC_PFX__"this->StartBlockReceiver() failed!");
+			return false; // moGus transferSize, nice try!
+		}
+	}
+	else if (transferSize != m_nTransferSize)
+	{
+		// This gets resend each time. There is no reason for it, but
+		// rewriting that code will be a very big undertaking (needs
+		// the connectionless handler to be rebuild!). So just use it
+		// as a validator here. If it mismatches something is broken.
+		Assert(0, __FUNC_PFX__"transfer size changed!");
+		return false;
+	}
 
 	// received more blocks than the total # expected?
 	if (currentBlockId >= m_nTotalBlocks)

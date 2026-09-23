@@ -86,15 +86,19 @@ void NetDataBlockSender::StartBlockSender(const int transferSize, const bool isM
 //-----------------------------------------------------------------------------
 // Purpose: initialize the data block receiver context
 //-----------------------------------------------------------------------------
-void NetDataBlockReceiver::StartBlockReceiver(const int transferSize, const double startTime)
+bool NetDataBlockReceiver::StartBlockReceiver(const int transferSize, const double startTime)
 {
-	m_bStartedRecv = true;
+	if (!IsTransferSizeValid(transferSize))
+		return false;
+
+	m_copyingFragments = true;
 	m_nTransferSize = transferSize;
 	m_totalFragments = NetDataBlock_CalcFragCount(transferSize);
 	m_copiedFragmentsCount = 0;
 	m_timeStartTransfer = startTime;
 
-	memset(m_BlockStatus, 0, sizeof(m_BlockStatus));
+	memset(m_copiedFragments, 0, sizeof(m_copiedFragments));
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -113,4 +117,18 @@ void NetDataBlockReceiver::ResetBlockReceiver(const short transferNr)
 	m_flStartTime = 0.0;
 
 	memset(m_BlockStatus, 0, sizeof(m_BlockStatus));
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: check whether the transfer size can be accepted by the system
+//-----------------------------------------------------------------------------
+bool NetDataBlockReceiver::IsTransferSizeValid(const int transferSize) const
+{
+	if (transferSize <= 0)
+		return false;
+
+	if (transferSize > MAX_DATABLOCK_TRANSFER_SIZE)
+		return false;
+
+	return true;
 }

@@ -119,8 +119,10 @@ public:
 	virtual void DebugDataBlockReceiver() {};
 	virtual void AcknowledgeTransmission() = 0;
 
-	void StartBlockReceiver(const int transferSize, const double startTime);
-	void ResetBlockReceiver(const short transferNr);
+	bool StartBlockReceiver(const int transferSize, const double startTime);
+	void ResetBlockReceiver(const short cancelSeqNr);
+
+	bool IsTransferSizeValid(const int transferSize) const;
 
 protected:
 	// the client side 'client' handle
