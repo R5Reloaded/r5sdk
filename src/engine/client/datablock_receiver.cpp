@@ -83,8 +83,14 @@ bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const shor
 	m_transferAckPending = true;
 
 	// make sure we always receive fragments in order
-	if (transferId != m_TransferId || m_bCompletedRecv)
+	if (blockSeqNr != m_blockSeqNr)
+	{
+		Assert(0, __FUNC_PFX__"Block sequence number changed!");
 		return false;
+	}
+
+	if (m_transferFinished)
+		return false; // Drop duplicates that may arive late.
 
 	// initialize the receiver if this is the first fragment
 	if (!m_copyingFragments)
