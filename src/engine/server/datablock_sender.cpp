@@ -39,13 +39,13 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 	buf.WriteByte(S2C_DATABLOCK_FRAGMENT);
 
 	// transfer info
-	buf.WriteByte(transferId);
+	buf.WriteShort(blockSeqNr);
 	buf.WriteLong(transferSize);
-	buf.WriteByte(transferNr);
+	buf.WriteShort(cancelSeqNr);
 
 	// block info
-	buf.WriteByte(blockNr);
-	buf.WriteLong(blockSize);
+	buf.WriteShort(fragId);
+	buf.WriteLong(fragSize);
 
 	// block data
 	buf.WriteBytes(blockData, blockSize);
