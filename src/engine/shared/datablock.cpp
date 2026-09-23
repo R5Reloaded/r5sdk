@@ -109,14 +109,17 @@ void NetDataBlockReceiver::ResetBlockReceiver(const short transferNr)
 	m_nTransferNr = transferNr;
 
 	m_copyingFragments = false;
+	m_transferFinished = false;
+
 	m_transferAckPending = false;
 
-	m_TransferId = 0;
-	m_nTotalBlocks = 0;
-	m_nBlockAckTick = 0;
-	m_flStartTime = 0.0;
+	m_blockSeqNr = 0;
+	m_totalFragments = 0;
+	m_nTransferSize = 0;
+	m_copiedFragmentsCount = 0;
 
-	memset(m_BlockStatus, 0, sizeof(m_BlockStatus));
+	m_timeStartTransfer = 0.0;
+	memset(m_copiedFragments, 0, sizeof(m_copiedFragments));
 }
 
 //-----------------------------------------------------------------------------
