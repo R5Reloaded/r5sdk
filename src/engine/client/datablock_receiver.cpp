@@ -67,6 +67,12 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const short blockSeqNr, const int transferSize,
 	const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
 {
+	if (!fragData)
+	{
+		Assert(0, __FUNC_PFX__"Null fragment buffer!");
+		return false;
+	}
+
 	// should we cancel the transfer?
 	if (cancelSeqNr != m_cancelSeqNr)
 	{
