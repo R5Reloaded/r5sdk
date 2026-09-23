@@ -67,9 +67,12 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const short blockSeqNr, const int transferSize,
 	const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
 {
-	// should we process a new transfer?
-	if (transferNr != m_nTransferNr)
-		ResetBlockReceiver(transferNr);
+	// should we cancel the transfer?
+	if (cancelSeqNr != m_cancelSeqNr)
+	{
+		ResetBlockReceiver(cancelSeqNr);
+		return false;
+	}
 
 	m_transferInProgress = true;
 
