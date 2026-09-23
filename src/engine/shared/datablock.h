@@ -138,7 +138,7 @@ protected:
 	short m_TransferId;
 	short m_nTransferNr;
 
-	bool m_bInitialized;
+	bool m_transferInProgress;
 
 	// the total transfer size, and the # amount of blocks the data has been
 	// carved into

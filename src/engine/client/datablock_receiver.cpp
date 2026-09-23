@@ -69,7 +69,7 @@ bool ClientDataBlockReceiver::ProcessDataBlock(const double startTime, const sho
 	if (transferNr != m_nTransferNr)
 		ResetBlockReceiver(transferNr);
 
-	m_bInitialized = true;
+	m_transferInProgress = true;
 
 	// make sure we always receive fragments in order
 	if (transferId != m_TransferId || m_bCompletedRecv)
