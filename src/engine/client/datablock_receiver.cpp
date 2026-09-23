@@ -183,10 +183,14 @@ bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const shor
 }
 
 //-----------------------------------------------------------------------------
-// NOTE: detoured for 2 reasons:
+// NOTE: detoured for 5 reasons:
 // 1: when a corrupt or malformed compress packet is sent, the code never freed
 //    the temporary copy buffer it made to decode the data into the scratch buf
-// 2: exploring other compression algorithms for potential optimizations
+// 2: to guard against negative or overflowing fragment ID's, transfer sizes
+//    and scratch buffer offsets
+// 3: to make sure we only acknowledge successfull recv's AFTER LZ4 decoding!
+// 4: to return out early when we receive a new cancel request
+// 5: exploring other compression algorithms for potential optimizations
 //-----------------------------------------------------------------------------
 static bool HK_ProcessFragment(ClientDataBlockReceiver* receiver, const double startTime,
 	const short blockSeqNr, const int transferSize, const short cancelSeqNr,
