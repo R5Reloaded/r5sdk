@@ -99,10 +99,7 @@ bool ClientDataBlockReceiver::ProcessDataBlock(const double startTime, const sho
 	if (m_nBlockAckTick != m_nTotalBlocks)
 		return true;
 
-	AcknowledgeTransmission();
-	m_bCompletedRecv = true;
-
-	const ClientDataBlockHeader_s* const pHeader = reinterpret_cast<ClientDataBlockHeader_s*>(m_pScratchBuffer);
+	const ClientDataBlockHeader_s* const pHeader = reinterpret_cast<ClientDataBlockHeader_s*>(m_scratchBuffer);
 
 	if (pHeader->isCompressed)
 	{
@@ -138,6 +135,9 @@ bool ClientDataBlockReceiver::ProcessDataBlock(const double startTime, const sho
 		// truncate the byte that determines whether the data was compressed
 		m_nTransferSize--;
 	}
+
+	AcknowledgeTransmission();
+	m_transferFinished = true;
 
 	return true;
 }
