@@ -54,9 +54,9 @@ typedef struct netflow_s
 	float avglatency;
 	float latency;
 	float maxlatency;
-	int64_t totalpackets;
-	int64_t totalbytes;
-	int64_t totalupdates;
+	uint64_t totalpackets;
+	uint64_t totalbytes;
+	uint64_t totalupdates;
 	int currentindex;
 	netframe_header_t frame_headers[NET_FRAMES_BACKUP];
 	netframe_t frames[NET_FRAMES_BACKUP];
@@ -110,16 +110,16 @@ public:
 	inline int         GetDataRate(void)                 const { return m_Rate; }
 	inline int         GetBufferSize(void)               const { return NET_FRAMES_BACKUP; }
 
-	float        GetResendRate() const;
+	float        GetTotalNetworkLoss() const;
 
-	inline float GetLatency(int flow)        const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].latency; }
-	inline float GetAvgChoke(int flow)       const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgchoke; }
-	inline float GetAvgLatency(int flow)     const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avglatency; }
-	inline float GetAvgLoss(int flow)        const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgloss; }
-	inline float GetAvgPackets(int flow)     const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgpacketspersec; }
-	inline float GetAvgData(int flow)        const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgbytespersec; }
-	inline int64_t GetTotalData(int flow)    const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].totalbytes; }
-	inline int64_t GetTotalPackets(int flow) const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].totalpackets; }
+	inline float GetLatency(int flow)         const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].latency; }
+	inline float GetAvgChoke(int flow)        const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgchoke; }
+	inline float GetAvgLatency(int flow)      const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avglatency; }
+	inline float GetAvgLoss(int flow)         const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgloss; }
+	inline float GetAvgPackets(int flow)      const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgpacketspersec; }
+	inline float GetAvgData(int flow)         const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgbytespersec; }
+	inline uint64_t GetTotalData(int flow)    const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].totalbytes; }
+	inline uint64_t GetTotalPackets(int flow) const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].totalpackets; }
 
 	int         GetSequenceNr(int flow) const;
 	double      GetTimeConnected(void) const;

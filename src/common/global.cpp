@@ -152,6 +152,9 @@ ConVar* fs_showAllReads                    = nullptr;
 ConVar* net_usesocketsforloopback;
 ConVar* net_data_block_enabled             = nullptr;
 ConVar* net_datablock_networkLossForSlowSpeed = nullptr;
+ConVar* net_datablock_resendRateForSlowSpeed = nullptr;
+ConVar* net_datablock_slowRate             = nullptr;
+ConVar* net_datablock_fastRate             = nullptr;
 ConVar* net_compressDataBlock              = nullptr;
 
 ConVar* net_showmsg                        = nullptr;
@@ -254,6 +257,9 @@ void ConVar_InitShipped(void)
 	net_data_block_enabled           = g_pCVar->FindVar("net_data_block_enabled");
 	net_compressDataBlock            = g_pCVar->FindVar("net_compressDataBlock");
 	net_datablock_networkLossForSlowSpeed = g_pCVar->FindVar("net_datablock_networkLossForSlowSpeed");
+	net_datablock_resendRateForSlowSpeed = g_pCVar->FindVar("net_datablock_resendRateForSlowSpeed");
+	net_datablock_slowRate           = g_pCVar->FindVar("net_datablock_slowRate");
+	net_datablock_fastRate           = g_pCVar->FindVar("net_datablock_fastRate");
 
 	net_usesocketsforloopback        = g_pCVar->FindVar("net_usesocketsforloopback");
 

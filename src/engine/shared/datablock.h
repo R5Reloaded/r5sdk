@@ -33,9 +33,10 @@ public:
 	virtual ~NetDataBlockSender();
 
 
-	virtual void SendDataBlock(const short transferId, const int transferSize,
-		const short transferNr, const short blockNr, const uint8_t* const blockData, const int blockSize) = 0;
-	virtual float GetResendRate() const = 0;
+	virtual void SendDataBlock(const short blockSeqNr, const int transferSize,
+		const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize) = 0;
+
+	virtual int GetTransmissionRate() const = 0;
 	virtual const char* GetReceiverName() const = 0;
 
 	void StartBlockSender(const int transferSize, const bool isMultiplayer, const char* const debugName);

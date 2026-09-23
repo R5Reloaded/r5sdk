@@ -26,19 +26,15 @@ static ConVar net_processTimeBudget("net_processTimeBudget", "200", FCVAR_RELEAS
 // Purpose: gets the netchannel resend rate
 // Output : float
 //-----------------------------------------------------------------------------
-float CNetChan::GetResendRate() const
+float CNetChan::GetTotalNetworkLoss() const
 {
-	const int64_t totalupdates = this->m_DataFlow[FLOW_INCOMING].totalupdates;
+	const uint64_t totalUpdates = m_DataFlow[FLOW_INCOMING].totalupdates;
 
-	if (!totalupdates && !this->m_nSequencesSkipped)
+	if (!totalUpdates && !m_nSequencesSkipped)
 		return 0.0f;
 
-	float lossRate = (float)(totalupdates + m_nSequencesSkipped);
-
-	if (totalupdates + m_nSequencesSkipped < 0.0f)
-		lossRate += float(2 ^ 64);
-
-	return m_nSequencesSkipped / lossRate;
+	return static_cast<float>(m_nSequencesSkipped) /
+		   static_cast<float>(totalUpdates + m_nSequencesSkipped);
 }
 
 //-----------------------------------------------------------------------------

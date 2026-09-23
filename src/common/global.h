@@ -139,6 +139,9 @@ extern ConVar* net_usesocketsforloopback;
 
 extern ConVar* net_data_block_enabled;
 extern ConVar* net_datablock_networkLossForSlowSpeed;
+extern ConVar* net_datablock_resendRateForSlowSpeed;
+extern ConVar* net_datablock_slowRate;
+extern ConVar* net_datablock_fastRate;
 extern ConVar* net_compressDataBlock;
 
 extern ConVar* net_showmsg;

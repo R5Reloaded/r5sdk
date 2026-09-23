@@ -15,7 +15,7 @@ public:
 	virtual void SendDataBlock(const short transferId, const int transferSize, const short transferNr,
 		const short blockNr, const uint8_t* const blockData, const int blockSize) override;
 
-	virtual float GetResendRate() const override;
+	virtual int GetTransmissionRate() const override;
 	virtual const char* GetReceiverName() const override;
 
 	void WriteDataBlock(const uint8_t* const sourceData, const int dataSize, const bool isMultiplayer, const char* const debugName);

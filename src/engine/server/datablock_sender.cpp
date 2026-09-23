@@ -62,27 +62,28 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 //-----------------------------------------------------------------------------
 // Purpose: gets the resend rate
 //-----------------------------------------------------------------------------
-float ServerDataBlockSender::GetResendRate() const
+int ServerDataBlockSender::GetTransmissionRate() const
 {
-    const CClient* const pClient = m_pClient;
+	if (!m_pClient)
+		return net_datablock_fastRate->GetInt();
 
-    if (!pClient)
-        return 0.0f;
+	const CNetChan* const chan = m_pClient->GetNetChan();
 
-    const CNetChan* const pChan = pClient->GetNetChan();
+	if (!chan)
+		return net_datablock_fastRate->GetInt();
 
-    if (!pChan)
-        return 0.0f;
+	if (m_slowMode)
+		return net_datablock_slowRate->GetInt();
 
-    if (m_bStartedTransfer)
-        return 0.0f;
+	const float networkLoss = chan->GetTotalNetworkLoss();
 
-    const float netResendRate = pChan->GetResendRate();
+	if (networkLoss >= net_datablock_networkLossForSlowSpeed->GetFloat())
+		return net_datablock_slowRate->GetInt();
 
-    if (netResendRate < net_datablock_networkLossForSlowSpeed->GetFloat())
-        return m_flResendRate;
+	if (m_flResendRate > net_datablock_resendRateForSlowSpeed->GetFloat())
+		return net_datablock_slowRate->GetInt();
 
-    return netResendRate;
+	return net_datablock_fastRate->GetInt();
 }
 
 //-----------------------------------------------------------------------------
