@@ -46,6 +46,12 @@ void NetDataBlockSender::ResetBlockSender(void)
 	memset(m_flBlockSendTimes, 0, sizeof(m_flBlockSendTimes));
 }
 
+static int NetDataBlock_CalcFragCount(const int transferSize)
+{
+	Assert(transferSize > 0 && transferSize <= MAX_DATABLOCK_TRANSFER_SIZE);
+	return transferSize / MAX_DATABLOCK_FRAGMENT_SIZE + (transferSize % MAX_DATABLOCK_FRAGMENT_SIZE != 0);
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: initialize the data block sender context
 //-----------------------------------------------------------------------------
@@ -55,9 +61,7 @@ void NetDataBlockSender::StartBlockSender(const int transferSize, const bool isM
 	m_nBlockAckTick = 0;
 	m_nTransferSize = transferSize;
 
-	// calculate the number of data blocks we have, which get sent individually
-	// to the receiver
-	m_nTotalBlocks = m_nTransferSize / MAX_DATABLOCK_FRAGMENT_SIZE + (m_nTransferSize % MAX_DATABLOCK_FRAGMENT_SIZE != 0);
+	m_totalFragments = NetDataBlock_CalcFragCount(m_nTransferSize);
 
 	strncpy(m_szDebugName, debugName, sizeof(m_szDebugName));
 	m_szDebugName[sizeof(m_szDebugName) - 1] = '\0';
@@ -86,9 +90,9 @@ void NetDataBlockReceiver::StartBlockReceiver(const int transferSize, const doub
 {
 	m_bStartedRecv = true;
 	m_nTransferSize = transferSize;
-	m_nTotalBlocks = transferSize / MAX_DATABLOCK_FRAGMENT_SIZE + (transferSize % MAX_DATABLOCK_FRAGMENT_SIZE != 0);
-	m_nBlockAckTick = 0;
-	m_flStartTime = startTime;
+	m_totalFragments = NetDataBlock_CalcFragCount(transferSize);
+	m_copiedFragmentsCount = 0;
+	m_timeStartTransfer = startTime;
 
 	memset(m_BlockStatus, 0, sizeof(m_BlockStatus));
 }
