@@ -122,7 +122,30 @@ public:
 	bool StartBlockReceiver(const int transferSize, const double startTime);
 	void ResetBlockReceiver(const short cancelSeqNr);
 
+	struct FragInfo_s
+	{
+		inline bool IsCopied() const { return *copyStatus; };
+		inline void MarkCopied() { *copyStatus = true; }
+
+		inline void SetStatusHandle(bool* const hnd)
+		{
+			Assert(hnd);
+			copyStatus = hnd;
+		}
+
+		int scratchOffset;
+		int expectedSize;
+
+	private:
+		// note(kawe): private to prevent mistakes of checking
+		// ptr instead of dereferencing it. Don't change.
+		bool* copyStatus;
+	};
+
+	bool GetFragmentInfo(const short fragmentId, FragInfo_s& info);
+
 	bool IsTransferSizeValid(const int transferSize) const;
+	bool IsFragmentIdValid(const short fragmentId) const;
 
 protected:
 	// the client side 'client' handle

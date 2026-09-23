@@ -105,20 +105,29 @@ bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const shor
 		return false;
 	}
 
-	// received more blocks than the total # expected?
-	if (currentBlockId >= m_nTotalBlocks)
-		return false;
+	FragInfo_s frag;
 
-	// check if we have already copied the data block
-	if (!m_BlockStatus[currentBlockId])
+	if (!GetFragmentInfo(fragId, frag))
 	{
-		const int scratchBufferOffset = currentBlockId * MAX_DATABLOCK_FRAGMENT_SIZE;
+		Assert(0, __FUNC_PFX__"this->GetFragmentInfo() failed!");
+		return false; // moGus fragId, nice try!
+	}
 
-		if (blockBufferBytes + scratchBufferOffset <= m_nTransferSize)
-			memcpy(m_pScratchBuffer + scratchBufferOffset + (sizeof(ClientDataBlockHeader_s) -1), blockBuffer, blockBufferBytes);
+	// Gaps, overflow or negative value?
+	if (fragSize != frag.expectedSize)
+	{
+		Assert(0, __FUNC_PFX__"Fragment stride desync!");
+		return false;
+	}
 
-		++m_nBlockAckTick;
-		m_BlockStatus[currentBlockId] = true;
+	// only cpoy if we haven't already (sender can send duplicates!)
+	if (!frag.IsCopied())
+	{
+		constexpr int dataOffset = sizeof(ClientDataBlockHeader_s) - 1;
+		memcpy(&m_scratchBuffer[frag.scratchOffset + dataOffset], fragData, frag.expectedSize);
+
+		++m_copiedFragmentsCount;
+		frag.MarkCopied();
 	}
 
 	if (m_copiedFragmentsCount != m_totalFragments)

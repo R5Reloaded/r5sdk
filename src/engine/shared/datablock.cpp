@@ -120,6 +120,26 @@ void NetDataBlockReceiver::ResetBlockReceiver(const short transferNr)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: gets information for the provided fragment ID
+//-----------------------------------------------------------------------------
+bool NetDataBlockReceiver::GetFragmentInfo(const short fragId, FragInfo_s& info)
+{
+	if (!IsFragmentIdValid(fragId))
+		return false;
+
+	info.scratchOffset = fragId * MAX_DATABLOCK_FRAGMENT_SIZE;
+	const int bytesRemaining = m_nTransferSize - info.scratchOffset;
+
+	if (bytesRemaining <= 0)
+		return false;
+
+	info.expectedSize = Min(bytesRemaining, MAX_DATABLOCK_FRAGMENT_SIZE);
+	info.SetStatusHandle(&m_copiedFragments[fragId]);
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: check whether the transfer size can be accepted by the system
 //-----------------------------------------------------------------------------
 bool NetDataBlockReceiver::IsTransferSizeValid(const int transferSize) const
@@ -128,6 +148,20 @@ bool NetDataBlockReceiver::IsTransferSizeValid(const int transferSize) const
 		return false;
 
 	if (transferSize > MAX_DATABLOCK_TRANSFER_SIZE)
+		return false;
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: check whether the fragment ID can be accepted by the system
+//-----------------------------------------------------------------------------
+bool NetDataBlockReceiver::IsFragmentIdValid(const short fragmentId) const
+{
+	if (fragmentId < 0)
+		return false;
+
+	if (fragmentId >= m_totalFragments)
 		return false;
 
 	return true;
