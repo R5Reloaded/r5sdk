@@ -18,6 +18,9 @@
 // the maximum size of a data block fragment packet (encoded header + actual data)
 #define DATABLOCK_FRAGMENT_PACKET_SIZE (MAX_DATABLOCK_FRAGMENT_SIZE + 176)
 
+// the maximum total transfer size
+#define MAX_DATABLOCK_TRANSFER_SIZE (MAX_DATABLOCK_FRAGMENTS * MAX_DATABLOCK_FRAGMENT_SIZE)
+
 //-----------------------------------------------------------------------------
 // Forward decelerations
 //-----------------------------------------------------------------------------
@@ -147,9 +150,12 @@ protected:
 	// the time the data block receiver was started for this transfer
 	double m_flStartTime;
 
-	// if we successfully processed a data block, we mark it as processed
-	bool m_BlockStatus[MAX_DATABLOCK_FRAGMENTS];
-	char* m_pScratchBuffer;
+	// Marked if fragment copy was successfull.
+	bool m_copiedFragments[MAX_DATABLOCK_FRAGMENTS];
+
+	// buf size = MAX_DATABLOCK_TRANSFER_SIZE + sizeof(ClientDataBlockHeader_s).
+	// The start of the buffer is ClientDataBlockHeader_s, for actual block writes, always offset this #!
+	unsigned char* m_scratchBuffer;
 };
 
 inline void* (*NetDataBlockSender__Destructor)(NetDataBlockSender* thisptr);
