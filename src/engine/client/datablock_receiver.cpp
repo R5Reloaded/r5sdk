@@ -58,7 +58,7 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 		buf.GetNumBytesWritten(),
 		NULL, false, NULL, true);
 
-	m_transferInProgress = false;
+	m_transferAckPending = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -80,7 +80,7 @@ bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const shor
 		return false;
 	}
 
-	m_transferInProgress = true;
+	m_transferAckPending = true;
 
 	// make sure we always receive fragments in order
 	if (transferId != m_TransferId || m_bCompletedRecv)

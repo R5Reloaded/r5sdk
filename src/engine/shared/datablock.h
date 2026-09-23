@@ -163,7 +163,7 @@ protected:
 	short m_TransferId;
 	short m_nTransferNr;
 
-	bool m_transferInProgress;
+	bool m_transferAckPending;
 
 	// the total transfer size, and the # amount of blocks the data has been
 	// carved into
