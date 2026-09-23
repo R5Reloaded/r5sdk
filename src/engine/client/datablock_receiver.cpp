@@ -64,8 +64,8 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 //-----------------------------------------------------------------------------
 // Purpose: process the recv'd data block and reconstruct the fragmented data
 //-----------------------------------------------------------------------------
-bool ClientDataBlockReceiver::ProcessDataBlock(const double startTime, const short transferId, const int transferSize,
-	const short transferNr, const short currentBlockId, const void* const blockBuffer, const int blockBufferBytes)
+bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const short blockSeqNr, const int transferSize,
+	const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
 {
 	// should we process a new transfer?
 	if (transferNr != m_nTransferNr)
@@ -150,15 +150,15 @@ bool ClientDataBlockReceiver::ProcessDataBlock(const double startTime, const sho
 //    the temporary copy buffer it made to decode the data into the scratch buf
 // 2: exploring other compression algorithms for potential optimizations
 //-----------------------------------------------------------------------------
-static bool HK_ProcessDataBlock(ClientDataBlockReceiver* receiver, const double startTime,
-	const short transferId, const int transferSize, const short transferNr,
-	const short currentBlockId, const void* const blockBuffer, const int blockBufferBytes)
+static bool HK_ProcessFragment(ClientDataBlockReceiver* receiver, const double startTime,
+	const short blockSeqNr, const int transferSize, const short cancelSeqNr,
+	const short fragId, const void* const fragData, const int fragSize)
 {
-	return receiver->ProcessDataBlock(startTime, transferId, transferSize, transferNr, 
-		currentBlockId, blockBuffer, blockBufferBytes);
+	return receiver->ProcessFragment(startTime, blockSeqNr, transferSize, cancelSeqNr, 
+		fragId, fragData, fragSize);
 }
 
 void VClientDataBlockReceiver::Detour(const bool bAttach) const
 {
-	DetourSetup(&ClientDataBlockReceiver__ProcessDataBlock, HK_ProcessDataBlock, bAttach);
+	DetourSetup(&ClientDataBlockReceiver__ProcessFragment, HK_ProcessFragment, bAttach);
 }
