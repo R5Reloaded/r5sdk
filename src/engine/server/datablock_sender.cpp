@@ -19,7 +19,7 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 
 	if (!cl)
 	{
-		Assert(0, "ServerDataBlockSender::SendDataBlock() called without a valid client handle!");
+		Assert(0, __FUNC_PFX__"Called without a valid client handle!");
 		return;
 	}
 
@@ -27,7 +27,7 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 
 	if (!chan)
 	{
-		Assert(0, "ServerDataBlockSender::SendDataBlock() called without a valid net channel!");
+		Assert(0, __FUNC_PFX__"Called without a valid net channel!");
 		return;
 	}
 
