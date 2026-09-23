@@ -160,6 +160,9 @@
 #define MAX( a, b ) ( ( ( a ) > ( b ) ) ? ( a ) : ( b ) )
 #endif
 
+#define __FUNC__ __FUNCTION__
+#define __FUNC_PFX__ __FUNC__ ": " // for printing function names
+
 #ifdef __cplusplus
 
 template< class T, class Y, class X >
