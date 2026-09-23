@@ -95,7 +95,7 @@ bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const shor
 		// rewriting that code will be a very big undertaking (needs
 		// the connectionless handler to be rebuild!). So just use it
 		// as a validator here. If it mismatches something is broken.
-		Assert(0, __FUNC_PFX__"transfer size changed!");
+		Assert(0, __FUNC_PFX__"Transfer size changed!");
 		return false;
 	}
 
