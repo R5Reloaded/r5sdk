@@ -64,7 +64,7 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 //-----------------------------------------------------------------------------
 // Purpose: process the recv'd data block and reconstruct the fragmented data
 //-----------------------------------------------------------------------------
-bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const short blockSeqNr, const int transferSize,
+bool ClientDataBlockReceiver::ProcessFragment(const double currTime, const short blockSeqNr, const int transferSize,
 	const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
 {
 	if (!fragData)
@@ -95,7 +95,7 @@ bool ClientDataBlockReceiver::ProcessFragment(const double startTime, const shor
 	// initialize the receiver if this is the first fragment
 	if (!m_copyingFragments)
 	{
-		if (!StartBlockReceiver(transferSize, startTime))
+		if (!StartBlockReceiver(transferSize, currTime))
 		{
 			Assert(0, __FUNC_PFX__"this->StartBlockReceiver() failed!");
 			return false; // moGus transferSize, nice try!

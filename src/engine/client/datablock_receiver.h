@@ -14,7 +14,7 @@ class ClientDataBlockReceiver : public NetDataBlockReceiver
 public:
 	virtual void AcknowledgeTransmission() override;
 
-	bool ProcessFragment(const double startTime, const short blockSeqNr, const int transferSize,
+	bool ProcessFragment(const double currTime, const short blockSeqNr, const int transferSize,
 		const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize);
 };
 
