@@ -36,8 +36,8 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 	buf.WriteLong(CONNECTIONLESS_HEADER);
 	buf.WriteByte(C2S_DATABLOCK_ACK);
 
-	buf.WriteShort(m_TransferId);
-	buf.WriteShort(m_nTransferNr);
+	buf.WriteWord(m_blockSeqNr);
+	buf.WriteWord(m_cancelSeqNr);
 
 	for (int i = m_nTotalBlocks; (i--) > 0;)
 	{
