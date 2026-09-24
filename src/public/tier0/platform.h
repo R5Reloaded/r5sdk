@@ -244,6 +244,7 @@
 #define ALIGN8 DECL_ALIGN(8)
 #define ALIGN16 DECL_ALIGN(16)
 #define ALIGN32 DECL_ALIGN(32)
+#define ALIGN64 DECL_ALIGN(64)
 #define ALIGN128 DECL_ALIGN(128)
 #define ALIGN_N( _align_ ) DECL_ALIGN( _align_ )
 
