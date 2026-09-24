@@ -45,9 +45,7 @@ public:
 	void ResetBlockSender();
 
 protected:
-	char pad_0008[56];
-	RTL_SRWLOCK m_Lock;
-	char pad_0048[56];
+	ALIGN64 CThreadRWLock m_Lock;
 
 	// the server side client handle that is our 'receiving' end
 	CClient* m_pClient;

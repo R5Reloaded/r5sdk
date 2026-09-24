@@ -221,8 +221,10 @@ private:
 	char SnapshotBuffer_AndSomeUnknowns[98344]; // TODO: needs to be reversed further.
 	int m_XPlatID;
 	char pad_30758[196964];
-	ServerDataBlock m_DataBlock;
-	char pad_4A3D8[60];
+	NucleusID_t m_nOobNucleusID;
+	HardwareType_e m_hardwareType; // See [r5apex_ds + 0x303D06]
+	ServerDataBlockSender m_DataBlockSender;
+	char pad_4A3D8[20];
 	int m_LastMovementTick;
 	char pad_4A418[86];
 	char pad_4A46E[58];

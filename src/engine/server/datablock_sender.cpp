@@ -100,7 +100,7 @@ const char* ServerDataBlockSender::GetReceiverName() const
 void ServerDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, const int dataSize,
 	const bool isMultiplayer, const char* const debugName)
 {
-	AcquireSRWLockExclusive(&m_Lock);
+	AUTO_LOCK(m_Lock);
 
 	ServerDataBlockHeader_s* const pHeader = reinterpret_cast<ServerDataBlockHeader_s*>(m_pScratchBuffer);
 	bool copyRaw = true;
@@ -144,6 +144,4 @@ void ServerDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, cons
 	// sizeof(ServerDataBlockHeader_s), the header gets send up as well so we
 	// have to take this into account !!!
 	StartBlockSender(actualDataSize + sizeof(ServerDataBlockHeader_s), isMultiplayer, debugName);
-
-	ReleaseSRWLockExclusive(&m_Lock);
 }

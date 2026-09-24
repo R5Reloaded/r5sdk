@@ -209,7 +209,7 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 
 			char newId[256];
 			const int idLen = snprintf(newId, sizeof(newId), "%llu-%s-%s",
-				(NucleusID_t)this->m_DataBlock.userData,
+				m_nOobNucleusID,
 				playerName,
 				hostIP.ToString());
 
@@ -280,7 +280,7 @@ bool CClient::Connect(const char* szName, CNetChan* pNetChan, bool bFakePlayer,
 				const char* const netAdr = pNetChan ? pNetChan->GetAddress() : "<unknown>";
 
 				Warning(eDLL_T::SERVER, "Client '%s' ('%llu') failed online authentication! [%s]\n",
-					netAdr, (NucleusID_t)m_DataBlock.userData, authFailReason);
+					netAdr, m_nOobNucleusID, authFailReason);
 			}
 
 			return false;
@@ -441,7 +441,7 @@ void CClient::WriteDataBlock(CClient* pClient, bf_write& buf)
 		}
 
 		const bool isMultiplayer = gpGlobals->gameMode < GameMode_t::PVE_MODE;
-		pClient->m_DataBlock.sender.WriteDataBlock(buf.GetData(), buf.GetNumBytesWritten(), isMultiplayer, buf.GetDebugName());
+		pClient->m_DataBlockSender.WriteDataBlock(buf.GetData(), buf.GetNumBytesWritten(), isMultiplayer, buf.GetDebugName());
 	}
 	else
 	{

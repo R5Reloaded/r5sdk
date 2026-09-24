@@ -21,13 +21,6 @@ public:
 	void WriteDataBlock(const uint8_t* const sourceData, const int dataSize, const bool isMultiplayer, const char* const debugName);
 };
 
-struct ServerDataBlock
-{
-	void* userData;
-	char gapC0008[56];
-	ServerDataBlockSender sender;
-};
-
 struct ServerDataBlockHeader_s
 {
 	bool isCompressed;
