@@ -31,7 +31,7 @@
 class CClient;
 class CClientState;
 
-abstract_class NetDataBlockSender
+class NetDataBlockSender
 {
 public:
 	virtual ~NetDataBlockSender();
@@ -114,7 +114,7 @@ protected:
 	bool m_bAbnormalSend;
 };
 
-abstract_class NetDataBlockReceiver
+class NetDataBlockReceiver
 {
 public:
 	virtual ~NetDataBlockReceiver() {};
