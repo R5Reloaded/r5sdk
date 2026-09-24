@@ -32,8 +32,8 @@ public:
 	NetDataBlockSender();
 	virtual ~NetDataBlockSender();
 
-	virtual void SendFragment(const unsigned short blockSeqNr, const int transferSize,
-		const unsigned short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize) = 0;
+	virtual void SendFragment(const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
+		const unsigned short fragId, const void* const fragData, const int fragSize) = 0;
 
 	virtual int GetTransmissionRate() const = 0;
 	virtual const char* GetReceiverName() const = 0;
@@ -150,13 +150,13 @@ public:
 		bool* copyStatus;
 	};
 
-	bool GetFragmentInfo(const short fragmentId, FragInfo_s& info);
+	bool GetFragmentInfo(const unsigned short fragId, FragInfo_s& info);
 
 	bool IsTransferSizeValid(const int transferSize) const;
-	bool IsFragmentIdValid(const short fragmentId) const;
+	bool IsFragmentIdValid(const unsigned short fragId) const;
 
 	bool ProcessFragment(const double currTime, const unsigned short blockSeqNr, const int transferSize,
-		const unsigned short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize);
+		const unsigned short cancelSeqNr, const unsigned short fragId, const void* const fragData, const int fragSize);
 
 	void NextTransfer();
 
@@ -208,8 +208,8 @@ inline void* (*NetDataBlockReceiver__Destructor)(NetDataBlockReceiver* thisptr);
 
 // non-virtual methods
 inline bool (*NetDataBlockReceiver__ProcessFragment)(NetDataBlockReceiver* thisptr, const double startTime,
-	const short blockSeqNr, const int transferSize, const short cancelSeqNr, const short fragId,
-	const void* const fragData, const int fragSize);
+	const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
+	const unsigned short fragId, const void* const fragData, const int fragSize);
 
 ///////////////////////////////////////////////////////////////////////////////
 class VNetDataBlock : public IDetour

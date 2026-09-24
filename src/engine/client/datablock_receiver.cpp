@@ -43,8 +43,8 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 	{
 		if (m_BlockStatus[i])
 		{
-			// ack the last blockNr we recv'd and processed
-			buf.WriteShort(i);
+			// ack the last fragment ID we recv'd and processed
+			buf.WriteWord(i);
 			break;
 		}
 	}

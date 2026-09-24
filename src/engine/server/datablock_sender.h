@@ -13,7 +13,7 @@ class ServerDataBlockSender : public NetDataBlockSender
 {
 public:
 	virtual void SendFragment(const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
-		const short fragId, const void* const fragData, const int fragSize) override;
+		const unsigned short fragId, const void* const fragData, const int fragSize) override;
 
 	virtual int GetTransmissionRate() const override;
 	virtual const char* GetReceiverName() const override;

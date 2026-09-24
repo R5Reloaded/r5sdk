@@ -196,7 +196,7 @@ bool NetDataBlockSender::SendPendingFragments(const double currTime)
 
 		for (int i = 0; i < m_totalFragments; ++i)
 		{
-			const short fragId = static_cast<short>((i + nextFrag) % m_totalFragments);
+			const unsigned short fragId = static_cast<unsigned short>((i + nextFrag) % m_totalFragments);
 
 			// Don't send more data until enough bandwidth has accumulated
 			if (m_rateLimited && m_transferBudget < MAX_DATABLOCK_FRAGMENT_SIZE)
@@ -325,7 +325,7 @@ void NetDataBlockReceiver::CancelTransfer(const unsigned short cancelSeqNr)
 //-----------------------------------------------------------------------------
 // Purpose: gets information for the provided fragment ID
 //-----------------------------------------------------------------------------
-bool NetDataBlockReceiver::GetFragmentInfo(const short fragId, FragInfo_s& info)
+bool NetDataBlockReceiver::GetFragmentInfo(const unsigned short fragId, FragInfo_s& info)
 {
 	if (!IsFragmentIdValid(fragId))
 		return false;
@@ -334,7 +334,10 @@ bool NetDataBlockReceiver::GetFragmentInfo(const short fragId, FragInfo_s& info)
 	const int bytesRemaining = m_nTransferSize - info.scratchOffset;
 
 	if (bytesRemaining <= 0)
+	{
+		Assert(0); // Bad bug.
 		return false;
+	}
 
 	info.expectedSize = Min(bytesRemaining, MAX_DATABLOCK_FRAGMENT_SIZE);
 	info.SetStatusHandle(&m_copiedFragments[fragId]);
@@ -359,12 +362,11 @@ bool NetDataBlockReceiver::IsTransferSizeValid(const int transferSize) const
 //-----------------------------------------------------------------------------
 // Purpose: check whether the fragment ID can be accepted by the system
 //-----------------------------------------------------------------------------
-bool NetDataBlockReceiver::IsFragmentIdValid(const short fragmentId) const
+bool NetDataBlockReceiver::IsFragmentIdValid(const unsigned short fragId) const
 {
-	if (fragmentId < 0)
-		return false;
+	Assert(m_totalFragments <= MAX_DATABLOCK_FRAGMENTS);
 
-	if (fragmentId >= m_totalFragments)
+	if (fragId >= m_totalFragments)
 		return false;
 
 	return true;
@@ -376,7 +378,7 @@ extern void NetDataBlockReceiver_OnDecompressError();
 // Purpose: process the recv'd fragment and reconstruct the data block
 //-----------------------------------------------------------------------------
 bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned short blockSeqNr, const int transferSize,
-	const unsigned short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
+	const unsigned short cancelSeqNr, const unsigned short fragId, const void* const fragData, const int fragSize)
 {
 	if (!fragData)
 	{
@@ -521,8 +523,8 @@ void NetDataBlockReceiver::NextTransfer()
 // 5: exploring other compression algorithms for potential optimizations
 //-----------------------------------------------------------------------------
 static bool NetDataBlockReceiver_ProcessFragment(NetDataBlockReceiver* receiver, const double startTime,
-	const short blockSeqNr, const int transferSize, const short cancelSeqNr,
-	const short fragId, const void* const fragData, const int fragSize)
+	const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
+	const unsigned short fragId, const void* const fragData, const int fragSize)
 {
 	return receiver->ProcessFragment(startTime, blockSeqNr, transferSize, cancelSeqNr, 
 		fragId, fragData, fragSize);

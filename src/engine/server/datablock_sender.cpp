@@ -12,7 +12,7 @@
 // Purpose: sends the data block
 //-----------------------------------------------------------------------------
 void ServerDataBlockSender::SendFragment(const unsigned short blockSeqNr, const int transferSize,
-	const unsigned short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
+	const unsigned short cancelSeqNr, const unsigned short fragId, const void* const fragData, const int fragSize)
 {
 	const CClient* const cl = GetClient();
 
@@ -40,7 +40,7 @@ void ServerDataBlockSender::SendFragment(const unsigned short blockSeqNr, const 
 	buf.WriteWord(cancelSeqNr);
 
 	// block info
-	buf.WriteShort(fragId);
+	buf.WriteWord(fragId);
 	buf.WriteLong(fragSize);
 
 	// block data
