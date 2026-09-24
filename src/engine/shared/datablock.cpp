@@ -4,6 +4,7 @@
 // 
 //===========================================================================//
 #include "datablock.h"
+#include "datablock_events.h"
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -112,7 +113,6 @@ void NetDataBlockSender::StartBlockSender(const int transferSize, const bool doR
 }
 
 static ConVar net_compressDataBlockLzAcceleration("net_compressDataBlockLzAcceleration", "1", FCVAR_DEVELOPMENTONLY, "The acceleration value for LZ4 data block compression");
-extern void NetDataBlockSender_OnCompressError();
 
 //-----------------------------------------------------------------------------
 // Purpose: write the whole data in the data block scratch buffer
@@ -427,8 +427,6 @@ bool NetDataBlockReceiver::IsFragmentIdValid(const unsigned short fragId) const
 
 	return true;
 }
-
-extern void NetDataBlockReceiver_OnDecompressError();
 
 //-----------------------------------------------------------------------------
 // Purpose: process the recv'd fragment and reconstruct the data block

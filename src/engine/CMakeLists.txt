@@ -140,6 +140,8 @@ add_sources( SOURCE_GROUP "Shared"
     "shared/shared_rcon.h"
     "shared/datablock.cpp"
     "shared/datablock.h"
+    "shared/datablock_events.cpp"
+    "shared/datablock_events.h"
     "shared/ents_shared.h"
 )
 
