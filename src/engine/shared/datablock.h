@@ -46,6 +46,21 @@ public:
 	void WriteDataBlock(const uint8_t* const sourceData, const int dataSize, const bool doRateLimit, const char* const debugName);
 	bool SendPendingFragments(const double startTime);
 
+	struct FragAck_s
+	{
+		enum
+		{
+			FRAG_ACKED = 0xFF
+		};
+
+		unsigned short blockSeqNr;
+		unsigned short cancelSeqNr;
+
+		u64 ackedFragments[(MAX_DATABLOCK_FRAGMENTS + 63) / 64];
+	};
+
+	void ProcessFragmentAcks(FragAck_s& ackMsg);
+
 private:
 	struct Header_s
 	{

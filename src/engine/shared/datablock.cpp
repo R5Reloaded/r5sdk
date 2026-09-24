@@ -240,6 +240,62 @@ bool NetDataBlockSender::SendPendingFragments(const double currTime)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: process fragment acknowledgements from the receiver
+//-----------------------------------------------------------------------------
+void NetDataBlockSender::ProcessFragmentAcks(FragAck_s& ackMsg)
+{
+	if (!m_transferInProgress)
+		return;
+
+	if (ackMsg.cancelSeqNr != m_cancelSeqNr)
+		return;
+
+	// Receiver is still responding.
+	m_timeLastAck = m_timeCurrentTransfer;
+
+	if (m_slowMode)
+		m_slowMode = false;
+
+	Assert(m_totalFragments > 0);
+	Assert(m_totalFragments <= MAX_DATABLOCK_FRAGMENTS);
+
+	// Receiver already advanced, so the current block is fully ack'd.
+	if (ackMsg.blockSeqNr == m_blockSeqNr + 1)
+	{
+		const int ackBytes = (m_totalFragments + 7) >> 3;
+		memset(ackMsg.ackedFragments, FragAck_s::FRAG_ACKED, ackBytes);
+	}
+	else if (ackMsg.blockSeqNr != m_blockSeqNr)
+		return;
+
+	for (int fragId = 0; fragId < m_totalFragments; ++fragId)
+	{
+		const u64 ackBits = ackMsg.ackedFragments[fragId >> 6];
+		const u64 ackMask = 1ull << (fragId & 63);
+
+		if (!(ackBits & ackMask))
+			continue;
+
+		if (m_fragmentsAcked[fragId])
+			continue;
+
+		++m_ackedFragmentsCount;
+		m_fragmentsAcked[fragId] = true;
+	}
+
+	Assert(m_ackedFragmentsCount >= 0);
+	Assert(m_ackedFragmentsCount <= m_totalFragments);
+
+	if (m_ackedFragmentsCount != m_totalFragments)
+		return;
+
+	++m_blockSeqNr;
+	m_transferInProgress = false;
+
+	m_flResendRate = static_cast<float>(m_transferedFragments) / static_cast<float>(m_totalFragments);
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 NetDataBlockReceiver::NetDataBlockReceiver()
