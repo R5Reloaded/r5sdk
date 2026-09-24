@@ -163,7 +163,7 @@ bool NetDataBlockSender::SendPendingFragments(const double currTime)
 		AUTO_LOCK(m_Lock);
 		const int nextFrag = m_lastTransferedFragmentId + 1;
 
-		Assert(m_totalFragments < MAX_DATABLOCK_FRAGMENTS);
+		Assert(m_totalFragments <= MAX_DATABLOCK_FRAGMENTS);
 
 		for (int i = 0; i < m_totalFragments; ++i)
 		{
