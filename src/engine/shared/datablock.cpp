@@ -38,9 +38,9 @@ void NetDataBlockSender::ResetBlockSender(void)
 
 	m_TimeLastSend = 0.0;
 	m_szDebugName[0] = '\0';
-	m_bAbnormalSend = false;
-	m_nCurrentBlock = DATABLOCK_INVALID_BLOCK_NR;
-	m_nBlockSendsAttempted = 0;
+	m_abnormalTransfer = false;
+	m_lastTransferedFragmentId = DATABLOCK_INVALID_FRAGMENT_NR;
+	m_transferedFragments = 0;
 
 	memset(m_bBlockAckStatus, 0, sizeof(m_bBlockAckStatus));
 	memset(m_flBlockSendTimes, 0, sizeof(m_flBlockSendTimes));
@@ -79,8 +79,8 @@ void NetDataBlockSender::StartBlockSender(const int transferSize, const bool isM
 	m_TimeCurrentSend = currentTime;
 	m_TimeFirstSend = currentTime;
 
-	m_nTotalSizeRemaining = 4096;
-	m_nBlockSendsAttempted = 0;
+	m_transferBudget = 4096;
+	m_transferedFragments = 0;
 }
 
 //-----------------------------------------------------------------------------

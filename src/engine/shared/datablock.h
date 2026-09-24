@@ -12,6 +12,8 @@
 // the maximum amount of fragments per data block transfer
 #define MAX_DATABLOCK_FRAGMENTS 768
 
+#define DATABLOCK_SLOW_MODE_ACK_TIMEOUT 5.0
+
 #define DATABLOCK_DEBUG_NAME_LEN 64
 #define DATABLOCK_INVALID_BLOCK_NR -1
 
@@ -50,8 +52,11 @@ protected:
 	// the server side client handle that is our 'receiving' end
 	CClient* m_pClient;
 
-	char m_bInitialized;
-	char m_bStartedTransfer;
+	bool m_transferInProgress;
+
+	// When current transfer time > last transfer time + DATABLOCK_SLOW_MODE_ACK_TIMEOUT,
+	// see [r5apex_ds + 0x262C08] 
+	bool m_slowMode;
 
 	char m_bMultiplayer;
 	char field_8B;
@@ -72,10 +77,8 @@ protected:
 	int m_nBlockAckTick;
 	int m_nCurrentBlock;
 
-	// the total number of bytes remaining to be sent, and the number of times
-	// we attempted to send data blocks
-	int m_nTotalSizeRemaining;
-	int m_nBlockSendsAttempted;
+	int m_transferBudget;
+	int m_transferedFragments;
 
 	// the resend rate for this connection, which depends of the stability/loss
 	// and other factors computed from the netchan
