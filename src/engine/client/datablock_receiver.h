@@ -12,7 +12,7 @@ class CClientState;
 class ClientDataBlockReceiver : public NetDataBlockReceiver
 {
 public:
-	virtual void AcknowledgeTransmission() override;
+	virtual void SendFragmentAcks() override;
 
 private:
 	inline CClientState* GetLocalClient() { Assert(m_pUserData); return reinterpret_cast<CClientState*>(m_pUserData); };

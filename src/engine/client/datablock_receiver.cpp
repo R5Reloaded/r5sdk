@@ -12,7 +12,7 @@
 // Purpose: send an ack back to the server to let them know
 // we received the data block
 //-----------------------------------------------------------------------------
-void ClientDataBlockReceiver::AcknowledgeTransmission()
+void ClientDataBlockReceiver::SendFragmentAcks()
 {
 	const CClientState* const cl = GetLocalClient();
 
@@ -43,7 +43,7 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 	{
 		if (m_BlockStatus[i])
 		{
-			// ack the last fragment ID we recv'd and processed
+			// ack each fragment ID we recv'd and processed
 			buf.WriteWord(i);
 			break;
 		}

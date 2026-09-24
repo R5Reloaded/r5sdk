@@ -124,7 +124,7 @@ public:
 	// Called when cvar 'net_debugDataBlockReceiver' is set;
 	// currently a nullsub in the engine.
 	virtual void LogState() {};
-	virtual void AcknowledgeTransmission() = 0;
+	virtual void SendFragmentAcks() = 0;
 
 	bool StartBlockReceiver(const int transferSize, const double startTime);
 	void ResetState();

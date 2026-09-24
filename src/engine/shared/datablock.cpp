@@ -452,7 +452,7 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 	if (m_copiedFragmentsCount != m_totalFragments)
 		return true; // Not complete yet.
 
-	AcknowledgeTransmission();
+	SendFragmentAcks();
 
 	m_transferAckPending = false;
 	m_transferFinished = true;
