@@ -160,6 +160,16 @@ public:
 	bool IsTransferSizeValid(const int transferSize) const;
 	bool IsFragmentIdValid(const short fragmentId) const;
 
+	bool ProcessFragment(const double currTime, const short blockSeqNr, const int transferSize,
+		const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize);
+
+private:
+	struct Header_s
+	{
+		char reserved[3]; // unused in retail
+		bool isCompressed;
+	};
+
 protected:
 	// the client side 'client' handle
 	CClientState* m_pClientState;
@@ -191,13 +201,18 @@ protected:
 	// Marked if fragment copy was successfull.
 	bool m_copiedFragments[MAX_DATABLOCK_FRAGMENTS];
 
-	// buf size = MAX_DATABLOCK_TRANSFER_SIZE + sizeof(ClientDataBlockHeader_s).
-	// The start of the buffer is ClientDataBlockHeader_s, for actual block writes, always offset this #!
+	// buf size = MAX_DATABLOCK_TRANSFER_SIZE + sizeof(Header_s).
+	// The start of the buffer is Header_s, for actual block writes, always offset this #!
 	unsigned char* m_scratchBuffer;
 };
 
 inline void* (*NetDataBlockSender__Destructor)(NetDataBlockSender* thisptr);
 inline void* (*NetDataBlockReceiver__Destructor)(NetDataBlockReceiver* thisptr);
+
+// non-virtual methods
+inline bool (*NetDataBlockReceiver__ProcessFragment)(NetDataBlockReceiver* thisptr, const double startTime,
+	const short blockSeqNr, const int transferSize, const short cancelSeqNr, const short fragId,
+	const void* const fragData, const int fragSize);
 
 ///////////////////////////////////////////////////////////////////////////////
 class VNetDataBlock : public IDetour
@@ -206,6 +221,7 @@ class VNetDataBlock : public IDetour
 	{
 		LogFunAdr("NetDataBlockSender::~NetDataBlockSender", NetDataBlockSender__Destructor);
 		LogFunAdr("NetDataBlockReceiver::~NetDataBlockReceiver", NetDataBlockReceiver__Destructor);
+		LogFunAdr("NetDataBlockReceiver::ProcessFragment", NetDataBlockReceiver__ProcessFragment);
 	}
 	virtual void GetFun(void) const
 	{
@@ -216,10 +232,13 @@ class VNetDataBlock : public IDetour
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 57 48 83 EC 20 8B DA 48 8B F9 E8 ?? ?? ?? ?? F6 C3 01 74"
 			" 0D BA ?? ?? ?? ?? 48 8B CF E8 ?? ?? ?? ?? 48 8B C7 48 8B 5C 24 ?? 48 83 C4 20 5F C3 CC CC CC CC CC CC CC CC CC CC CC CC 48 89 5C 24"
 			" ?? 48 89 74 24 ?? 57 48 83 EC 20 48 8D 05 ?? ?? ?? ?? C6 41 12 00").GetPtr(NetDataBlockReceiver__Destructor);
+
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 30 0F B7 44 24 ??")
+			.GetPtr(NetDataBlockReceiver__ProcessFragment);
 	}
 	virtual void GetVar(void) const { }
 	virtual void GetCon(void) const { }
-	virtual void Detour(const bool bAttach) const { }
+	virtual void Detour(const bool bAttach) const;
 };
 ///////////////////////////////////////////////////////////////////////////////
 
