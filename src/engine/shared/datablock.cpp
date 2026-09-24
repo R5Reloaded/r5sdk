@@ -55,7 +55,8 @@ static int NetDataBlock_CalcFragCount(const int transferSize)
 //-----------------------------------------------------------------------------
 // Purpose: initialize the data block sender context
 //-----------------------------------------------------------------------------
-void NetDataBlockSender::StartBlockSender(const int transferSize, const bool isMultiplayer, const char* const debugName)
+void NetDataBlockSender::StartBlockSender(const int transferSize, const bool doRateLimit, 
+	const char* const debugName, const int transferBudget)
 {
 	m_bMultiplayer = isMultiplayer;
 	m_nBlockAckTick = 0;
@@ -79,7 +80,7 @@ void NetDataBlockSender::StartBlockSender(const int transferSize, const bool isM
 	m_TimeCurrentSend = currentTime;
 	m_TimeFirstSend = currentTime;
 
-	m_transferBudget = 4096;
+	m_transferBudget = transferBudget;
 	m_transferedFragments = 0;
 }
 
@@ -132,7 +133,8 @@ void NetDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, const i
 	// NOTE: we copy data in the scratch buffer with an offset of
 	// sizeof(Header_s), the header gets send up as well so we
 	// have to take this into account !!!
-	StartBlockSender(actualDataSize + sizeof(Header_s), doRateLimit, debugName);
+	StartBlockSender(actualDataSize + sizeof(Header_s), doRateLimit,
+		debugName, DATABLOCK_DEFAULT_TRANSFER_BUDGET);
 }
 
 //-----------------------------------------------------------------------------
