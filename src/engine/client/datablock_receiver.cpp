@@ -13,7 +13,7 @@
 //-----------------------------------------------------------------------------
 void ClientDataBlockReceiver::AcknowledgeTransmission()
 {
-	const CClientState* const cl = m_pClientState;
+	const CClientState* const cl = GetLocalClient();
 
 	if (!cl)
 	{

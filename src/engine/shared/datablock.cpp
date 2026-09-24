@@ -16,7 +16,7 @@ NetDataBlockSender::~NetDataBlockSender()
 	delete[] m_pScratchBuffer;
 	m_pScratchBuffer = nullptr;
 
-	m_pClient = nullptr;
+	m_pUserData = nullptr;
 }
 
 //-----------------------------------------------------------------------------

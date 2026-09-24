@@ -25,12 +25,6 @@
 // the maximum total transfer size
 #define MAX_DATABLOCK_TRANSFER_SIZE (MAX_DATABLOCK_FRAGMENTS * MAX_DATABLOCK_FRAGMENT_SIZE)
 
-//-----------------------------------------------------------------------------
-// Forward decelerations
-//-----------------------------------------------------------------------------
-class CClient;
-class CClientState;
-
 class NetDataBlockSender
 {
 public:
@@ -58,9 +52,7 @@ private:
 protected:
 	ALIGN64 CThreadRWLock m_Lock;
 
-	// the server side client handle that is our 'receiving' end
-	CClient* m_pClient;
-
+	void* m_pUserData;
 	bool m_transferInProgress;
 
 	// When current transfer time > last transfer time + DATABLOCK_SLOW_MODE_ACK_TIMEOUT,
@@ -171,8 +163,7 @@ private:
 	};
 
 protected:
-	// the client side 'client' handle
-	CClientState* m_pClientState;
+	void* m_pUserData;
 
 	// whether the transfer has been started and completed
 	bool m_bStartedRecv;

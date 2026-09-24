@@ -13,13 +13,10 @@
 void ServerDataBlockSender::SendDataBlock(const short transferId, const int transferSize,
 	const short transferNr, const short blockNr, const uint8_t* const blockData, const int blockSize)
 {
-	const CClient* const cl = m_pClient;
+	const CClient* const cl = GetClient();
 
 	if (!cl)
-	{
-		Assert(0, __FUNC_PFX__"Called without a valid client handle!");
 		return;
-	}
 
 	const CNetChan* const chan = cl->m_NetChannel;
 
@@ -62,13 +59,18 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 //-----------------------------------------------------------------------------
 int ServerDataBlockSender::GetTransmissionRate() const
 {
-	if (!m_pClient)
+	const CClient* const cl = GetClient();
+
+	if (!cl)
 		return net_datablock_fastRate->GetInt();
 
-	const CNetChan* const chan = m_pClient->GetNetChan();
+	const CNetChan* const chan = cl->GetNetChan();
 
 	if (!chan)
+	{
+		Assert(0, __FUNC_PFX__"Called without a valid net channel!");
 		return net_datablock_fastRate->GetInt();
+	}
 
 	if (m_slowMode)
 		return net_datablock_slowRate->GetInt();
@@ -89,5 +91,10 @@ int ServerDataBlockSender::GetTransmissionRate() const
 //-----------------------------------------------------------------------------
 const char* ServerDataBlockSender::GetReceiverName() const
 {
-    return m_pClient->m_szServerName;
+	const CClient* const cl = GetClient();
+
+	if (!cl)
+		return "<<null>>";
+
+	return cl->GetServerName();
 }

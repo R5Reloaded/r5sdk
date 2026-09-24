@@ -17,6 +17,10 @@ public:
 
 	virtual int GetTransmissionRate() const override;
 	virtual const char* GetReceiverName() const override;
+
+private:
+	inline CClient* GetClient() { Assert(m_pUserData); return reinterpret_cast<CClient*>(m_pUserData); };
+	inline const CClient* GetClient() const { Assert(m_pUserData); return reinterpret_cast<const CClient*>(m_pUserData); };
 };
 
 inline void* (*ServerDataBlockSender__SendDataBlock)(ServerDataBlockSender* thisptr,

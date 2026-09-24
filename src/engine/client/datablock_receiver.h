@@ -13,6 +13,10 @@ class ClientDataBlockReceiver : public NetDataBlockReceiver
 {
 public:
 	virtual void AcknowledgeTransmission() override;
+
+private:
+	inline CClientState* GetLocalClient() { Assert(m_pUserData); return reinterpret_cast<CClientState*>(m_pUserData); };
+	inline const CClientState* GetLocalClient() const { Assert(m_pUserData); return reinterpret_cast<const CClientState*>(m_pUserData); };
 };
 
 // virtual methods
