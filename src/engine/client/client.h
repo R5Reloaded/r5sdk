@@ -316,6 +316,17 @@ private:
 	CUtlString m_MuteDisplayPrompt;
 };
 
+struct SnapshotDelta_s
+{
+	// todo: reverse engineer.
+};
+
+class CClientSnapshot
+{
+	unsigned char m_snapshotScratch[MAX_DATABLOCK_TRANSFER_SIZE];
+	SnapshotDelta_s* m_snapshotDelta;
+};
+
 /* ==== CBASECLIENT ===================================================================================================================================================== */
 inline bool(*CClient__Connect)(CClient* pClient, const char* szName, CNetChan* pNetChan, bool bFakePlayer, CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize);
 inline bool(*CClient__Disconnect)(CClient* pClient, const Reputation_t nRepLvl, const char* szReason, ...);

@@ -98,7 +98,9 @@ private:
 	float                         m_flTimescale;                 // The game time scale (multiplied in conjunction with host_timescale)
 	char                          gap_3D8[40];
 	CClient                       m_Clients[MAX_PLAYERS];
-	char                          gap_25263c0[48];
+	CClientSnapshot*              m_ClientSnapshots;
+	bool                          m_bIsDedicated;
+	char                          gap_2526409[36];
 	float                         m_fCPUPercent;
 	float                         m_fStartTime;
 	float                         m_fLastCPUCheckTime;
