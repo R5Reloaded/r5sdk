@@ -56,8 +56,6 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 		buf.GetData(),
 		buf.GetNumBytesWritten(),
 		NULL, false, NULL, true);
-
-	m_transferAckPending = false;
 }
 
 void NetDataBlockReceiver_OnDecompressError()
