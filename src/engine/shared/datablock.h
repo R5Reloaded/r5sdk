@@ -17,6 +17,8 @@
 #define DATABLOCK_DEBUG_NAME_LEN 64
 #define DATABLOCK_INVALID_BLOCK_NR -1
 
+#define DATABLOCK_INITIAL_TRANSFER_WINDOW_DBG 4
+
 // the maximum size of a data block fragment packet (encoded header + actual data)
 #define DATABLOCK_FRAGMENT_PACKET_SIZE (MAX_DATABLOCK_FRAGMENT_SIZE + 176)
 

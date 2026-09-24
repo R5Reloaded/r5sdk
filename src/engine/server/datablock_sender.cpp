@@ -145,3 +145,78 @@ void ServerDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, cons
 	// have to take this into account !!!
 	StartBlockSender(actualDataSize + sizeof(ServerDataBlockHeader_s), isMultiplayer, debugName);
 }
+
+//-----------------------------------------------------------------------------
+// Purpose: send any pending data block fragments
+//-----------------------------------------------------------------------------
+bool ServerDataBlockSender::SendPendingFragments(const double currTime)
+{
+	const float deltaTime = static_cast<float>(currTime - m_timeCurrentTransfer);
+	m_timeCurrentTransfer = currTime;
+
+	if (deltaTime < 0.0f)
+		return false;
+
+	if (m_transferInProgress)
+	{
+		// If we haven't received an ack for too long, fall back to the
+		// slower transmission rate.
+		if (!m_slowMode && currTime > (m_timeLastAck + DATABLOCK_SLOW_MODE_ACK_TIMEOUT))
+		{
+			m_slowMode = true;
+			m_transferBudget = 0;
+		}
+
+		// Accumulate the amount of data we're allowed to send this frame
+		const float transferRate = static_cast<float>(GetTransmissionRate());
+		m_transferBudget += static_cast<int>(transferRate * deltaTime);
+
+		AUTO_LOCK(m_Lock);
+		const int nextFrag = m_lastTransferedFragmentId + 1;
+
+		Assert(m_totalFragments < MAX_DATABLOCK_FRAGMENTS);
+
+		for (int i = 0; i < m_totalFragments; ++i)
+		{
+			const short fragId = static_cast<short>((i + nextFrag) % m_totalFragments);
+
+			// Don't send more data until enough bandwidth has accumulated
+			if (m_rateLimited && m_transferBudget < MAX_DATABLOCK_FRAGMENT_SIZE)
+				break;
+
+			if (m_fragmentsAcked[fragId])
+				continue; // Already ack'd.
+
+			// Don't resend this fragment until the minimum resend interval
+			// has elapsed.
+			if (m_timeCurrentTransfer < m_lastFragmentTransferTimes[fragId] + net_datablock_minResendInterval->GetFloat())
+				continue;
+
+			const int fragOffset = fragId * MAX_DATABLOCK_FRAGMENT_SIZE;
+			int fragSize = MAX_DATABLOCK_FRAGMENT_SIZE;
+
+			// Last fragment can be smaller than the maximum fragment size
+			if (fragOffset + MAX_DATABLOCK_FRAGMENT_SIZE > m_nTransferSize)
+				fragSize = m_nTransferSize - fragOffset;
+
+			++m_transferedFragments;
+			m_lastFragmentTransferTimes[fragId] = m_timeCurrentTransfer;
+
+			SendDataBlock(m_blockSeqNr, m_nTransferSize, m_cancelSeqNr, fragId, &m_scratchBuffer[fragOffset], fragSize);
+
+			m_transferBudget -= fragSize;
+			m_lastTransferedFragmentId = fragId;
+		}
+	}
+
+	if (net_debugDataBlockSender->GetBool() || m_slowMode
+		|| m_timeCurrentTransfer - m_timeStartTransfer > net_datablock_longSendTime->GetFloat()
+		|| m_blockSeqNr < DATABLOCK_INITIAL_TRANSFER_WINDOW_DBG)
+	{
+		m_abnormalTransfer = true;
+		return true;
+	}
+
+	m_abnormalTransfer = false;
+	return false;
+}
