@@ -139,6 +139,9 @@ bool ClientDataBlockReceiver::ProcessFragment(const double currTime, const short
 	if (m_copiedFragmentsCount != m_totalFragments)
 		return true; // Not complete yet.
 
+	AcknowledgeTransmission();
+	m_transferFinished = true;
+
 	const ClientDataBlockHeader_s* const pHeader = reinterpret_cast<ClientDataBlockHeader_s*>(m_scratchBuffer);
 
 	if (pHeader->isCompressed)
@@ -175,9 +178,6 @@ bool ClientDataBlockReceiver::ProcessFragment(const double currTime, const short
 		// truncate the byte that determines whether the data was compressed
 		m_nTransferSize--;
 	}
-
-	AcknowledgeTransmission();
-	m_transferFinished = true;
 
 	return true;
 }
