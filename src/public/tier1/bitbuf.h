@@ -193,7 +193,7 @@ public:
 
 	FORCEINLINE int ReadChar(void)  { return ReadSBitLong(sizeof(char) << 3); }
 	FORCEINLINE int ReadByte(void)  { return ReadSBitLong(sizeof(unsigned char) << 3); }
-	FORCEINLINE int ReadShort(void) { return ReadUBitLong(sizeof(short) << 3); }
+	FORCEINLINE int ReadShort(void) { return ReadSBitLong(sizeof(short) << 3); }
 	FORCEINLINE int ReadWord(void)  { return ReadUBitLong(sizeof(unsigned short) << 3); }
 	FORCEINLINE int ReadLong(void)  { return ReadUBitLong(sizeof(int32) << 3); }
 	FORCEINLINE float ReadFloat(void)
