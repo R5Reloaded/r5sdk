@@ -138,6 +138,10 @@ extern ConVar* fs_showAllReads;
 extern ConVar* net_usesocketsforloopback;
 
 extern ConVar* net_data_block_enabled;
+extern ConVar* net_debugDataBlockSender;
+extern ConVar* net_debugDataBlockReceiver;
+extern ConVar* net_datablock_longSendTime;
+extern ConVar* net_datablock_minResendInterval;
 extern ConVar* net_datablock_networkLossForSlowSpeed;
 extern ConVar* net_datablock_resendRateForSlowSpeed;
 extern ConVar* net_datablock_slowRate;

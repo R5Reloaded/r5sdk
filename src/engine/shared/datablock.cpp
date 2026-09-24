@@ -8,9 +8,20 @@
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+NetDataBlockSender::NetDataBlockSender()
+{
+	m_scratchBuffer = new u8[MAX_DATABLOCK_TRANSFER_SIZE + sizeof(Header_s)];
+	m_pUserData = nullptr;
+	m_flResendRate = 0.0;
+	ResetState();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
 NetDataBlockSender::~NetDataBlockSender()
 {
-	ResetBlockSender();
+	ResetState();
 
 	delete[] m_pScratchBuffer;
 	m_pScratchBuffer = nullptr;
@@ -21,12 +32,14 @@ NetDataBlockSender::~NetDataBlockSender()
 //-----------------------------------------------------------------------------
 // Purpose: reset the data block sender context
 //-----------------------------------------------------------------------------
-void NetDataBlockSender::ResetBlockSender(void)
+void NetDataBlockSender::ResetState(void)
 {
 	m_bInitialized = false;
 	m_bStartedTransfer = false;
 
-	m_nTransferId = 0;
+	m_blockSeqNr = 0;
+	m_cancelSeqNr = 0;
+
 	m_nTransferSize = 0;
 	m_nTotalBlocks = 0;
 	m_nBlockAckTick = 0;
@@ -44,6 +57,20 @@ void NetDataBlockSender::ResetBlockSender(void)
 
 	memset(m_bBlockAckStatus, 0, sizeof(m_bBlockAckStatus));
 	memset(m_flBlockSendTimes, 0, sizeof(m_flBlockSendTimes));
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: cancel the data block transfer
+//-----------------------------------------------------------------------------
+void NetDataBlockSender::CancelTransfer()
+{
+	if (!m_transferInProgress)
+		return;
+
+	const short nextCancelSeqNr = m_cancelSeqNr + 1;
+	ResetState();
+
+	m_cancelSeqNr = nextCancelSeqNr;
 }
 
 static int NetDataBlock_CalcFragCount(const int transferSize)
@@ -213,6 +240,29 @@ bool NetDataBlockSender::SendPendingFragments(const double currTime)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+NetDataBlockReceiver::NetDataBlockReceiver()
+{
+	m_scratchBuffer = new u8[MAX_DATABLOCK_TRANSFER_SIZE + sizeof(Header_s)];
+	m_pUserData = nullptr;
+	ResetState();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+NetDataBlockReceiver::~NetDataBlockReceiver()
+{
+	ResetState();
+
+	delete[] m_scratchBuffer;
+	m_scratchBuffer = nullptr;
+
+	m_pUserData = nullptr;
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: initialize the data block receiver context
 //-----------------------------------------------------------------------------
 bool NetDataBlockReceiver::StartBlockReceiver(const int transferSize, const double startTime)
@@ -226,14 +276,35 @@ bool NetDataBlockReceiver::StartBlockReceiver(const int transferSize, const doub
 	m_copiedFragmentsCount = 0;
 	m_timeStartTransfer = startTime;
 
-	memset(m_copiedFragments, 0, sizeof(m_copiedFragments));
+	ClearCopyStatArray();
 	return true;
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: reset the data block receiver context
 //-----------------------------------------------------------------------------
-void NetDataBlockReceiver::ResetBlockReceiver(const short transferNr)
+void NetDataBlockReceiver::ResetState()
+{
+	m_copyingFragments = false;
+	m_transferFinished = false;
+
+	m_blockSeqNr = 0;
+	m_cancelSeqNr = 0;
+
+	m_transferAckPending = false;
+	m_nTransferSize = 0;
+	m_totalFragments = 0;
+
+	m_copiedFragmentsCount = 0;
+	m_timeStartTransfer = 0.0;
+
+	ClearCopyStatArray();
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: cancel the data block transfer
+//-----------------------------------------------------------------------------
+void NetDataBlockReceiver::CancelTransfer(const short cancelSeqNr)
 {
 	m_nTransferNr = transferNr;
 
@@ -248,7 +319,7 @@ void NetDataBlockReceiver::ResetBlockReceiver(const short transferNr)
 	m_copiedFragmentsCount = 0;
 
 	m_timeStartTransfer = 0.0;
-	memset(m_copiedFragments, 0, sizeof(m_copiedFragments));
+	ClearCopyStatArray();
 }
 
 //-----------------------------------------------------------------------------
@@ -316,7 +387,7 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const short bl
 	// should we cancel the transfer?
 	if (cancelSeqNr != m_cancelSeqNr)
 	{
-		ResetBlockReceiver(cancelSeqNr);
+		CancelTransfer(cancelSeqNr);
 		return false;
 	}
 
@@ -416,6 +487,25 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const short bl
 	}
 
 	return true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: prepare state for next transfer
+//-----------------------------------------------------------------------------
+void NetDataBlockReceiver::NextTransfer()
+{
+	if (net_debugDataBlockReceiver->GetBool())
+		LogState();
+
+	++m_blockSeqNr;
+	m_copyingFragments = false;
+	m_transferFinished = false;
+	m_totalFragments = false;
+
+	m_copiedFragmentsCount = 0;
+	m_timeStartTransfer = 0.0;
+
+	ClearCopyStatArray();
 }
 
 //-----------------------------------------------------------------------------

@@ -29,6 +29,7 @@
 class NetDataBlockSender
 {
 public:
+	NetDataBlockSender();
 	virtual ~NetDataBlockSender();
 
 	virtual void SendFragment(const short blockSeqNr, const int transferSize,
@@ -37,8 +38,10 @@ public:
 	virtual int GetTransmissionRate() const = 0;
 	virtual const char* GetReceiverName() const = 0;
 
-	void StartBlockSender(const int transferSize, const bool isMultiplayer, const char* const debugName);
-	void ResetBlockSender();
+	void StartBlockSender(const int transferSize, const bool doRateLimit, const char* const debugName, const int transferBudget);
+
+	void ResetState();
+	void CancelTransfer();
 
 	void WriteDataBlock(const uint8_t* const sourceData, const int dataSize, const bool doRateLimit, const char* const debugName);
 	bool SendPendingFragments(const double startTime);
@@ -118,14 +121,17 @@ protected:
 class NetDataBlockReceiver
 {
 public:
-	virtual ~NetDataBlockReceiver() {};
+	NetDataBlockReceiver();
+	virtual ~NetDataBlockReceiver();
+
 	// Called when cvar 'net_debugDataBlockReceiver' is set;
 	// currently a nullsub in the engine.
-	virtual void DebugDataBlockReceiver() {};
+	virtual void LogState() {};
 	virtual void AcknowledgeTransmission() = 0;
 
 	bool StartBlockReceiver(const int transferSize, const double startTime);
-	void ResetBlockReceiver(const short cancelSeqNr);
+	void ResetState();
+	void CancelTransfer(const short cancelSeqNr);
 
 	struct FragInfo_s
 	{
@@ -155,7 +161,11 @@ public:
 	bool ProcessFragment(const double currTime, const short blockSeqNr, const int transferSize,
 		const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize);
 
+	void NextTransfer();
+
 private:
+	inline void ClearCopyStatArray() { memset(m_copiedFragments, 0, sizeof(m_copiedFragments)); };
+
 	struct Header_s
 	{
 		char reserved[3]; // unused in retail
