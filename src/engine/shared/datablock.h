@@ -46,6 +46,15 @@ public:
 	void StartBlockSender(const int transferSize, const bool isMultiplayer, const char* const debugName);
 	void ResetBlockSender();
 
+	void WriteDataBlock(const uint8_t* const sourceData, const int dataSize, const bool doRateLimit, const char* const debugName);
+	bool SendPendingFragments(const double startTime);
+
+private:
+	struct Header_s
+	{
+		bool isCompressed;
+	};
+
 protected:
 	ALIGN64 CThreadRWLock m_Lock;
 
@@ -101,7 +110,7 @@ protected:
 	// if a fragment has been acknowledged by the receiver, we mark that
 	// particular fragment as acknowledged
 	bool m_fragmentsAcked[MAX_DATABLOCK_FRAGMENTS];
-	unsigned char* m_scratchBuffer; // size = sizeof(ServerDataBlockHeader_s) + MAX_DATABLOCK_TRANSFER_SIZE
+	unsigned char* m_scratchBuffer; // size = sizeof(Header_s) + MAX_DATABLOCK_TRANSFER_SIZE
 
 	// this member is true when:
 	// net_debugDataBlockSender.GetBool() == true, or:

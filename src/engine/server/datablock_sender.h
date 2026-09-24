@@ -17,14 +17,6 @@ public:
 
 	virtual int GetTransmissionRate() const override;
 	virtual const char* GetReceiverName() const override;
-
-	void WriteDataBlock(const uint8_t* const sourceData, const int dataSize, const bool isMultiplayer, const char* const debugName);
-	bool SendPendingFragments(const double startTime);
-};
-
-struct ServerDataBlockHeader_s
-{
-	bool isCompressed;
 };
 
 inline void* (*ServerDataBlockSender__SendDataBlock)(ServerDataBlockSender* thisptr,

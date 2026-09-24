@@ -83,6 +83,135 @@ void NetDataBlockSender::StartBlockSender(const int transferSize, const bool isM
 	m_transferedFragments = 0;
 }
 
+static ConVar net_compressDataBlockLzAcceleration("net_compressDataBlockLzAcceleration", "1", FCVAR_DEVELOPMENTONLY, "The acceleration value for LZ4 data block compression");
+
+//-----------------------------------------------------------------------------
+// Purpose: write the whole data in the data block scratch buffer
+//-----------------------------------------------------------------------------
+void NetDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, const int dataSize,
+	const bool doRateLimit, const char* const debugName)
+{
+	AUTO_LOCK(m_Lock);
+
+	Header_s* const pHeader = reinterpret_cast<Header_s*>(m_scratchBuffer);
+	bool copyRaw = true;
+
+	int actualDataSize = dataSize;
+
+	if (net_compressDataBlock->GetBool())
+	{
+		const int encodedSize = LZ4_compress_fast((const char*)sourceData, (char*)m_scratchBuffer + sizeof(Header_s),
+			dataSize, MAX_DATABLOCK_TRANSFER_SIZE, net_compressDataBlockLzAcceleration.GetInt());
+
+		// this shouldn't happen at all
+		if (!encodedSize)
+		{
+			Assert(0);
+			Error(eDLL_T::SERVER, 0, "LZ4 error compressing data block for client.\n");
+		}
+
+		// make sure the encoded data is smaller than the raw data, in some cases
+		// this might turn larger which means we should just send raw data
+		else if (encodedSize < dataSize)
+		{
+			actualDataSize = encodedSize;
+
+			pHeader->isCompressed = true;
+			copyRaw = false;
+		}
+	}
+
+	// in case no compression was performed, we send the raw data
+	if (copyRaw)
+	{
+		// this should equal the dataSize at this point, even if compression failed
+		Assert(actualDataSize == dataSize);
+
+		pHeader->isCompressed = false;
+		memcpy(m_scratchBuffer + sizeof(Header_s), sourceData, actualDataSize);
+	}
+
+	// NOTE: we copy data in the scratch buffer with an offset of
+	// sizeof(Header_s), the header gets send up as well so we
+	// have to take this into account !!!
+	StartBlockSender(actualDataSize + sizeof(Header_s), doRateLimit, debugName);
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: send any pending data block fragments
+//-----------------------------------------------------------------------------
+bool NetDataBlockSender::SendPendingFragments(const double currTime)
+{
+	const float deltaTime = static_cast<float>(currTime - m_timeCurrentTransfer);
+	m_timeCurrentTransfer = currTime;
+
+	if (deltaTime < 0.0f)
+		return false;
+
+	if (m_transferInProgress)
+	{
+		// If we haven't received an ack for too long, fall back to the
+		// slower transmission rate.
+		if (!m_slowMode && currTime > (m_timeLastAck + DATABLOCK_SLOW_MODE_ACK_TIMEOUT))
+		{
+			m_slowMode = true;
+			m_transferBudget = 0;
+		}
+
+		// Accumulate the amount of data we're allowed to send this frame
+		const float transferRate = static_cast<float>(GetTransmissionRate());
+		m_transferBudget += static_cast<int>(transferRate * deltaTime);
+
+		AUTO_LOCK(m_Lock);
+		const int nextFrag = m_lastTransferedFragmentId + 1;
+
+		Assert(m_totalFragments < MAX_DATABLOCK_FRAGMENTS);
+
+		for (int i = 0; i < m_totalFragments; ++i)
+		{
+			const short fragId = static_cast<short>((i + nextFrag) % m_totalFragments);
+
+			// Don't send more data until enough bandwidth has accumulated
+			if (m_rateLimited && m_transferBudget < MAX_DATABLOCK_FRAGMENT_SIZE)
+				break;
+
+			if (m_fragmentsAcked[fragId])
+				continue; // Already ack'd.
+
+			// Don't resend this fragment until the minimum resend interval
+			// has elapsed.
+			if (m_timeCurrentTransfer < m_lastFragmentTransferTimes[fragId] + net_datablock_minResendInterval->GetFloat())
+				continue;
+
+			const int fragOffset = fragId * MAX_DATABLOCK_FRAGMENT_SIZE;
+			int fragSize = MAX_DATABLOCK_FRAGMENT_SIZE;
+
+			// Last fragment can be smaller than the maximum fragment size
+			if (fragOffset + MAX_DATABLOCK_FRAGMENT_SIZE > m_nTransferSize)
+				fragSize = m_nTransferSize - fragOffset;
+
+			++m_transferedFragments;
+			m_lastFragmentTransferTimes[fragId] = m_timeCurrentTransfer;
+
+			SendDataBlock(m_blockSeqNr, m_nTransferSize, m_cancelSeqNr, fragId, &m_scratchBuffer[fragOffset], fragSize);
+
+			m_transferBudget -= fragSize;
+			m_lastTransferedFragmentId = fragId;
+		}
+	}
+
+	if (net_debugDataBlockSender->GetBool() || m_slowMode
+		|| m_timeCurrentTransfer - m_timeStartTransfer > net_datablock_longSendTime->GetFloat()
+		|| m_blockSeqNr < DATABLOCK_INITIAL_TRANSFER_WINDOW_DBG)
+	{
+		m_abnormalTransfer = true;
+		return true;
+	}
+
+	m_abnormalTransfer = false;
+	return false;
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: initialize the data block receiver context
 //-----------------------------------------------------------------------------
