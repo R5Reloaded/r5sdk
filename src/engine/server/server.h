@@ -57,6 +57,9 @@ public:
 	inline bool IsActive(void) const { return m_State >= server_state_t::ss_active; }
 	inline bool IsLoading(void) const { return m_State == server_state_t::ss_loading; }
 
+	inline bool IsDedicated() const { return m_bIsDedicated; }
+	inline void SetDedicated(bool bDedicated) { m_bIsDedicated = bDedicated; }
+
 	void RejectConnection(int iSocket, netadr_t* pNetAdr, const char* szMessage);
 	static CClient* ConnectClient(CServer* pServer, user_creds_s* pChallenge);
 
