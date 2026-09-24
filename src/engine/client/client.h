@@ -201,7 +201,10 @@ private:
 	int m_nStringTableAckTick;
 	int m_nSignonTick;
 	int m_nBaselineUpdateTick_MAYBE;
-	char pad_03C0[448];
+	char pad_03C0[4];
+	char m_dataCenterName[64]; // Set to m_ConVars["match_myDatacenter"];
+	char m_hardwareName[16]; // Set to g_hardwareNames[m_hardwareType];
+	char pad_4C2[364];
 	int unk3;
 	int m_nForceWaitForTick;
 	bool m_bFakePlayer;
