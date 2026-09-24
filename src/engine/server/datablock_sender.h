@@ -12,7 +12,7 @@ class CClient;
 class ServerDataBlockSender : public NetDataBlockSender
 {
 public:
-	virtual void SendFragment(const short blockSeqNr, const int transferSize, const short cancelSeqNr,
+	virtual void SendFragment(const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
 		const short fragId, const void* const fragData, const int fragSize) override;
 
 	virtual int GetTransmissionRate() const override;

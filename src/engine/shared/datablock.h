@@ -32,8 +32,8 @@ public:
 	NetDataBlockSender();
 	virtual ~NetDataBlockSender();
 
-	virtual void SendFragment(const short blockSeqNr, const int transferSize,
-		const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize) = 0;
+	virtual void SendFragment(const unsigned short blockSeqNr, const int transferSize,
+		const unsigned short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize) = 0;
 
 	virtual int GetTransmissionRate() const = 0;
 	virtual const char* GetReceiverName() const = 0;
@@ -65,11 +65,8 @@ protected:
 	char m_bMultiplayer;
 	char field_8B;
 
-	// the current transfer id, and the global transfer count for this
-	// particular client. the transfer nr keeps getting incremented on
-	// each new context setup
-	short m_nTransferId;
-	short m_nTransferNr;
+	unsigned short m_blockSeqNr;
+	unsigned short m_cancelSeqNr;
 
 	// the total transfer size for the data, and the number of blocks this data
 	// has been carved up to
@@ -131,7 +128,7 @@ public:
 
 	bool StartBlockReceiver(const int transferSize, const double startTime);
 	void ResetState();
-	void CancelTransfer(const short cancelSeqNr);
+	void CancelTransfer(const unsigned short cancelSeqNr);
 
 	struct FragInfo_s
 	{
@@ -158,8 +155,8 @@ public:
 	bool IsTransferSizeValid(const int transferSize) const;
 	bool IsFragmentIdValid(const short fragmentId) const;
 
-	bool ProcessFragment(const double currTime, const short blockSeqNr, const int transferSize,
-		const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize);
+	bool ProcessFragment(const double currTime, const unsigned short blockSeqNr, const int transferSize,
+		const unsigned short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize);
 
 	void NextTransfer();
 
@@ -181,11 +178,10 @@ protected:
 
 	bool byte12;
 
-	// the current transfer id, and the global transfer count for this
-	// particular client. the transfer nr keeps getting incremented on
-	// each new context setup
-	short m_TransferId;
-	short m_nTransferNr;
+	// These get incremented each time we start a new datablock transfer,
+	// or cancel the operation.
+	unsigned short m_blockSeqNr;
+	unsigned short m_cancelSeqNr;
 
 	bool m_transferAckPending;
 

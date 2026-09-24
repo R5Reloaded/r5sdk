@@ -304,7 +304,7 @@ void NetDataBlockReceiver::ResetState()
 //-----------------------------------------------------------------------------
 // Purpose: cancel the data block transfer
 //-----------------------------------------------------------------------------
-void NetDataBlockReceiver::CancelTransfer(const short cancelSeqNr)
+void NetDataBlockReceiver::CancelTransfer(const unsigned short cancelSeqNr)
 {
 	m_nTransferNr = transferNr;
 
@@ -375,8 +375,8 @@ extern void NetDataBlockReceiver_OnDecompressError();
 //-----------------------------------------------------------------------------
 // Purpose: process the recv'd fragment and reconstruct the data block
 //-----------------------------------------------------------------------------
-bool NetDataBlockReceiver::ProcessFragment(const double currTime, const short blockSeqNr, const int transferSize,
-	const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
+bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned short blockSeqNr, const int transferSize,
+	const unsigned short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
 {
 	if (!fragData)
 	{
