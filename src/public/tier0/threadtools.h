@@ -284,7 +284,7 @@ typedef CInterlockedIntT<unsigned> CInterlockedUInt;
 //
 //-----------------------------------------------------------------------------
 
-struct CThreadMutex
+class CThreadMutex
 {
 public:
 	CThreadMutex();
