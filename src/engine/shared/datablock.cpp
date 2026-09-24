@@ -3,7 +3,6 @@
 // Purpose: data block sender & receiver
 // 
 //===========================================================================//
-#include "engine/host_cmd.h"
 #include "datablock.h"
 
 //-----------------------------------------------------------------------------
@@ -85,6 +84,7 @@ void NetDataBlockSender::StartBlockSender(const int transferSize, const bool isM
 }
 
 static ConVar net_compressDataBlockLzAcceleration("net_compressDataBlockLzAcceleration", "1", FCVAR_DEVELOPMENTONLY, "The acceleration value for LZ4 data block compression");
+extern void NetDataBlockSender_OnCompressError();
 
 //-----------------------------------------------------------------------------
 // Purpose: write the whole data in the data block scratch buffer
@@ -106,10 +106,7 @@ void NetDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, const i
 
 		// this shouldn't happen at all
 		if (!encodedSize)
-		{
-			Assert(0);
-			Error(eDLL_T::SERVER, 0, "LZ4 error compressing data block for client.\n");
-		}
+			NetDataBlockSender_OnCompressError();
 
 		// make sure the encoded data is smaller than the raw data, in some cases
 		// this might turn larger which means we should just send raw data
@@ -300,6 +297,8 @@ bool NetDataBlockReceiver::IsFragmentIdValid(const short fragmentId) const
 	return true;
 }
 
+extern void NetDataBlockReceiver_OnDecompressError();
+
 //-----------------------------------------------------------------------------
 // Purpose: process the recv'd fragment and reconstruct the data block
 //-----------------------------------------------------------------------------
@@ -402,11 +401,7 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const short bl
 
 		if (numDecode < 0)
 		{
-			Assert(0);
-
-			COM_ExplainDisconnection(true, "LZ4 error decompressing data block from server.\n");
-			v_Host_Disconnect(true);
-
+			NetDataBlockReceiver_OnDecompressError();
 			return false;
 		}
 

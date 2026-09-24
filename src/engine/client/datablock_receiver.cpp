@@ -4,6 +4,7 @@
 // 
 //===========================================================================//
 #include "engine/client/clientstate.h"
+#include "engine/host_cmd.h"
 #include "datablock_receiver.h"
 #include "common/proto_oob.h"
 
@@ -57,4 +58,16 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 		NULL, false, NULL, true);
 
 	m_transferAckPending = false;
+}
+
+void NetDataBlockReceiver_OnDecompressError()
+{
+	Assert(0);
+
+	COM_ExplainDisconnection(true, "LZ4 error decompressing data block from server.\n");
+	v_Host_Disconnect(true);
+}
+
+void VClientDataBlockReceiver::Detour(const bool /*bAttach*/) const
+{
 }
