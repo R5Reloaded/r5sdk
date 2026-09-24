@@ -191,7 +191,7 @@ bool NetDataBlockSender::SendPendingFragments(const double currTime)
 			++m_transferedFragments;
 			m_lastFragmentTransferTimes[fragId] = m_timeCurrentTransfer;
 
-			SendDataBlock(m_blockSeqNr, m_nTransferSize, m_cancelSeqNr, fragId, &m_scratchBuffer[fragOffset], fragSize);
+			SendFragment(m_blockSeqNr, m_nTransferSize, m_cancelSeqNr, fragId, &m_scratchBuffer[fragOffset], fragSize);
 
 			m_transferBudget -= fragSize;
 			m_lastTransferedFragmentId = fragId;

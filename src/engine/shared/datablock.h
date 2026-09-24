@@ -30,8 +30,7 @@ class NetDataBlockSender
 public:
 	virtual ~NetDataBlockSender();
 
-
-	virtual void SendDataBlock(const short blockSeqNr, const int transferSize,
+	virtual void SendFragment(const short blockSeqNr, const int transferSize,
 		const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize) = 0;
 
 	virtual int GetTransmissionRate() const = 0;

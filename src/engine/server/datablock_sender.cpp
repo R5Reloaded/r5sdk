@@ -11,8 +11,8 @@
 //-----------------------------------------------------------------------------
 // Purpose: sends the data block
 //-----------------------------------------------------------------------------
-void ServerDataBlockSender::SendDataBlock(const short transferId, const int transferSize,
-	const short transferNr, const short blockNr, const uint8_t* const blockData, const int blockSize)
+void ServerDataBlockSender::SendFragment(const short blockSeqNr, const int transferSize,
+	const short cancelSeqNr, const short fragId, const void* const fragData, const int fragSize)
 {
 	const CClient* const cl = GetClient();
 
