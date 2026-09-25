@@ -39,15 +39,11 @@ void ClientDataBlockReceiver::SendFragmentAcks()
 	buf.WriteWord(m_blockSeqNr);
 	buf.WriteWord(m_cancelSeqNr);
 
-	for (int i = m_nTotalBlocks; (i--) > 0;)
-	{
-		if (m_BlockStatus[i])
-		{
-			// ack each fragment ID we recv'd and processed
-			buf.WriteWord(i);
-			break;
-		}
-	}
+	// Fragment ACK bitmap follows.
+	buf.WriteOneBit(1);
+
+	for (int fragId = 0; fragId < receiver->m_totalFragments; ++fragId)
+		buf.WriteOneBit(receiver->m_copiedFragments[fragId]);
 
 	// send the data block ack packet
 	v_NET_SendPacket(NULL,
