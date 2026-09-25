@@ -61,6 +61,9 @@ public:
 
 	void ProcessFragmentAcks(FragAck_s& ackMsg);
 
+	inline bool IsTransfering() const { return m_transferInProgress; }
+	inline int GetFragmentCount() const { return m_totalFragments; }
+
 private:
 	struct Header_s
 	{

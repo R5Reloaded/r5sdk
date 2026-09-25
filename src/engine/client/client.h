@@ -88,6 +88,8 @@ public:
 	inline const char* GetServerName(void) const { return m_szServerName; }
 	inline const char* GetClientName(void) const { return m_szClientName; }
 
+	inline ServerDataBlockSender* GetDataBlockSender() { return &m_DataBlockSender; }
+
 	inline void SetHandle(edict_t nHandle) { m_nHandle = nHandle; }
 	inline void SetUserID(uint32_t nUserID) { m_nUserID = nUserID; }
 	inline void SetNucleusID(NucleusID_t nNucleusID) { m_nNucleusID = nNucleusID; }

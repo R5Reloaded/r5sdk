@@ -51,6 +51,8 @@ public:
 	inline CClient* GetClient(const int nIndex) { Assert(nIndex >= NULL && nIndex < MAX_PLAYERS); return &m_Clients[nIndex]; }
 	inline CClientExtended* GetClientExtended(const int nIndex) { Assert(nIndex >= NULL && nIndex < MAX_PLAYERS); return &sm_ClientsExtended[nIndex]; }
 
+	CClient* GetClientByAdr(const netadr_t* const netAdr);
+
 	inline float GetTime(void) const { return m_nTickCount * m_flTickInterval; }
 	inline float GetCPUUsage(void) const { return m_fCPUPercent; }
 
@@ -65,7 +67,10 @@ public:
 
 	void BroadcastMessage(CNetMessage* const msg, const bool onlyActive, const bool reliable);
 	static void RunFrame(CServer* pServer);
+
 	static bool SpawnServer(CServer* pServer, const char* pszMapName, const char* pszMapGroupName);
+
+	bool ProcessConnectionlessPacketGuts(netpacket_t* const packet);
 #endif // !CLIENT_DLL
 
 private:
@@ -128,6 +133,9 @@ inline CClient*(*CServer__ConnectClient)(CServer* pServer, user_creds_s* pCreds)
 inline void*(*CServer__RejectConnection)(CServer* pServer, int iSocket, netadr_t* pNetAdr, const char* szMessage);
 inline void (*CServer__BroadcastMessage)(CServer* pServer, CNetMessage* const msg, const bool onlyActive, const bool reliable);
 inline bool(*CServer__SpawnServer)(CServer* pServer, const char* pszMapName, const char* pszMapGroupName);
+inline bool (*CServer__ProcessConnectionlessPacket)(CServer* pServer, netpacket_t* msg);
+inline int (*CServer__ProcessC2S_Challenge)(CServer* pServer, int source, netpacket_t* packet, bf_read* buf, const bool encrypt);
+inline void (*CServer__ProcessC2S_Connect)(CServer* pServer, bf_read* buf, netadr_t* adr);
 
 ///////////////////////////////////////////////////////////////////////////////
 class VServer : public IDetour
@@ -140,6 +148,9 @@ class VServer : public IDetour
 		LogFunAdr("CServer::RejectConnection", CServer__RejectConnection);
 		LogFunAdr("CServer::BroadcastMessage", CServer__BroadcastMessage);
 		LogFunAdr("CServer::SpawnServer", CServer__SpawnServer);
+		LogFunAdr("CServer::ProcessConnectionlessPacket", CServer__ProcessConnectionlessPacket);
+		LogFunAdr("CServer::ProcessC2S_Challenge", CServer__ProcessC2S_Challenge);
+		LogFunAdr("CServer::ProcessC2S_Connect", CServer__ProcessC2S_Connect);
 		LogVarAdr("g_Server", g_pServer);
 #endif // !CLIENT_DLL
 	}
@@ -152,6 +163,9 @@ class VServer : public IDetour
 		Module_FindPattern(g_GameDll, "4C 89 4C 24 ?? 53 55 56 57 48 81 EC ?? ?? ?? ?? 49 8B D9").GetPtr(CServer__RejectConnection);
 		Module_FindPattern(g_GameDll, "4C 8B DC 45 88 43 18 56").GetPtr(CServer__BroadcastMessage);
 		Module_FindPattern(g_GameDll, "48 8B C4 53 55 56 57 41 54 41 55 41 57").GetPtr(CServer__SpawnServer);
+		Module_FindPattern(g_GameDll, "48 89 54 24 ? 48 89 4C 24 ? 55 53 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 0F 10 52").GetPtr(CServer__ProcessConnectionlessPacket);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ? 4C 89 44 24 ? 89 54 24 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24").GetPtr(CServer__ProcessC2S_Challenge);
+		Module_FindPattern(g_GameDll, "4C 89 44 24 ? 48 89 54 24 ? 48 89 4C 24 ? 55 53 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 44 8B 4A").GetPtr(CServer__ProcessC2S_Connect);
 #endif // !CLIENT_DLL
 	}
 	virtual void GetVar(void) const

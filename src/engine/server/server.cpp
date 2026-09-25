@@ -10,9 +10,11 @@
 /////////////////////////////////////////////////////////////////////////////////
 #include "core/stdafx.h"
 #include "common/protocol.h"
+#include "common/proto_oob.h"
 #include "tier0/frametask.h"
 #include "tier1/cvar.h"
 #include "tier1/strtools.h"
+#include "engine/host.h"
 #include "engine/server/sv_main.h"
 #include "engine/server/server.h"
 #include "networksystem/pylon.h"
@@ -86,6 +88,38 @@ int CServer::GetNumClients(void) const
 	}
 
 	return nClients;
+}
+
+CClient* CServer::GetClientByAdr(const netadr_t* const netAdr)
+{
+	if (m_nMaxClients <= 0)
+		return nullptr;
+
+	for (int i = 0; i < m_nMaxClients; i++)
+	{
+		CClient* const cl = &m_Clients[i];
+
+		if (cl->IsFakeClient())
+			continue;
+
+		if (!cl->IsConnected())
+			continue;
+
+		CNetChan* const chan = cl->GetNetChan();
+		Assert(chan);
+
+		const netadr_t& adr = chan->GetRemoteAddress();
+
+		if (!netAdr->ComparePort(adr))
+			continue;
+
+		if (!netAdr->CompareAdr(adr))
+			continue;
+
+		return cl;
+	}
+
+	return nullptr;
 }
 
 //---------------------------------------------------------------------------------
@@ -241,12 +275,131 @@ bool CServer::SpawnServer(CServer* pServer, const char* pszMapName, const char* 
 	return bSpawnResult;
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: process an out-of-band packet received by the server
+//-----------------------------------------------------------------------------
+bool CServer::ProcessConnectionlessPacketGuts(netpacket_t* const packet)
+{
+	// NOTE: msg is copy-constructed from packet->message, so reading
+	// from "msg" will not advance read-pointer in "packet->message"!!!
+	// ... and vice-versa, hence passing "packet" to a nested function
+	// will make that function receive the original unprocessed message.
+	// [ this differs from client-side connectionless packet processing ]
+	bf_read msg = packet->message;
+	const char id = static_cast<char>(msg.ReadByte());
+
+	if (!IsActive() || !v_Host_ShouldRun())
+	{
+		// Server should not be processing most of the traffic in this
+		// state except client LAN searches
+
+		if (IsDedicated())
+			return true;
+
+		if (id != 0)
+			return true;
+	}
+
+	switch (id)
+	{
+	case C2S_CONNECT:
+	{
+		CServer__ProcessC2S_Connect(this, &msg, &packet->from);
+		break;
+	}
+
+	case C2S_CHALLENGE:
+	{
+		CServer__ProcessC2S_Challenge(this, packet->source,	packet,	&msg, packet->source != NS_RESERVED);
+		break;
+	}
+
+	case S2C_CHALLENGE:
+	{
+		msg.ReadLong();
+		msg.ReadLongLong();
+
+		char challengeData[256];
+		msg.ReadString(challengeData, sizeof(challengeData));
+
+		if (msg.IsOverflowed())
+			RejectConnection(packet->source, &packet->from, "Invalid challenge packet");
+
+		break;
+	}
+
+	case C2S_DATABLOCK_ACK:
+	{
+		const u16 blockSeqNr = static_cast<u16>(msg.ReadWord());
+		const u16 cancelSeqNr = static_cast<u16>(msg.ReadWord());
+
+		CClient* const cl = GetClientByAdr(&packet->from);
+
+		if (!cl)
+			break;
+
+		if (!cl->IsConnected())
+			break;
+
+		NetDataBlockSender* const sender = cl->GetDataBlockSender();
+
+		if (!sender->IsTransfering())
+			break;
+
+		Assert(sender->m_totalFragments > 0);
+		Assert(sender->m_totalFragments <= MAX_DATABLOCK_FRAGMENTS);
+
+		NetDataBlockSender::FragAck_s ackMsg{};
+
+		ackMsg.blockSeqNr = blockSeqNr;
+		ackMsg.cancelSeqNr = cancelSeqNr;
+
+		// Zero here means no fragment bitmap follows.
+		const bool hasFragmentAcks = msg.ReadOneBit() != 0;
+
+		if (hasFragmentAcks)
+		{
+			const int numFrags = sender->GetFragmentCount();
+
+			for (int fragId = 0; fragId < numFrags; ++fragId)
+			{
+				if (!msg.ReadOneBit())
+					continue;
+
+				ackMsg.ackedFragments[fragId >> 6] |= 1ull << (fragId & 63);
+			}
+		}
+
+		CNetChan* const chan = cl->GetNetChan();
+
+		if (!chan)
+			break;
+
+		chan->SetLastReceived(*g_pNetTime);
+		sender->ProcessFragmentAcks(ackMsg);
+
+		break;
+	}
+
+	default:
+		break;
+	}
+
+	return true;
+}
+
+static bool Server_ProcessConnectionlessPacket(CServer* const server, netpacket_t* const packet)
+{
+	return server->ProcessConnectionlessPacketGuts(packet);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 void VServer::Detour(const bool bAttach) const
 {
 	DetourSetup(&CServer__SpawnServer, &CServer::SpawnServer, bAttach);
 	DetourSetup(&CServer__RunFrame, &CServer::RunFrame, bAttach);
 	DetourSetup(&CServer__ConnectClient, &CServer::ConnectClient, bAttach);
+	DetourSetup(&CServer__ProcessConnectionlessPacket, &Server_ProcessConnectionlessPacket, bAttach);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
