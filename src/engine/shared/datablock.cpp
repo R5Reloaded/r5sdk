@@ -456,7 +456,7 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 
 	m_transferAckPending = true;
 
-	// make sure we always receive fragments in order
+	// Make sure the fragment belongs to the current block
 	if (blockSeqNr != m_blockSeqNr)
 	{
 		Assert(0, __FUNC_PFX__"Block sequence number changed!");
