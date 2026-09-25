@@ -406,7 +406,7 @@ bool NetDataBlockReceiver::GetFragmentInfo(const unsigned short fragId, FragInfo
 //-----------------------------------------------------------------------------
 bool NetDataBlockReceiver::IsTransferSizeValid(const int transferSize) const
 {
-	if (transferSize <= 0)
+	if (transferSize < MIN_DATABLOCK_TRANSFER_SIZE)
 		return false;
 
 	if (transferSize > MAX_DATABLOCK_TRANSFER_SIZE)

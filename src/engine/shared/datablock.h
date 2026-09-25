@@ -17,7 +17,19 @@
 // the maximum size of a data block fragment packet (encoded header + actual data)
 #define DATABLOCK_FRAGMENT_PACKET_SIZE (MAX_DATABLOCK_FRAGMENT_SIZE + 176)
 
-// the maximum total transfer size
+#define DATABLOCK_HEADER_SIZE 1
+
+// the maximum size of each data block fragment
+#define MAX_DATABLOCK_FRAGMENT_SIZE 1024
+
+// the maximum amount of fragments per data block transfer
+#define MAX_DATABLOCK_FRAGMENTS 768
+
+// the minimum and maximum size
+#define MIN_DATABLOCK_PAYLOAD_SIZE 1
+#define MAX_DATABLOCK_PAYLOAD_SIZE (MAX_DATABLOCK_TRANSFER_SIZE - DATABLOCK_HEADER_SIZE)
+
+#define MIN_DATABLOCK_TRANSFER_SIZE (DATABLOCK_HEADER_SIZE + MIN_DATABLOCK_PAYLOAD_SIZE)
 #define MAX_DATABLOCK_TRANSFER_SIZE (MAX_DATABLOCK_FRAGMENTS * MAX_DATABLOCK_FRAGMENT_SIZE)
 
 class NetDataBlockSender
@@ -64,6 +76,7 @@ private:
 		bool isCompressed;
 	};
 
+	static_assert(sizeof(Header_s) == DATABLOCK_HEADER_SIZE);
 protected:
 	ALIGN64 CThreadRWLock m_Lock;
 
