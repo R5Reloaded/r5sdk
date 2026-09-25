@@ -500,7 +500,7 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 		return false;
 	}
 
-	// only cpoy if we haven't already (sender can send duplicates!)
+	// only copy if we haven't already (sender can send duplicates!)
 	if (!frag.IsCopied())
 	{
 		constexpr int dataOffset = sizeof(Header_s) - 1;
@@ -532,7 +532,7 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 
 		// copy the encoded data in the newly allocated buffer so we can decode back
 		// into the data block buffer we copied the encoded data from
-		const int compressedSize = m_nTransferSize -1;
+		const int compressedSize = m_nTransferSize - DATABLOCK_HEADER_SIZE;
 
 		memcpy(pEncodedDataBuf, dataLocation, compressedSize);
 		const int numDecode = LZ4_decompress_safe((const char*)pEncodedDataBuf, (char*)dataLocation, compressedSize, MAX_DATABLOCK_TRANSFER_SIZE);
@@ -548,7 +548,7 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 	else
 	{
 		// truncate the byte that determines whether the data was compressed
-		m_nTransferSize--;
+		m_nTransferSize -= DATABLOCK_HEADER_SIZE;
 	}
 
 	return true;
