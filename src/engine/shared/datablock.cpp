@@ -120,6 +120,13 @@ static ConVar net_compressDataBlockLzAcceleration("net_compressDataBlockLzAccele
 void NetDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, const int dataSize,
 	const bool doRateLimit, const char* const debugName)
 {
+	if (dataSize < MIN_DATABLOCK_PAYLOAD_SIZE ||
+		dataSize > MAX_DATABLOCK_PAYLOAD_SIZE)
+	{
+		Assert(0, __FUNC_PFX__"Invalid data block payload size!");
+		return;
+	}
+
 	AUTO_LOCK(m_Lock);
 
 	Header_s* const pHeader = reinterpret_cast<Header_s*>(m_scratchBuffer);
