@@ -346,8 +346,8 @@ bool CServer::ProcessConnectionlessPacketGuts(netpacket_t* const packet)
 		if (!sender->IsTransfering())
 			break;
 
-		Assert(sender->m_totalFragments > 0);
-		Assert(sender->m_totalFragments <= MAX_DATABLOCK_FRAGMENTS);
+		Assert(sender->GetFragmentCount() > 0);
+		Assert(sender->GetFragmentCount() <= MAX_DATABLOCK_FRAGMENTS);
 
 		NetDataBlockSender::FragAck_s ackMsg{};
 
