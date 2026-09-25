@@ -14,7 +14,12 @@
 //-----------------------------------------------------------------------------
 void ClientDataBlockReceiver::SendFragmentAcks()
 {
-	const CClientState* const cl = GetLocalClient();
+	SendFragmentAcksGuts(this);
+}
+
+void ClientDataBlockReceiver::SendFragmentAcksGuts(ClientDataBlockReceiver* const receiver)
+{
+	const CClientState* const cl = receiver->GetLocalClient();
 
 	if (!cl)
 	{
@@ -30,14 +35,17 @@ void ClientDataBlockReceiver::SendFragmentAcks()
 		return;
 	}
 
+	Assert(receiver->m_totalFragments > 0);
+	Assert(receiver->m_totalFragments <= MAX_DATABLOCK_FRAGMENTS);
+
 	char dataBuf[DATABLOCK_FRAGMENT_PACKET_SIZE];
 	bf_write buf(&dataBuf, sizeof(dataBuf));
 
 	buf.WriteLong(CONNECTIONLESS_HEADER);
 	buf.WriteByte(C2S_DATABLOCK_ACK);
 
-	buf.WriteWord(m_blockSeqNr);
-	buf.WriteWord(m_cancelSeqNr);
+	buf.WriteWord(receiver->m_blockSeqNr);
+	buf.WriteWord(receiver->m_cancelSeqNr);
 
 	// Fragment ACK bitmap follows.
 	buf.WriteOneBit(1);
@@ -45,7 +53,17 @@ void ClientDataBlockReceiver::SendFragmentAcks()
 	for (int fragId = 0; fragId < receiver->m_totalFragments; ++fragId)
 		buf.WriteOneBit(receiver->m_copiedFragments[fragId]);
 
-	// send the data block ack packet
+	if (net_debugDataBlockReceiver->GetInt() >= 2)
+	{
+		Msg(eDLL_T::ENGINE,
+			"[DataBlock:Rx] sending ACK for block #%hu: %d/%d fragments copied "
+			"(cancel sequence %hu)\n",
+			receiver->m_blockSeqNr,
+			receiver->m_copiedFragmentsCount,
+			receiver->m_totalFragments,
+			receiver->m_cancelSeqNr);
+	}
+
 	v_NET_SendPacket(NULL,
 		chan->GetSocket(),
 		chan->GetRemoteAddress(),
@@ -55,14 +73,36 @@ void ClientDataBlockReceiver::SendFragmentAcks()
 }
 
 //-----------------------------------------------------------------------------
-// NOTE: detoured for 5 reasons:
-// 1: when a corrupt or malformed compress packet is sent, the code never freed
-//    the temporary copy buffer it made to decode the data into the scratch buf
-// 2: to guard against negative or overflowing fragment ID's, transfer sizes
-//    and scratch buffer offsets
-// 3: to make sure we only acknowledge successfull recv's AFTER LZ4 decoding!
-// 4: to return out early when we receive a new cancel request
-// 5: exploring other compression algorithms for potential optimizations
+// Purpose: logs the current state to the console
+//-----------------------------------------------------------------------------
+void ClientDataBlockReceiver::LogState()
+{
+	LogStateGuts(this);
+}
+
+void ClientDataBlockReceiver::LogStateGuts(ClientDataBlockReceiver* const receiver)
+{
+	const double transferTime = Plat_FloatTime() - receiver->m_timeStartTransfer;
+
+	Msg(eDLL_T::ENGINE,
+		"[DataBlock:Rx] completed block #%hu\n"
+		"\t- Cancel sequence: %hu\n"
+		"\t- Payload size:    %d bytes\n" // Excludes header!
+		"\t- Fragments:       %d/%d\n"
+		"\t- Compressed:      %s\n"
+		"\t- Transfer time:   %.3lf sec\n"
+		"*******************************************************************\n",
+		receiver->m_blockSeqNr,
+		receiver->m_cancelSeqNr,
+		receiver->m_nTransferSize,
+		receiver->m_copiedFragmentsCount,
+		receiver->m_totalFragments,
+		receiver->m_usesCompression ? "yes" : "no",
+		transferTime);
+}
+
+//-----------------------------------------------------------------------------
+// 
 //-----------------------------------------------------------------------------
 static bool NetDataBlockReceiver_ProcessFragment(NetDataBlockReceiver* receiver, const double startTime,
 	const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
@@ -74,5 +114,8 @@ static bool NetDataBlockReceiver_ProcessFragment(NetDataBlockReceiver* receiver,
 
 void VClientDataBlockReceiver::Detour(const bool bAttach) const
 {
+	void* null;
 	DetourSetup(&NetDataBlockReceiver__ProcessFragment, NetDataBlockReceiver_ProcessFragment, bAttach);
+	CMemory::HookVirtualMethod((uintptr_t)g_pClientDataBlockReceiver_VFTable, ClientDataBlockReceiver::LogStateGuts, 1, &null);
+	CMemory::HookVirtualMethod((uintptr_t)g_pClientDataBlockReceiver_VFTable, ClientDataBlockReceiver::SendFragmentAcksGuts, 2, &null);
 }

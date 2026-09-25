@@ -140,6 +140,7 @@ extern ConVar* net_usesocketsforloopback;
 extern ConVar* net_data_block_enabled;
 extern ConVar* net_debugDataBlockSender;
 extern ConVar* net_debugDataBlockReceiver;
+extern ConVar* net_datablockPrintSummaries;
 extern ConVar* net_datablock_longSendTime;
 extern ConVar* net_datablock_minResendInterval;
 extern ConVar* net_datablock_networkLossForSlowSpeed;

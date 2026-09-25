@@ -153,6 +153,7 @@ ConVar* net_usesocketsforloopback;
 ConVar* net_data_block_enabled             = nullptr;
 ConVar* net_debugDataBlockSender           = nullptr;
 ConVar* net_debugDataBlockReceiver         = nullptr;
+ConVar* net_datablockPrintSummaries        = nullptr;
 ConVar* net_datablock_longSendTime         = nullptr;
 ConVar* net_datablock_minResendInterval    = nullptr;
 ConVar* net_datablock_networkLossForSlowSpeed = nullptr;
@@ -262,6 +263,7 @@ void ConVar_InitShipped(void)
 	net_compressDataBlock            = g_pCVar->FindVar("net_compressDataBlock");
 	net_debugDataBlockSender         = g_pCVar->FindVar("net_debugDataBlockSender");
 	net_debugDataBlockReceiver        = g_pCVar->FindVar("net_debugDataBlockReceiver");
+	net_datablockPrintSummaries      = g_pCVar->FindVar("net_datablockPrintSummaries");
 	net_datablock_longSendTime       = g_pCVar->FindVar("net_datablock_longSendTime");
 	net_datablock_minResendInterval  = g_pCVar->FindVar("net_datablock_minResendInterval");
 	net_datablock_networkLossForSlowSpeed = g_pCVar->FindVar("net_datablock_networkLossForSlowSpeed");

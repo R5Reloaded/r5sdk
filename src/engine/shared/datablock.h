@@ -146,9 +146,7 @@ public:
 	NetDataBlockReceiver();
 	virtual ~NetDataBlockReceiver();
 
-	// Called when cvar 'net_debugDataBlockReceiver' is set;
-	// currently a nullsub in the engine.
-	virtual void LogState() {};
+	virtual void LogState() {}; // Called when cvar 'net_debugDataBlockReceiver' is set;
 	virtual void SendFragmentAcks() = 0;
 
 	bool StartBlockReceiver(const int transferSize, const double startTime);
@@ -201,7 +199,7 @@ protected:
 	bool m_bStartedRecv;
 	bool m_bCompletedRecv;
 
-	bool byte12;
+	bool m_usesCompression; // DBG padding var!
 
 	// These get incremented each time we start a new datablock transfer,
 	// or cancel the operation.

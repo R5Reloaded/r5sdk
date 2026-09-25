@@ -14,7 +14,13 @@
 void ServerDataBlockSender::SendFragment(const unsigned short blockSeqNr, const int transferSize,
 	const unsigned short cancelSeqNr, const unsigned short fragId, const void* const fragData, const int fragSize)
 {
-	const CClient* const cl = GetClient();
+	SendFragmentGuts(this, blockSeqNr, transferSize, cancelSeqNr, fragId, fragData, fragSize);
+}
+
+void ServerDataBlockSender::SendFragmentGuts(ServerDataBlockSender* const sender, const unsigned short blockSeqNr, const int transferSize,
+	const unsigned short cancelSeqNr, const unsigned short fragId, const void* const fragData, const int fragSize)
+{
+	const CClient* const cl = sender->GetClient();
 
 	if (!cl)
 		return;
@@ -46,6 +52,19 @@ void ServerDataBlockSender::SendFragment(const unsigned short blockSeqNr, const 
 	// block data
 	buf.WriteBytes(blockData, blockSize);
 
+	if (net_debugDataBlockSender->GetInt() >= 2)
+	{
+		Msg(eDLL_T::ENGINE,
+			"[DataBlock:Tx] sending fragment #%hu of block #%hu to \"%s\": %d bytes "
+			"(transfer %d bytes, cancel sequence %hu)\n",
+			fragId,
+			blockSeqNr,
+			sender->GetReceiverName(),
+			fragSize,
+			transferSize,
+			cancelSeqNr);
+	}
+
 	// send the data block packet
 	v_NET_SendPacket(NULL, 
 		chan->GetSocket(), 
@@ -60,7 +79,12 @@ void ServerDataBlockSender::SendFragment(const unsigned short blockSeqNr, const 
 //-----------------------------------------------------------------------------
 int ServerDataBlockSender::GetTransmissionRate() const
 {
-	const CClient* const cl = GetClient();
+	return GetTransmissionRateGuts(this);
+}
+
+int ServerDataBlockSender::GetTransmissionRateGuts(const ServerDataBlockSender* const sender)
+{
+	const CClient* const cl = sender->GetClient();
 
 	if (!cl)
 		return net_datablock_fastRate->GetInt();
@@ -73,7 +97,7 @@ int ServerDataBlockSender::GetTransmissionRate() const
 		return net_datablock_fastRate->GetInt();
 	}
 
-	if (m_slowMode)
+	if (sender->m_slowMode)
 		return net_datablock_slowRate->GetInt();
 
 	const float networkLoss = chan->GetTotalNetworkLoss();
@@ -81,7 +105,7 @@ int ServerDataBlockSender::GetTransmissionRate() const
 	if (networkLoss >= net_datablock_networkLossForSlowSpeed->GetFloat())
 		return net_datablock_slowRate->GetInt();
 
-	if (m_flResendRate > net_datablock_resendRateForSlowSpeed->GetFloat())
+	if (sender->m_flResendRate > net_datablock_resendRateForSlowSpeed->GetFloat())
 		return net_datablock_slowRate->GetInt();
 
 	return net_datablock_fastRate->GetInt();
@@ -98,4 +122,27 @@ const char* ServerDataBlockSender::GetReceiverName() const
 		return "<<null>>";
 
 	return cl->GetServerName();
+}
+
+//-----------------------------------------------------------------------------
+// 
+//-----------------------------------------------------------------------------
+static bool NetDataBlockSender_SendPendingFragments(NetDataBlockSender* sender, const double currTime)
+{
+	return sender->SendPendingFragments(currTime);
+}
+
+static void NetDataBlockSender_CancelTransfer(NetDataBlockSender* sender)
+{
+	sender->CancelTransfer();
+}
+
+void VServerDataBlockSender::Detour(const bool bAttach) const
+{
+	void* null;
+
+	DetourSetup(&NetDataBlockSender__SendPendingFragments, NetDataBlockSender_SendPendingFragments, bAttach);
+	DetourSetup(&NetDataBlockSender__CancelTransfer, NetDataBlockSender_CancelTransfer, bAttach);
+	CMemory::HookVirtualMethod((uintptr_t)g_pServerDataBlockSender_VFTable, ServerDataBlockSender::SendFragmentGuts, 1, &null);
+	CMemory::HookVirtualMethod((uintptr_t)g_pServerDataBlockSender_VFTable, ServerDataBlockSender::GetTransmissionRateGuts, 2, &null);
 }

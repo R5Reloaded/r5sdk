@@ -70,6 +70,19 @@ void NetDataBlockSender::CancelTransfer()
 
 	const unsigned short nextCancelSeqNr = m_cancelSeqNr + 1;
 
+	if (net_debugDataBlockSender->GetBool())
+	{
+		Msg(eDLL_T::ENGINE,
+			"[DataBlock:Tx] cancelling block #%hu \"%s\" after %d/%d fragments acknowledged; "
+			"cancel sequence: %hu -> %hu\n",
+			m_blockSeqNr,
+			m_szDebugName,
+			m_ackedFragmentsCount,
+			m_totalFragments,
+			m_cancelSeqNr,
+			nextCancelSeqNr);
+	}
+
 	ResetState();
 	m_cancelSeqNr = nextCancelSeqNr;
 }
@@ -110,6 +123,17 @@ void NetDataBlockSender::StartBlockSender(const int transferSize, const bool doR
 
 	m_transferBudget = transferBudget;
 	m_transferedFragments = 0;
+
+	if (net_debugDataBlockSender->GetBool())
+	{
+		Msg(eDLL_T::ENGINE,
+			"[DataBlock:Tx] starting block #%hu \"%s\": %d bytes across %d fragments%s\n",
+			m_blockSeqNr,
+			m_szDebugName,
+			m_nTransferSize,
+			m_totalFragments,
+			m_rateLimited ? " (rate limited)" : "");
+	}
 }
 
 static ConVar net_compressDataBlockLzAcceleration("net_compressDataBlockLzAcceleration", "1", FCVAR_DEVELOPMENTONLY, "The acceleration value for LZ4 data block compression");
@@ -120,9 +144,28 @@ static ConVar net_compressDataBlockLzAcceleration("net_compressDataBlockLzAccele
 void NetDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, const int dataSize,
 	const bool doRateLimit, const char* const debugName)
 {
+	if (!sourceData)
+	{
+		Assert(0, __FUNC_PFX__"Null block buffer!");
+		return;
+	}
+
+	Assert(debugName);
+
 	if (dataSize < MIN_DATABLOCK_PAYLOAD_SIZE ||
 		dataSize > MAX_DATABLOCK_PAYLOAD_SIZE)
 	{
+		if (net_debugDataBlockSender->GetBool())
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Tx] dropping data block \"%s\": invalid payload size! "
+				"(%d bytes, expected [%d,%d])\n",
+				debugName,
+				dataSize,
+				MIN_DATABLOCK_PAYLOAD_SIZE,
+				MAX_DATABLOCK_PAYLOAD_SIZE);
+		}
+
 		Assert(0, __FUNC_PFX__"Invalid data block payload size!");
 		return;
 	}
@@ -190,11 +233,28 @@ bool NetDataBlockSender::SendPendingFragments(const double currTime)
 		{
 			m_slowMode = true;
 			m_transferBudget = 0;
+
+			if (net_debugDataBlockSender->GetBool())
+			{
+				Msg(eDLL_T::ENGINE,
+					"[DataBlock:Tx] block #%hu \"%s\" entering slow mode; no ACK for %.2lf seconds!\n",
+					m_blockSeqNr,
+					m_szDebugName,
+					currTime - m_timeLastAck);
+			}
 		}
 
 		// Accumulate the amount of data we're allowed to send this frame
 		const float transferRate = static_cast<float>(GetTransmissionRate());
 		m_transferBudget += static_cast<int>(transferRate * deltaTime);
+
+		if (net_debugDataBlockSender->GetInt() >= 2)
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Tx] increasing transfer budget to %d bytes (%d bytes/sec)\n",
+				m_transferBudget,
+				static_cast<int>(transferRate));
+		}
 
 		AUTO_LOCK(m_Lock);
 		const int nextFrag = m_lastTransferedFragmentId + 1;
@@ -255,13 +315,37 @@ void NetDataBlockSender::ProcessFragmentAcks(FragAck_s& ackMsg)
 		return;
 
 	if (ackMsg.cancelSeqNr != m_cancelSeqNr)
+	{
+		if (net_debugDataBlockSender->GetBool())
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Tx] ignoring ACK for block #%hu: cancel sequence mismatch! "
+				"(sequence %hu, expected %hu)\n",
+				ackMsg.blockSeqNr,
+				ackMsg.cancelSeqNr,
+				m_cancelSeqNr);
+		}
+
 		return;
+	}
 
 	// Receiver is still responding.
-	m_timeLastAck = m_timeCurrentTransfer;
 
 	if (m_slowMode)
+	{
+		if (m_abnormalTransfer)
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Tx] block #%hu \"%s\" leaving slow mode; ACK received after %.2lf seconds!\n",
+				m_blockSeqNr,
+				m_szDebugName,
+				m_timeCurrentTransfer - m_timeLastAck);
+		}
+
 		m_slowMode = false;
+	}
+
+	m_timeLastAck = m_timeCurrentTransfer;
 
 	Assert(m_totalFragments > 0);
 	Assert(m_totalFragments <= MAX_DATABLOCK_FRAGMENTS);
@@ -273,7 +357,17 @@ void NetDataBlockSender::ProcessFragmentAcks(FragAck_s& ackMsg)
 		memset(ackMsg.ackedFragments, FragAck_s::FRAG_ACKED, ackBytes);
 	}
 	else if (ackMsg.blockSeqNr != m_blockSeqNr)
+	{
+		if (net_debugDataBlockSender->GetBool())
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Tx] ignoring ACK for block #%hu; currently sending block #%hu!\n",
+				ackMsg.blockSeqNr,
+				m_blockSeqNr);
+		}
+
 		return;
+	}
 
 	for (int fragId = 0; fragId < m_totalFragments; ++fragId)
 	{
@@ -296,10 +390,25 @@ void NetDataBlockSender::ProcessFragmentAcks(FragAck_s& ackMsg)
 	if (m_ackedFragmentsCount != m_totalFragments)
 		return;
 
+	m_flResendRate = static_cast<float>(m_transferedFragments) / static_cast<float>(m_totalFragments);
+
+	if (m_abnormalTransfer || net_datablockPrintSummaries->GetBool())
+	{
+		const double transferTime = Max(m_timeCurrentTransfer - m_timeStartTransfer, 0.001);
+
+		Msg(eDLL_T::ENGINE,
+			"[DataBlock:Tx] completed block #%hu \"%s\": %d bytes, %d fragments "
+			"in %.2lf sec (%.2f resend rate)\n",
+			m_blockSeqNr,
+			m_szDebugName,
+			m_nTransferSize,
+			m_totalFragments,
+			transferTime,
+			m_flResendRate);
+	}
+
 	++m_blockSeqNr;
 	m_transferInProgress = false;
-
-	m_flResendRate = static_cast<float>(m_transferedFragments) / static_cast<float>(m_totalFragments);
 }
 
 //-----------------------------------------------------------------------------
@@ -340,6 +449,15 @@ bool NetDataBlockReceiver::StartBlockReceiver(const int transferSize, const doub
 	m_timeStartTransfer = startTime;
 
 	ClearCopyStatArray();
+
+	if (net_debugDataBlockReceiver->GetBool())
+	{
+		Msg(eDLL_T::ENGINE, "[DataBlock:Rx] starting block #%hu: %d bytes across %d fragments\n",
+			m_blockSeqNr,
+			m_nTransferSize,
+			m_totalFragments);
+	}
+
 	return true;
 }
 
@@ -356,10 +474,12 @@ void NetDataBlockReceiver::ResetState()
 
 	m_transferAckPending = false;
 	m_nTransferSize = 0;
-	m_totalFragments = 0;
 
+	m_totalFragments = 0;
 	m_copiedFragmentsCount = 0;
+
 	m_timeStartTransfer = 0.0;
+	m_usesCompression = false;
 
 	ClearCopyStatArray();
 }
@@ -369,7 +489,19 @@ void NetDataBlockReceiver::ResetState()
 //-----------------------------------------------------------------------------
 void NetDataBlockReceiver::CancelTransfer(const unsigned short cancelSeqNr)
 {
-	m_nTransferNr = transferNr;
+	if (net_debugDataBlockReceiver->GetBool())
+	{
+		Msg(eDLL_T::ENGINE,
+			"[DataBlock:Rx] cancelling block #%hu after copying %d/%d fragments; "
+			"cancel sequence: %hu -> %hu\n",
+			m_blockSeqNr,
+			m_copiedFragmentsCount,
+			m_totalFragments,
+			m_cancelSeqNr,
+			cancelSeqNr);
+	}
+
+	m_cancelSeqNr = cancelSeqNr;
 
 	m_copyingFragments = false;
 	m_transferFinished = false;
@@ -378,10 +510,13 @@ void NetDataBlockReceiver::CancelTransfer(const unsigned short cancelSeqNr)
 
 	m_blockSeqNr = 0;
 	m_totalFragments = 0;
+
 	m_nTransferSize = 0;
 	m_copiedFragmentsCount = 0;
 
 	m_timeStartTransfer = 0.0;
+	m_usesCompression = false;
+
 	ClearCopyStatArray();
 }
 
@@ -455,22 +590,55 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 	}
 
 	m_transferAckPending = true;
+	m_usesCompression = false; // todo(kawe): remove once local client OOB handler is rebuilt! (NextTransfer() resets it)
 
 	// Make sure the fragment belongs to the current block
 	if (blockSeqNr != m_blockSeqNr)
 	{
+		if (net_debugDataBlockReceiver->GetBool())
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Rx] rejecting fragment #%hu: block sequence mismatch! "
+				"(sequence %hu, expected %hu)\n",
+				fragId,
+				blockSeqNr,
+				m_blockSeqNr);
+		}
+
 		Assert(0, __FUNC_PFX__"Block sequence number changed!");
 		return false;
 	}
 
 	if (m_transferFinished)
+	{
+		if (net_debugDataBlockReceiver->GetInt() >= 2)
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Rx] dropping late fragment #%hu of completed block #%hu!\n",
+				fragId,
+				m_blockSeqNr);
+		}
+
 		return false; // Drop duplicates that may arive late.
+	}
 
 	// initialize the receiver if this is the first fragment
 	if (!m_copyingFragments)
 	{
 		if (!StartBlockReceiver(transferSize, currTime))
 		{
+			if (net_debugDataBlockReceiver->GetBool())
+			{
+				Msg(eDLL_T::ENGINE,
+					"[DataBlock:Rx] rejecting fragment #%hu of block #%hu: invalid transfer size! "
+					"(%d bytes, expected [%d,%d])\n",
+					fragId,
+					m_blockSeqNr,
+					transferSize,
+					MIN_DATABLOCK_TRANSFER_SIZE,
+					MAX_DATABLOCK_TRANSFER_SIZE);
+			}
+
 			Assert(0, __FUNC_PFX__"this->StartBlockReceiver() failed!");
 			return false; // moGus transferSize, nice try!
 		}
@@ -481,6 +649,17 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 		// rewriting that code will be a very big undertaking (needs
 		// the connectionless handler to be rebuild!). So just use it
 		// as a validator here. If it mismatches something is broken.
+		if (net_debugDataBlockReceiver->GetBool())
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Rx] rejecting fragment #%hu of block #%hu: transfer size changed! "
+				"(%d bytes, expected %d)\n",
+				fragId,
+				m_blockSeqNr,
+				transferSize,
+				m_nTransferSize);
+		}
+
 		Assert(0, __FUNC_PFX__"Transfer size changed!");
 		return false;
 	}
@@ -489,6 +668,17 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 
 	if (!GetFragmentInfo(fragId, frag))
 	{
+		if (net_debugDataBlockReceiver->GetBool())
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Rx] rejecting fragment #%hu of block #%hu: fragment ID out of range! "
+				"(expected [0,%d), transfer %d bytes)\n",
+				fragId,
+				m_blockSeqNr,
+				m_totalFragments,
+				m_nTransferSize);
+		}
+
 		Assert(0, __FUNC_PFX__"this->GetFragmentInfo() failed!");
 		return false; // moGus fragId, nice try!
 	}
@@ -496,6 +686,17 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 	// Gaps, overflow or negative value?
 	if (fragSize != frag.expectedSize)
 	{
+		if (net_debugDataBlockReceiver->GetBool())
+		{
+			Msg(eDLL_T::ENGINE,
+				"[DataBlock:Rx] rejecting fragment #%hu of block #%hu: invalid size! "
+				"(%d bytes, expected %d)\n",
+				fragId,
+				m_blockSeqNr,
+				fragSize,
+				frag.expectedSize);
+		}
+
 		Assert(0, __FUNC_PFX__"Fragment stride desync!");
 		return false;
 	}
@@ -522,6 +723,8 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 
 	if (pHeader->isCompressed)
 	{
+		m_usesCompression = true;
+
 		// NOTE: the engine's implementation of this function does NOT free
 		// this buffer when a malformed/corrupt LZ4 packet is sent to the
 		// receiver; wrapped buffer in unique_ptr to make sure it never leaks!
@@ -563,8 +766,11 @@ void NetDataBlockReceiver::NextTransfer()
 		LogState();
 
 	++m_blockSeqNr;
+
 	m_copyingFragments = false;
 	m_transferFinished = false;
+	m_usesCompression = false;
+
 	m_totalFragments = 0;
 
 	m_copiedFragmentsCount = 0;
