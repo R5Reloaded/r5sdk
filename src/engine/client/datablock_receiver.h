@@ -20,18 +20,25 @@ private:
 };
 
 // virtual methods
-inline void*(*ClientDataBlockReceiver__AcknowledgeTransmission)(ClientDataBlockReceiver* thisptr);
+inline void*(*ClientDataBlockReceiver__SendFragmentAcks)(ClientDataBlockReceiver* thisptr);
+
+// non-virtual methods
+inline bool (*NetDataBlockReceiver__ProcessFragment)(NetDataBlockReceiver* thisptr, const double startTime,
+	const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
+	const unsigned short fragId, const void* const fragData, const int fragSize);
 
 ///////////////////////////////////////////////////////////////////////////////
 class VClientDataBlockReceiver : public IDetour
 {
 	virtual void GetAdr(void) const
 	{
-		LogFunAdr("ClientDataBlockReceiver::AcknowledgeTransmission", ClientDataBlockReceiver__AcknowledgeTransmission);
+		LogFunAdr("NetDataBlockReceiver::ProcessFragment", NetDataBlockReceiver__ProcessFragment);
+		LogFunAdr("ClientDataBlockReceiver::SendFragmentAcks", ClientDataBlockReceiver__SendFragmentAcks);
 	}
 	virtual void GetFun(void) const
 	{
-		Module_FindPattern(g_GameDll, "40 53 48 81 EC ?? ?? ?? ?? 4C 8B 51 08").GetPtr(ClientDataBlockReceiver__AcknowledgeTransmission);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 30 0F B7 44 24 ??").GetPtr(NetDataBlockReceiver__ProcessFragment);
+		Module_FindPattern(g_GameDll, "40 53 48 81 EC ?? ?? ?? ?? 4C 8B 51 08").GetPtr(ClientDataBlockReceiver__SendFragmentAcks);
 	}
 	virtual void GetVar(void) const { }
 	virtual void GetCon(void) const { }

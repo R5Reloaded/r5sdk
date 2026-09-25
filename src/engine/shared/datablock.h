@@ -215,40 +215,4 @@ protected:
 	unsigned char* m_scratchBuffer;
 };
 
-inline void* (*NetDataBlockSender__Destructor)(NetDataBlockSender* thisptr);
-inline void* (*NetDataBlockReceiver__Destructor)(NetDataBlockReceiver* thisptr);
-
-// non-virtual methods
-inline bool (*NetDataBlockReceiver__ProcessFragment)(NetDataBlockReceiver* thisptr, const double startTime,
-	const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
-	const unsigned short fragId, const void* const fragData, const int fragSize);
-
-///////////////////////////////////////////////////////////////////////////////
-class VNetDataBlock : public IDetour
-{
-	virtual void GetAdr(void) const
-	{
-		LogFunAdr("NetDataBlockSender::~NetDataBlockSender", NetDataBlockSender__Destructor);
-		LogFunAdr("NetDataBlockReceiver::~NetDataBlockReceiver", NetDataBlockReceiver__Destructor);
-		LogFunAdr("NetDataBlockReceiver::ProcessFragment", NetDataBlockReceiver__ProcessFragment);
-	}
-	virtual void GetFun(void) const
-	{
-		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 57 48 83 EC 20 8B DA 48 8B F9 E8 ?? ?? ?? ?? F6 C3 01 74"
-			" 0D BA ?? ?? ?? ?? 48 8B CF E8 ?? ?? ?? ?? 48 8B C7 48 8B 5C 24 ?? 48 83 C4 20 5F C3 CC CC CC CC CC CC CC CC CC CC CC CC 48 89 5C 24"
-			" ?? 48 89 74 24 ?? 57 48 83 EC 20 33 F6 66 C7 81 ?? ?? ?? ?? ?? ??").GetPtr(NetDataBlockSender__Destructor);
-
-		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 57 48 83 EC 20 8B DA 48 8B F9 E8 ?? ?? ?? ?? F6 C3 01 74"
-			" 0D BA ?? ?? ?? ?? 48 8B CF E8 ?? ?? ?? ?? 48 8B C7 48 8B 5C 24 ?? 48 83 C4 20 5F C3 CC CC CC CC CC CC CC CC CC CC CC CC 48 89 5C 24"
-			" ?? 48 89 74 24 ?? 57 48 83 EC 20 48 8D 05 ?? ?? ?? ?? C6 41 12 00").GetPtr(NetDataBlockReceiver__Destructor);
-
-		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 30 0F B7 44 24 ??")
-			.GetPtr(NetDataBlockReceiver__ProcessFragment);
-	}
-	virtual void GetVar(void) const { }
-	virtual void GetCon(void) const { }
-	virtual void Detour(const bool bAttach) const;
-};
-///////////////////////////////////////////////////////////////////////////////
-
 #endif // IDATABLOCK_H

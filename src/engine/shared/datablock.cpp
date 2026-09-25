@@ -565,26 +565,3 @@ void NetDataBlockReceiver::NextTransfer()
 
 	ClearCopyStatArray();
 }
-
-//-----------------------------------------------------------------------------
-// NOTE: detoured for 5 reasons:
-// 1: when a corrupt or malformed compress packet is sent, the code never freed
-//    the temporary copy buffer it made to decode the data into the scratch buf
-// 2: to guard against negative or overflowing fragment ID's, transfer sizes
-//    and scratch buffer offsets
-// 3: to make sure we only acknowledge successfull recv's AFTER LZ4 decoding!
-// 4: to return out early when we receive a new cancel request
-// 5: exploring other compression algorithms for potential optimizations
-//-----------------------------------------------------------------------------
-static bool NetDataBlockReceiver_ProcessFragment(NetDataBlockReceiver* receiver, const double startTime,
-	const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
-	const unsigned short fragId, const void* const fragData, const int fragSize)
-{
-	return receiver->ProcessFragment(startTime, blockSeqNr, transferSize, cancelSeqNr, 
-		fragId, fragData, fragSize);
-}
-
-void VNetDataBlock::Detour(const bool bAttach) const
-{
-	DetourSetup(&NetDataBlockReceiver__ProcessFragment, NetDataBlockReceiver_ProcessFragment, bAttach);
-}
