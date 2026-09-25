@@ -558,7 +558,7 @@ void NetDataBlockReceiver::NextTransfer()
 	++m_blockSeqNr;
 	m_copyingFragments = false;
 	m_transferFinished = false;
-	m_totalFragments = false;
+	m_totalFragments = 0;
 
 	m_copiedFragmentsCount = 0;
 	m_timeStartTransfer = 0.0;
