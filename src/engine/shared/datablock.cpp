@@ -68,9 +68,9 @@ void NetDataBlockSender::CancelTransfer()
 	if (!m_transferInProgress)
 		return;
 
-	const short nextCancelSeqNr = m_cancelSeqNr + 1;
-	ResetState();
+	const unsigned short nextCancelSeqNr = m_cancelSeqNr + 1;
 
+	ResetState();
 	m_cancelSeqNr = nextCancelSeqNr;
 }
 
