@@ -87,12 +87,6 @@ int ServerDataBlockSender::GetTransmissionRate() const
 	return net_datablock_fastRate->GetInt();
 }
 
-void NetDataBlockSender_OnCompressError()
-{
-	Assert(0);
-	Error(eDLL_T::SERVER, 0, "LZ4 error compressing data block for client.\n");
-}
-
 //-----------------------------------------------------------------------------
 // Purpose: gets the receiver name (client name as registered on the server)
 //-----------------------------------------------------------------------------

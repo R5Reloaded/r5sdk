@@ -135,6 +135,9 @@ public:
 	int         GetNumBitsLeft(const bool bReliable);
 	inline bool IsOverflowed(void)                const { return m_StreamReliable.IsOverflowed(); }
 
+	inline double GetLastReceivedTime()               const { return last_received; }
+	inline void   SetLastReceivedTime(const double newTime) { last_received = newTime; }
+
 	bool HasPendingReliableData(void);
 
 	inline bool CanPacket(void) const { return CNetChan__CanPacket(this); }

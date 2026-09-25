@@ -375,7 +375,7 @@ bool CServer::ProcessConnectionlessPacketGuts(netpacket_t* const packet)
 		if (!chan)
 			break;
 
-		chan->SetLastReceived(*g_pNetTime);
+		chan->SetLastReceivedTime(*g_pNetTime);
 		sender->ProcessFragmentAcks(ackMsg);
 
 		break;
