@@ -94,6 +94,14 @@ bool CClientState::IsConnecting(void) const
 }
 
 //------------------------------------------------------------------------------
+// Purpose: returns true if client is still challenging
+//------------------------------------------------------------------------------
+bool CClientState::IsChallenging(void) const
+{
+	return m_nSignonState == SIGNONSTATE::SIGNONSTATE_CHALLENGE;
+}
+
+//------------------------------------------------------------------------------
 // Purpose: gets the client time
 // Technically doesn't belong here
 //------------------------------------------------------------------------------

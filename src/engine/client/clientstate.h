@@ -49,6 +49,7 @@ public:
 	bool IsActive(void) const;
 	bool IsConnected(void) const;
 	bool IsConnecting(void) const;
+	bool IsChallenging(void) const;
 
 	float GetClientTime() const;
 
