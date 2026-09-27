@@ -61,6 +61,12 @@ public:
 		const static int index = 125;
 		CallVFunc<void>(index, this, bState);
 	}
+
+	void RemoteMatchInfoUpdated()
+	{
+		const static int index = 151;
+		CallVFunc<void>(index, this);
+	}
 };
 
 /* ==== CHLCLIENT ======================================================================================================================================================= */
