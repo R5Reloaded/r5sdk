@@ -434,6 +434,11 @@ void CClientState::Reconnect()
     Cbuf_AddText(ECommandTarget_t::CBUF_FIRST_PLAYER, buf, cmd_source_t::kCommandSrcCode);
 }
 
+void CClientState::Disconnect(const bool bShowMainMenu)
+{
+	CClientState__Disconnect(this, bShowMainMenu);
+}
+
 //---------------------------------------------------------------------------------
 // Purpose: registers net messages
 // Input  : *chan

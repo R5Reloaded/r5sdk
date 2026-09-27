@@ -66,6 +66,7 @@ public:
 	bool Authenticate(connectparams_t* connectParams, char* const reasonBuf, const size_t reasonBufLen) const;
 
 	void Reconnect();
+	void Disconnect(const bool bShowMainMenu = true);
 
 	void RegisterNetMsgs(CNetChan* chan);
 
@@ -229,7 +230,7 @@ extern CClientState** g_pClientState_Shifted; // Shifted by 0x10 forward!
 /* ==== CCLIENTSTATE ==================================================================================================================================================== */
 inline void(*CClientState__RunFrame)(CClientState* thisptr);
 inline void(*CClientState__Connect)(CClientState* thisptr, connectparams_t* connectParams);
-inline void(*CClientState__Disconnect)(CClientState* thisptr, bool bSendTrackingContext);
+inline void(*CClientState__Disconnect)(CClientState* thisptr, const bool bShowMainMenu);
 inline bool(*CClientState__ConnectionStart)(CClientState* thisptr, CNetChan* chan);
 inline void(*CClientState__ConnectionClosing)(CClientState* thisptr, const char* szReason);
 inline bool(*CClientState__HookClientStringTable)(CClientState* thisptr, const char* tableName);
