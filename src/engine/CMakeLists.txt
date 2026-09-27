@@ -143,6 +143,7 @@ add_sources( SOURCE_GROUP "Shared"
     "shared/datablock_events.cpp"
     "shared/datablock_events.h"
     "shared/ents_shared.h"
+    "shared/entitlements.h"
 )
 
 if( NOT ${PROJECT_NAME} STREQUAL "engine_ds" )
