@@ -39,6 +39,7 @@ inline unsigned int(*v_NET_BufferToBufferDecompress_LZSS)(CLZSS* lzss, unsigned 
 
 inline bool (*v_NET_IsLocalHost)(const CNetAdr* const adr);
 
+inline void (*v_NET_OutOfBandPrintf)(int sock, const CNetAdr* adr, const char* format, ...);
 inline void(*v_NET_PrintFunc)(const char* fmt, ...);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -87,6 +88,8 @@ class VNet : public IDetour
 		LogFunAdr("NET_IsLocalHost", v_NET_IsLocalHost);
 
 		LogFunAdr("NET_PrintFunc", v_NET_PrintFunc);
+		LogFunAdr("NET_OutOfBandPrintf", v_NET_OutOfBandPrintf);
+
 		LogVarAdr("g_NetAdr", g_pNetAdr);
 		LogVarAdr("g_NetKey", g_pNetKey);
 		LogVarAdr("g_NetTime", g_pNetTime);
@@ -110,6 +113,7 @@ class VNet : public IDetour
 		Module_FindPattern(g_GameDll, "83 39 ?? 74 ?? 48 8B 05 ?? ?? ?? ?? 48 3B 41").GetPtr(v_NET_IsLocalHost);
 
 		Module_FindPattern(g_GameDll, "48 89 54 24 10 4C 89 44 24 18 4C 89 4C 24 20 C3 48").GetPtr(v_NET_PrintFunc);
+		Module_FindPattern(g_GameDll, "4C 89 44 24 ?? 4C 89 4C 24 ?? 53 55 56 57 41 56 48 81 EC").GetPtr(v_NET_OutOfBandPrintf);
 	}
 	virtual void GetVar(void) const
 	{

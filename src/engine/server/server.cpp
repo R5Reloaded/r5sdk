@@ -125,12 +125,20 @@ CClient* CServer::GetClientByAdr(const netadr_t* const netAdr)
 //---------------------------------------------------------------------------------
 // Purpose: Rejects connection request and sends back a message
 // Input  : iSocket - 
-//			*pChallenge - 
-//			*szMessage - 
+//			*pNetAdr - 
+//			*pFmt - 
+//			... - 
 //---------------------------------------------------------------------------------
-void CServer::RejectConnection(int iSocket, netadr_t* pNetAdr, const char* szMessage)
+void CServer::RejectConnection(int iSocket, netadr_t* pNetAdr, const char* pFmt, ...) const
 {
-	CServer__RejectConnection(this, iSocket, pNetAdr, szMessage);
+	va_list		argptr;
+	char	text[1024];
+
+	va_start(argptr, pFmt);
+	Q_vsnprintf(text, sizeof(text), pFmt, argptr);
+	va_end(argptr);
+
+	v_NET_OutOfBandPrintf(m_Socket, pNetAdr, "%c%s", S2C_CONNREJECT, text);
 }
 
 //---------------------------------------------------------------------------------

@@ -62,7 +62,7 @@ public:
 	inline bool IsDedicated() const { return m_bIsDedicated; }
 	inline void SetDedicated(bool bDedicated) { m_bIsDedicated = bDedicated; }
 
-	void RejectConnection(int iSocket, netadr_t* pNetAdr, const char* szMessage);
+	void RejectConnection(int iSocket, netadr_t* pNetAdr, const char* pFmt, ...) const;
 	static CClient* ConnectClient(CServer* pServer, user_creds_s* pChallenge);
 
 	void BroadcastMessage(CNetMessage* const msg, const bool onlyActive, const bool reliable);
