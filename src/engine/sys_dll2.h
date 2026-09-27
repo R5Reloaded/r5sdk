@@ -48,6 +48,8 @@ inline void(*CEngineAPI__PumpMessages)(void);
 inline void(*CEngineAPI__SetStartupInfo)(CEngineAPI* pEngineAPI, StartupInfo_t* pStartupInfo);
 inline void(*v_PakFile_Init)(char* buffer, char* source, char vpk_file);
 
+inline int(*v_Sys_GetHostVersion)();
+
 inline bool* g_bStartupInfoSet = nullptr;
 inline char* g_szBaseDir = nullptr; // static size = MAX_OSPATH
 
@@ -65,6 +67,7 @@ class VSys_Dll2 : public IDetour
 		LogFunAdr("CEngineAPI::PumpMessages", CEngineAPI__PumpMessages);
 		LogFunAdr("CEngineAPI::SetStartupInfo", CEngineAPI__SetStartupInfo);
 		LogFunAdr("PakFile_Init", v_PakFile_Init);
+		LogFunAdr("Sys_GetHostVersion", v_Sys_GetHostVersion);
 		LogVarAdr("g_bStartupInfoSet", g_bStartupInfoSet);
 		LogVarAdr("g_szBaseDir", g_szBaseDir);
 	}
@@ -77,6 +80,7 @@ class VSys_Dll2 : public IDetour
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 74 24 ?? 57 48 81 EC ?? ?? ?? ?? 49 8B F8 48 8B DA").GetPtr(CEngineAPI__OnStartup);
 		Module_FindPattern(g_GameDll, "4C 8B DC 49 89 4B 08 48 81 EC ?? ?? ?? ?? 8B 05 ?? ?? ?? ??").GetPtr(CEngineAPI__MainLoop);
 		Module_FindPattern(g_GameDll, "44 88 44 24 ?? 53 55 56 57").GetPtr(v_PakFile_Init);
+		Module_FindPattern(g_GameDll, "8B 05 ?? ?? ?? ?? C3 CC CC CC CC CC CC CC CC CC 48 83 3D").GetPtr(v_Sys_GetHostVersion);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 55 48 81 EC ?? ?? ?? ?? 45 33 C9").GetPtr(CEngineAPI__PumpMessages);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? ?? 48 81 EC ?? ?? ?? ?? 80 3D ?? ?? ?? ?? ?? 48 8B DA").GetPtr(CEngineAPI__SetStartupInfo);
 	}
