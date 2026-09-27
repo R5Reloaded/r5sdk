@@ -396,7 +396,7 @@ bool CServer::ProcessConnectionlessPacketGuts(netpacket_t* const packet)
 	return true;
 }
 
-static bool Server_ProcessConnectionlessPacket(CServer* const server, netpacket_t* const packet)
+bool CServer::_ProcessConnectionlessPacket(CServer* const server, netpacket_t* const packet)
 {
 	return server->ProcessConnectionlessPacketGuts(packet);
 }
@@ -407,7 +407,7 @@ void VServer::Detour(const bool bAttach) const
 	DetourSetup(&CServer__SpawnServer, &CServer::SpawnServer, bAttach);
 	DetourSetup(&CServer__RunFrame, &CServer::RunFrame, bAttach);
 	DetourSetup(&CServer__ConnectClient, &CServer::ConnectClient, bAttach);
-	DetourSetup(&CServer__ProcessConnectionlessPacket, &Server_ProcessConnectionlessPacket, bAttach);
+	DetourSetup(&CServer__ProcessConnectionlessPacket, &CServer::_ProcessConnectionlessPacket, bAttach);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

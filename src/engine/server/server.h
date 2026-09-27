@@ -71,6 +71,7 @@ public:
 	static bool SpawnServer(CServer* pServer, const char* pszMapName, const char* pszMapGroupName);
 
 	bool ProcessConnectionlessPacketGuts(netpacket_t* const packet);
+	static bool _ProcessConnectionlessPacket(CServer* const thisptr, netpacket_t* const packet);
 #endif // !CLIENT_DLL
 
 private:
