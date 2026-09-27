@@ -73,14 +73,14 @@ public:
 	inline int GetServerCount() const { return m_nServerCount; }
 
 protected:
-	FORCEINLINE CClientState* GetShiftedBasePointer(void)
+	FORCEINLINE CClientState* GetShiftedBasePointer(const u64 shiftAmount = 0x10)
 	{
 		// NOTE: you must check in the disassembler if the CClientState method
-		// you detour is shifting the 'this' pointer with 16 bytes forward, if
+		// you detour is shifting the 'this' pointer with xx bytes forward, if
 		// so, you need to call this and use this pointer instead! The shifting
 		// happens as part of a compiler optimization that truncated the vtable
 		// pointers off so the 'this' pointer points directly to the class data
-		char* const pShifted = reinterpret_cast<char*>(this) - 0x10;
+		char* const pShifted = reinterpret_cast<char*>(this) - shiftAmount;
 		return reinterpret_cast<CClientState*>(pShifted);
 	}
 
