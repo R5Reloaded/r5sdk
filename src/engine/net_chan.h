@@ -20,6 +20,7 @@
 #define NET_UNRELIABLE_STREAM_MINSIZE 256
 #define NET_CHANNELNAME_MAXLEN 32
 #define NET_FRAMES_MASK   (NET_FRAMES_BACKUP-1)
+#define NET_DEFAULT_RATE 256000
 
 //-----------------------------------------------------------------------------
 // Purpose: forward declarations
@@ -137,6 +138,7 @@ public:
 
 	inline double GetLastReceivedTime()               const { return last_received; }
 	inline void   SetLastReceivedTime(const double newTime) { last_received = newTime; }
+	void          SetDataRate(const int rate);
 
 	bool HasPendingReliableData(void);
 
@@ -189,7 +191,7 @@ private:
 	int                 m_MaxReliablePayloadSize;
 	double              last_received;
 	double              connect_time;
-	uint32_t            m_Rate;
+	int                 m_Rate;
 	int                 padding_maybe;
 	double              m_fClearTime;
 	CUtlVector<dataFragments_t*> m_WaitingList;

@@ -7,6 +7,11 @@ constexpr const char DEFAULT_NET_ENCRYPTION_KEY[AES_128_B64_ENCODED_SIZE+1] = "W
 #ifndef _TOOLS
 #include "engine/net_chan.h"
 #include "tier1/lzss.h"
+
+// Flow control bytes per second limits
+#define MIN_RATE		1000
+#define MAX_RATE		1000000000
+
 #define MAX_STREAMS         2
 #define FRAGMENT_BITS       8
 #define FRAGMENT_SIZE       (1<<FRAGMENT_BITS)

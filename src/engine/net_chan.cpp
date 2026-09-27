@@ -551,6 +551,14 @@ void CNetChan::FreeReceiveList()
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CNetChan::SetDataRate(const int rate)
+{
+    m_Rate = Clamp(rate, MIN_RATE, MAX_RATE);
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: check if there is still data in the reliable waiting buffers
 //-----------------------------------------------------------------------------
 bool CNetChan::HasPendingReliableData(void)
