@@ -8,6 +8,7 @@
 #pragma once
 #include "tier1/bitbuf.h"
 #include "common/qlimits.h"
+#include "common/protocol.h"
 #include "public/inetchannel.h"
 #include "public/inetmessage.h"
 #include "public/inetmsghandler.h"
@@ -632,7 +633,7 @@ private:
 // Shared messages:
 ///////////////////////////////////////////////////////////////////////////////////////
 
-struct NET_StringCmd : CNetMessage
+struct NET_StringCmd : public CNetMessage
 {
 	const char* cmd;
 	char buffer[1024];
@@ -649,6 +650,16 @@ public:
 	} cvar_t;
 
 	CUtlVector<cvar_t> m_ConVars;
+};
+
+struct NET_SignonState : public CNetMessage
+{
+	SIGNONSTATE m_nSignonState;
+	int m_nSpawnCount;
+	char m_szMapName[MAX_MAP_NAME];
+	char m_szGameMode[MAX_GAMEMODE_NAME];
+	u64 m_playlistCRC; // Set to value in global at 0x166EEDFB0
+	char m_szPlaylist[MAX_PLAYLIST_NAME];
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////
