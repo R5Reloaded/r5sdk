@@ -10,7 +10,6 @@
 #include "tier1/cvar.h"
 #include "tier2/cryptutils.h"
 #include "mathlib/color.h"
-#include "net.h"
 #include "net_chan.h"
 #ifndef CLIENT_DLL
 #include "server/server.h"
@@ -284,13 +283,13 @@ bool NET_ReadMessageType(int* outType, bf_read* buffer)
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: checks whether the provided address is the local server.
+// Purpose: checks whether the provided address is the local host.
 // Input  : &netAdr - 
-// Output : true if equal, false otherwise
+// Output : true if local, false otherwise
 //-----------------------------------------------------------------------------
-bool NET_IsRemoteLocal(const CNetAdr& netAdr)
+bool NET_IsLocalHost(const CNetAdr& netAdr)
 {
-	return (g_pNetAdr->ComparePort(netAdr) && g_pNetAdr->CompareAdr(netAdr));
+	return v_NET_IsLocalHost(&netAdr);
 }
 
 #endif // !_TOOLS
