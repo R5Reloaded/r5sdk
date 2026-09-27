@@ -41,6 +41,8 @@ ConVar* staticProp_gather_size_weight      = nullptr;
 ConVar* model_defaultFadeDistScale         = nullptr;
 ConVar* model_defaultFadeDistMin           = nullptr;
 
+ConVar* rate_cvar                          = nullptr;
+
 ConVar* ip_cvar                            = nullptr;
 ConVar* hostname                           = nullptr;
 ConVar* hostip                             = nullptr;
@@ -75,6 +77,15 @@ ConVar* platform_user_id                   = nullptr;
 ConVar* name_cvar                          = nullptr;
 #endif // !DEDICATED
 
+ConVar* match_myDatacenter                 = nullptr;
+ConVar* match_myRankedDatacenter           = nullptr;
+ConVar* match_myBestDatacenter             = nullptr;
+ConVar* match_pingWaveInterval             = nullptr;
+
+ConVar* ping_qos_units                     = nullptr;
+ConVar* ping_usePacketLoss                 = nullptr;
+ConVar* ping_minSentForChoice              = nullptr;
+
 //-----------------------------------------------------------------------------
 // SERVER                                                                     |
 #ifndef CLIENT_DLL
@@ -100,6 +111,7 @@ ConVar* sv_voiceenable                     = nullptr;
 ConVar* sv_alltalk                         = nullptr;
 
 ConVar* sv_clampPlayerFrameTime            = nullptr;
+ConVar* sv_allowSpectatorClients           = nullptr;
 
 ConVar* playerframetimekick_margin         = nullptr;
 ConVar* playerframetimekick_decayrate      = nullptr;
@@ -121,6 +133,7 @@ ConVar* bhit_enable                        = nullptr;
 ConVar* cl_updaterate_mp                   = nullptr;
 
 ConVar* cl_threaded_bone_setup             = nullptr;
+ConVar* cl_failremoteconnections           = nullptr;
 
 ConVar* pvs_start_early                    = nullptr;
 ConVar* pvs_frustumCullOnly                = nullptr;
@@ -204,6 +217,7 @@ void ConVar_InitShipped(void)
 	name_cvar                        = g_pCVar->FindVar("name");
 	cl_updaterate_mp                 = g_pCVar->FindVar("cl_updaterate_mp");
 	cl_threaded_bone_setup           = g_pCVar->FindVar("cl_threaded_bone_setup");
+	cl_failremoteconnections         = g_pCVar->FindVar("cl_failremoteconnections");
 	pvs_start_early                  = g_pCVar->FindVar("pvs_start_early");
 	pvs_frustumCullOnly              = g_pCVar->FindVar("pvs_frustumCullOnly");
 #endif // !DEDICATED
@@ -251,7 +265,18 @@ void ConVar_InitShipped(void)
 
 	mat_letterbox_aspect_threshold   = g_pCVar->FindVar("mat_letterbox_aspect_threshold");
 #endif // !DEDICATED
+
+	match_myDatacenter               = g_pCVar->FindVar("match_myDatacenter");
+	match_myRankedDatacenter         = g_pCVar->FindVar("match_myRankedDatacenter");
+	match_myBestDatacenter           = g_pCVar->FindVar("match_myBestDatacenter");
+	match_pingWaveInterval           = g_pCVar->FindVar("match_pingWaveInterval");
+
+	ping_qos_units                   = g_pCVar->FindVar("ping_qos_units");
+	ping_usePacketLoss               = g_pCVar->FindVar("ping_usePacketLoss");
+	ping_minSentForChoice            = g_pCVar->FindVar("ping_minSentForChoice");
+
 	mp_gamemode                      = g_pCVar->FindVar("mp_gamemode");
+	rate_cvar                        = g_pCVar->FindVar("rate");
 	ip_cvar                          = g_pCVar->FindVar("ip");
 	hostname                         = g_pCVar->FindVar("hostname");
 	hostip                           = g_pCVar->FindVar("hostip");
@@ -296,6 +321,7 @@ void ConVar_InitShipped(void)
 	sv_alltalk = g_pCVar->FindVar("sv_alltalk");
 
 	sv_clampPlayerFrameTime = g_pCVar->FindVar("sv_clampPlayerFrameTime");
+	sv_allowSpectatorClients = g_pCVar->FindVar("sv_allowSpectatorClients");
 
 	playerframetimekick_margin = g_pCVar->FindVar("playerframetimekick_margin");
 	playerframetimekick_decayrate = g_pCVar->FindVar("playerframetimekick_decayrate");

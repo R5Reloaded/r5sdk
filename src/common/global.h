@@ -28,6 +28,8 @@ extern ConVar* staticProp_gather_size_weight;
 extern ConVar* model_defaultFadeDistScale;
 extern ConVar* model_defaultFadeDistMin;
 
+extern ConVar* rate_cvar;
+
 extern ConVar* ip_cvar;
 extern ConVar* hostname;
 extern ConVar* hostip;
@@ -63,6 +65,15 @@ extern ConVar* platform_user_id;
 extern ConVar* name_cvar;
 #endif // !DEDICATED
 
+extern ConVar* match_myDatacenter;
+extern ConVar* match_myRankedDatacenter;
+extern ConVar* match_myBestDatacenter;
+extern ConVar* match_pingWaveInterval;
+
+extern ConVar* ping_qos_units;
+extern ConVar* ping_usePacketLoss;
+extern ConVar* ping_minSentForChoice;
+
 //-------------------------------------------------------------------------
 // SERVER                                                                 |
 #ifndef CLIENT_DLL
@@ -90,6 +101,7 @@ extern ConVar* sv_alltalk;
 extern ConVar sv_onlineAuthEnable;
 
 extern ConVar* sv_clampPlayerFrameTime;
+extern ConVar* sv_allowSpectatorClients;
 
 extern ConVar* playerframetimekick_margin;
 extern ConVar* playerframetimekick_decayrate;
@@ -109,6 +121,7 @@ extern ConVar* bhit_enable;
 // CLIENT                                                                 |
 #ifndef DEDICATED
 extern ConVar* cl_threaded_bone_setup;
+extern ConVar* cl_failremoteconnections;
 
 extern ConVar* pvs_start_early;
 extern ConVar* pvs_frustumCullOnly;
