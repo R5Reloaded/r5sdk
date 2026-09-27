@@ -25,8 +25,10 @@ constexpr const char DEFAULT_NET_ENCRYPTION_KEY[AES_128_B64_ENCODED_SIZE+1] = "W
 
 /* ==== CNETCHAN ======================================================================================================================================================== */
 inline void*(*v_NET_Init)(bool bDeveloper);
-inline void(*v_NET_SetKey)(netkey_t* pKey, const char* szHash);
 inline void(*v_NET_Config)(void);
+
+inline void(*v_NET_SetKey)(netkey_t* pKey, const char* szHash);
+inline CNetChan* (*v_NET_CreateNetChannel)(int socket, netadr_t* adr, const char* name, INetChannelHandler* handler, char bForceNewChannel);
 
 inline int(*v_NET_GetPacket)(int iSocket, uint8_t* pScratch, bool bEncrypted);
 inline int(*v_NET_SendPacket)(CNetChan* pChan, int iSocket, const netadr_t& toAdr, const uint8_t* pData, unsigned int nLen, void* unused0, bool bCompress, void* unused1, bool bEncrypt);
@@ -41,6 +43,7 @@ inline bool (*v_NET_IsLocalHost)(const CNetAdr* const adr);
 
 inline void (*v_NET_OutOfBandPrintf)(int sock, const CNetAdr* adr, const char* format, ...);
 inline void(*v_NET_PrintFunc)(const char* fmt, ...);
+
 
 ///////////////////////////////////////////////////////////////////////////////
 bool NET_ReceiveDatagram(int iSocket, netpacket_s* pInpacket, bool bRaw);
@@ -74,7 +77,9 @@ class VNet : public IDetour
 	{
 		LogFunAdr("NET_Init", v_NET_Init);
 		LogFunAdr("NET_Config", v_NET_Config);
+
 		LogFunAdr("NET_SetKey", v_NET_SetKey);
+		LogFunAdr("NET_CreateNetChannel", v_NET_CreateNetChannel);
 
 		LogFunAdr("NET_GetPacket", v_NET_GetPacket);
 		LogFunAdr("NET_SendPacket", v_NET_SendPacket);
@@ -98,7 +103,9 @@ class VNet : public IDetour
 	{
 		Module_FindPattern(g_GameDll, "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 48 89 7C 24 20 41 54 41 56 41 57 48 81 EC F0 01 ??").GetPtr(v_NET_Init);
 		Module_FindPattern(g_GameDll, "48 81 EC ?? ?? ?? ?? E8 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? ?? 0F 57 C0").GetPtr(v_NET_Config);
+
 		Module_FindPattern(g_GameDll, "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 48 83 EC 20 48 8B F9 41 B8").GetPtr(v_NET_SetKey);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 57 41 54 41 57 48 83 EC ?? 80 7C 24").GetPtr(v_NET_CreateNetChannel);
 
 
 		Module_FindPattern(g_GameDll, "48 8B C4 44 88 40 18 48 89 50 10 41 55").GetPtr(v_NET_GetPacket);
