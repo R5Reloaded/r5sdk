@@ -9,12 +9,20 @@
 #include "vengineserver_impl.h"
 #endif // !CLIENT_DLL
 
+#define MAX_SERVER_CONNECT_CHALLENGES (1<<14)
+
 enum class server_state_t
 {
 	ss_dead = 0,	// Dead
 	ss_loading,		// Spawning
 	ss_active,		// Running
 	ss_paused,		// Running, but paused
+};
+
+struct ConnectUserInfo_s
+{
+	char name[MAX_OSPATH];
+	char value[MAX_OSPATH];
 };
 
 struct user_creds_s
@@ -25,6 +33,36 @@ struct user_creds_s
 	uint32_t reservation;
 	NucleusID_t personaId;
 	char* personaName;
+
+	const char* serverFilter;
+
+	u64 entitlements;
+	CUtlVector<u16>* balances;
+
+	bool hasOriginToken;
+	bool spectatorClient;
+	bool lowViolence;
+	bool trial;
+	bool forceEAAccess;
+	bool originTokenUnknown;
+
+	HardwareType_e platform;
+	u8 pad57;
+
+	u64 playlistCRC;
+	u64 persistenceVersion;
+	u32 persistenceCRC;
+	u32 reserved6C;
+
+	CUtlVector<ConnectUserInfo_s>* userInfo;
+};
+
+struct ServerChallenge_s
+{
+	netadr_t address;
+	NucleusID_t nucleusId;
+	u32 challenge;
+	float lastRequestTime;
 };
 
 class CServer : public IConnectionlessPacketHandler
@@ -52,6 +90,7 @@ public:
 	inline CClientExtended* GetClientExtended(const int nIndex) { Assert(nIndex >= NULL && nIndex < MAX_PLAYERS); return &sm_ClientsExtended[nIndex]; }
 
 	CClient* GetClientByAdr(const netadr_t* const netAdr);
+	inline int GetSocket() const { return m_Socket; }
 
 	inline float GetTime(void) const { return m_nTickCount * m_flTickInterval; }
 	inline float GetCPUUsage(void) const { return m_fCPUPercent; }
@@ -62,13 +101,18 @@ public:
 	inline bool IsDedicated() const { return m_bIsDedicated; }
 	inline void SetDedicated(bool bDedicated) { m_bIsDedicated = bDedicated; }
 
-	void RejectConnection(int iSocket, netadr_t* pNetAdr, const char* pFmt, ...) const;
+	void RejectConnection(const int iSocket, const netadr_t* const pNetAdr, const char* const pFmt, ...) const;
 	static CClient* ConnectClient(CServer* pServer, user_creds_s* pChallenge);
 
 	void BroadcastMessage(CNetMessage* const msg, const bool onlyActive, const bool reliable);
 	static void RunFrame(CServer* pServer);
 
 	static bool SpawnServer(CServer* pServer, const char* pszMapName, const char* pszMapGroupName);
+
+	void ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr);
+
+	int GetOrCreateChallenge(const netpacket_t* const packet, const NucleusID_t nucleusId);
+	void ProcessC2S_Challenge(const int source, netpacket_t* const packet, bf_read* const buf, const bool encrypt);
 
 	bool ProcessConnectionlessPacketGuts(netpacket_t* const packet);
 	static bool _ProcessConnectionlessPacket(CServer* const thisptr, netpacket_t* const packet);
@@ -109,7 +153,7 @@ private:
 	CClient                       m_Clients[MAX_PLAYERS];
 	CClientSnapshot*              m_ClientSnapshots;
 	bool                          m_bIsDedicated;
-	char                          gap_2526409[36];
+	CUtlVector<ServerChallenge_s> m_ConnectionChallenges;
 	float                         m_fCPUPercent;
 	float                         m_fStartTime;
 	float                         m_fLastCPUCheckTime;
@@ -131,12 +175,9 @@ extern ConVar sv_banlistRefreshRate;
 /* ==== CSERVER ========================================================================================================================================================= */
 inline void(*CServer__RunFrame)(CServer* pServer);
 inline CClient*(*CServer__ConnectClient)(CServer* pServer, user_creds_s* pCreds);
-inline void*(*CServer__RejectConnection)(CServer* pServer, int iSocket, netadr_t* pNetAdr, const char* szMessage);
 inline void (*CServer__BroadcastMessage)(CServer* pServer, CNetMessage* const msg, const bool onlyActive, const bool reliable);
 inline bool(*CServer__SpawnServer)(CServer* pServer, const char* pszMapName, const char* pszMapGroupName);
 inline bool (*CServer__ProcessConnectionlessPacket)(CServer* pServer, netpacket_t* msg);
-inline int (*CServer__ProcessC2S_Challenge)(CServer* pServer, int source, netpacket_t* packet, bf_read* buf, const bool encrypt);
-inline void (*CServer__ProcessC2S_Connect)(CServer* pServer, bf_read* buf, netadr_t* adr);
 
 ///////////////////////////////////////////////////////////////////////////////
 class VServer : public IDetour
@@ -146,12 +187,9 @@ class VServer : public IDetour
 #ifndef CLIENT_DLL
 		LogFunAdr("CServer::RunFrame", CServer__RunFrame);
 		LogFunAdr("CServer::ConnectClient", CServer__ConnectClient);
-		LogFunAdr("CServer::RejectConnection", CServer__RejectConnection);
 		LogFunAdr("CServer::BroadcastMessage", CServer__BroadcastMessage);
 		LogFunAdr("CServer::SpawnServer", CServer__SpawnServer);
 		LogFunAdr("CServer::ProcessConnectionlessPacket", CServer__ProcessConnectionlessPacket);
-		LogFunAdr("CServer::ProcessC2S_Challenge", CServer__ProcessC2S_Challenge);
-		LogFunAdr("CServer::ProcessC2S_Connect", CServer__ProcessC2S_Connect);
 		LogVarAdr("g_Server", g_pServer);
 #endif // !CLIENT_DLL
 	}
@@ -161,12 +199,9 @@ class VServer : public IDetour
 		Module_FindPattern(g_GameDll, "40 55 57 41 55 41 57 48 8D AC 24 ?? ?? ?? ??").GetPtr(CServer__ConnectClient);
 
 		Module_FindPattern(g_GameDll, "E8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8B 0D ?? ?? ?? ?? 88 05 ?? ?? ?? ??").FollowNearCallSelf().GetPtr(CServer__RunFrame);
-		Module_FindPattern(g_GameDll, "4C 89 4C 24 ?? 53 55 56 57 48 81 EC ?? ?? ?? ?? 49 8B D9").GetPtr(CServer__RejectConnection);
 		Module_FindPattern(g_GameDll, "4C 8B DC 45 88 43 18 56").GetPtr(CServer__BroadcastMessage);
 		Module_FindPattern(g_GameDll, "48 8B C4 53 55 56 57 41 54 41 55 41 57").GetPtr(CServer__SpawnServer);
 		Module_FindPattern(g_GameDll, "48 89 54 24 ? 48 89 4C 24 ? 55 53 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 0F 10 52").GetPtr(CServer__ProcessConnectionlessPacket);
-		Module_FindPattern(g_GameDll, "48 89 5C 24 ? 4C 89 44 24 ? 89 54 24 ? 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24").GetPtr(CServer__ProcessC2S_Challenge);
-		Module_FindPattern(g_GameDll, "4C 89 44 24 ? 48 89 54 24 ? 48 89 4C 24 ? 55 53 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ? ? ? ? 48 81 EC ? ? ? ? 44 8B 4A").GetPtr(CServer__ProcessC2S_Connect);
 #endif // !CLIENT_DLL
 	}
 	virtual void GetVar(void) const
