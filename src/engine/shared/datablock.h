@@ -183,6 +183,11 @@ public:
 
 	void NextTransfer();
 
+	inline bool TransferFinished() const { return m_transferFinished; }
+
+	inline u8* GetPayloadBuffer() { return m_scratchBuffer + sizeof(Header_s); }
+	inline int GetPayloadSize() const { return m_nTransferSize; }
+
 private:
 	inline void ClearCopyStatArray() { memset(m_copiedFragments, 0, sizeof(m_copiedFragments)); };
 
