@@ -1432,6 +1432,12 @@ void CBitWrite::WriteLong(long val)
 }
 
 //-----------------------------------------------------------------------------
+void CBitWrite::WriteULong(unsigned long val)
+{
+	WriteUBitLong(val, sizeof(unsigned long) << 3);
+}
+
+//-----------------------------------------------------------------------------
 void CBitWrite::WriteLongLong(int64 val)
 {
 	uint* pLongs = (uint*)&val;
@@ -1441,6 +1447,18 @@ void CBitWrite::WriteLongLong(int64 val)
 	byte* idx = (byte*)&endianIndex;
 	WriteUBitLong(pLongs[*idx++], sizeof(long) << 3);
 	WriteUBitLong(pLongs[*idx], sizeof(long) << 3);
+}
+
+//-----------------------------------------------------------------------------
+void CBitWrite::WriteULongLong(uint64 val)
+{
+	uint* pLongs = (uint*)&val;
+
+	// Insert the two DWORDS according to network endian
+	const short endianIndex = 0x0100;
+	byte* idx = (byte*)&endianIndex;
+	WriteUBitLong(pLongs[*idx++], sizeof(unsigned long) << 3);
+	WriteUBitLong(pLongs[*idx], sizeof(unsigned long) << 3);
 }
 
 //-----------------------------------------------------------------------------

@@ -328,7 +328,9 @@ public:
 	void            WriteShort(int val);
 	void            WriteWord(int val);
 	void            WriteLong(long val);
+	void            WriteULong(unsigned long val);
 	void            WriteLongLong(int64 val);
+	void            WriteULongLong(uint64 val);
 	void            WriteFloat(float val);
 	bool            WriteBytes(const void* pBuf, int nBytes);
 
