@@ -622,10 +622,10 @@ private:
 //
 //-----------------------------------------------------------------------------
 
-class CThreadRWLock
+class CThreadRWLockUnaligned
 {
 public:
-	CThreadRWLock()
+	CThreadRWLockUnaligned()
 	{
 		InitializeSRWLock(&m_lock);
 	}
@@ -672,10 +672,15 @@ public:
 
 private:
 	// Disallow copying
-	CThreadRWLock(const CThreadRWLock&);
-	CThreadRWLock& operator=(const CThreadRWLock&);
+	CThreadRWLockUnaligned(const CThreadRWLockUnaligned&);
+	CThreadRWLockUnaligned& operator=(const CThreadRWLockUnaligned&);
 
 	SRWLOCK			m_lock;
+};
+
+class CThreadRWLock : public CThreadRWLockUnaligned
+{
+private:
 	unsigned int	m_pad[14];
 };
 
@@ -683,6 +688,7 @@ private:
 template <size_t size>	struct CAutoLockTypeDeducer {};
 template <> struct CAutoLockTypeDeducer<sizeof(CThreadMutex)> { typedef CThreadMutex Type_t; };
 template <> struct CAutoLockTypeDeducer<sizeof(CThreadFastMutex)> { typedef CThreadFastMutex Type_t; };
+template <> struct CAutoLockTypeDeducer<sizeof(CThreadRWLockUnaligned)> { typedef CThreadRWLockUnaligned Type_t; };
 template <> struct CAutoLockTypeDeducer<sizeof(CThreadRWLock)> { typedef CThreadRWLock Type_t; };
 
 #define AUTO_LOCK_( type, mutex ) \
