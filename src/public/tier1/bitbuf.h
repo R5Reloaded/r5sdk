@@ -349,6 +349,8 @@ public:
 	FORCEINLINE const char* GetDebugName()                 const { return this->m_pDebugName; }
 	FORCEINLINE void        SetDebugName(const char* pDebugName) { m_pDebugName = pDebugName; }
 
+	FORCEINLINE void SetAssertOnOverflow(bool bAssert) { m_bAssertOnOverflow = bAssert; }
+
 	// Has the buffer overflowed?
 	bool CheckForOverflow(int nBits);
 	void SetOverflowFlag();
