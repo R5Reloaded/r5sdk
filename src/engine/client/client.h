@@ -112,14 +112,14 @@ public:
 	static void CheckMSForNewAuthKey();
 	bool Authenticate(const char* const playerName, char* const reasonBuf, const size_t reasonBufLen);
 	bool Connect(const char* szName, CNetChan* pNetChan, bool bFakePlayer,
-		CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize);
+		NET_SetConVar::Vec_t* conVars, char* szMessage, int nMessageSize);
 	void Disconnect(const Reputation_t nRepLvl, const char* szReason, ...);
 	void Clear(void);
 
 public: // Hook statics:
 	static void VClear(CClient* pClient);
 	static bool VConnect(CClient* pClient, const char* szName, CNetChan* pNetChan, bool bFakePlayer,
-		CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize);
+		NET_SetConVar::Vec_t* conVars, char* szMessage, int nMessageSize);
 
 	static bool VConnectionStart(CClient* pClient, CNetChan* pChan);
 
@@ -330,7 +330,7 @@ class CClientSnapshot
 };
 
 /* ==== CBASECLIENT ===================================================================================================================================================== */
-inline bool(*CClient__Connect)(CClient* pClient, const char* szName, CNetChan* pNetChan, bool bFakePlayer, CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize);
+inline bool(*CClient__Connect)(CClient* pClient, const char* szName, CNetChan* pNetChan, bool bFakePlayer, NET_SetConVar::Vec_t* conVars, char* szMessage, int nMessageSize);
 inline bool(*CClient__Disconnect)(CClient* pClient, const Reputation_t nRepLvl, const char* szReason, ...);
 inline bool(*CClient__ConnectionStart)(CClient* pClient, CNetChan* pChan);
 inline void(*CClient__Clear)(CClient* pClient);

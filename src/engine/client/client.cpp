@@ -254,7 +254,7 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 // Output : true if connection was successful, false otherwise
 //---------------------------------------------------------------------------------
 bool CClient::Connect(const char* szName, CNetChan* pNetChan, bool bFakePlayer,
-	CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize)
+	NET_SetConVar::Vec_t* conVars, char* szMessage, int nMessageSize)
 {
 #ifndef CLIENT_DLL
 	GetClientExtended()->Reset(); // Reset extended data.
@@ -305,7 +305,7 @@ bool CClient::Connect(const char* szName, CNetChan* pNetChan, bool bFakePlayer,
 // Output : true if connection was successful, false otherwise
 //---------------------------------------------------------------------------------
 bool CClient::VConnect(CClient* pClient, const char* szName, CNetChan* pNetChan, bool bFakePlayer,
-	CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize)
+	NET_SetConVar::Vec_t* conVars, char* szMessage, int nMessageSize)
 {
 	return pClient->Connect(szName, pNetChan, bFakePlayer, conVars, szMessage, nMessageSize);
 }
@@ -550,7 +550,7 @@ bool CClient::VProcessSetConVar(CClient* pClient, NET_SetConVar* pMsg)
 	// reads and inserts up to 255 entries in the vector (reads a byte for size).
 	FOR_EACH_VEC(pMsg->m_ConVars, i)
 	{
-		const NET_SetConVar::cvar_t& entry = pMsg->m_ConVars[i];
+		const NET_SetConVar::Cvar_s& entry = pMsg->m_ConVars[i];
 		const char* const name = entry.name;
 		const char* const value = entry.value;
 

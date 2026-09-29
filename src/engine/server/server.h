@@ -8,6 +8,7 @@
 #ifndef CLIENT_DLL
 #include "vengineserver_impl.h"
 #endif // !CLIENT_DLL
+#include "../shared/oob_types.h"
 
 #define MAX_SERVER_CONNECT_CHALLENGES (1<<14)
 
@@ -17,44 +18,6 @@ enum class server_state_t
 	ss_loading,		// Spawning
 	ss_active,		// Running
 	ss_paused,		// Running, but paused
-};
-
-struct ConnectUserInfo_s
-{
-	char name[MAX_OSPATH];
-	char value[MAX_OSPATH];
-};
-
-struct user_creds_s
-{
-	netadr_t netAdr;
-	int32_t  protocolVer;
-	int32_t  challenge;
-	uint32_t reservation;
-	NucleusID_t personaId;
-	char* personaName;
-
-	const char* serverFilter;
-
-	u64 entitlements;
-	CUtlVector<u16>* balances;
-
-	bool hasOriginToken;
-	bool spectatorClient;
-	bool lowViolence;
-	bool trial;
-	bool forceEAAccess;
-	bool originTokenUnknown;
-
-	HardwareType_e platform;
-	u8 pad57;
-
-	u64 playlistCRC;
-	u64 persistenceVersion;
-	u32 persistenceCRC;
-	u32 reserved6C;
-
-	CUtlVector<ConnectUserInfo_s>* userInfo;
 };
 
 struct ServerChallenge_s

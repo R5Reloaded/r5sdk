@@ -643,13 +643,14 @@ class NET_SetConVar : public CNetMessage
 {
 public:
 
-	typedef struct cvar_s
+	struct Cvar_s
 	{
 		char	name[MAX_OSPATH];
 		char	value[MAX_OSPATH];
-	} cvar_t;
+	};
 
-	CUtlVector<cvar_t> m_ConVars;
+	typedef CUtlVector<Cvar_s> Vec_t;
+	Vec_t m_ConVars;
 };
 
 struct NET_SignonState : public CNetMessage

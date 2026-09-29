@@ -341,46 +341,6 @@ static NucleusID_t Server_ParseNucleusID(const char* const value)
 	return result;
 }
 
-static constexpr const char* s_userInfoConVarNames[] =
-{
-	"",											// #0
-	"match_partySize",							// #1
-	"match_myDatacenter",						// #2
-	"match_myRankedDatacenter",					// #3
-	"match_myBestDatacenter",					// #4
-	"match_playlist",							// #5
-	"match_partyChangeNum",						// #6
-	"cl_machineName",							// #7
-	"cl_fovScale",								// #8
-	"stryder_security",							// #9
-	"hasMic",									// #10
-	"hasPartialInstall",						// #11
-	"hasAnyAssetsWithDiscardedStreamableData",	// #12
-	"cl_isUnderAge",							// #13
-	"nucleus_id",								// #14
-	"nucleus_pid",								// #15
-	"pin_sid",									// #16
-	"match_myTeam",								// #17
-	"cl_predict",								// #18
-	"inPartyChat",								// #19
-	"match_searching",							// #20
-	"match_teamNoFill",							// #21
-	"voice_loopback",							// #22
-	"cl_lagcompensation",						// #23
-	"cl_updaterate_mp",							// #24
-	"pin_plat_id",								// #25
-	"community",								// #26
-	"net_maxroutable",							// #27
-	"match_goodReputation",						// #28
-	"match_partySub",							// #29
-	"cl_predictweapons",						// #30
-	"devnet_client_log",						// #31
-	"locationInfo",								// #32
-	"locationInfo_nucleus",						// #33
-	"net_wifi",									// #34
-	"net_minimumPacketLossDC",					// #35
-};
-
 // security_audit(kawe): helpers here since we now check far more often
 // for truncation and desync.
 
@@ -608,12 +568,12 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 		return;
 	}
 
-	CUtlVector<ConnectUserInfo_s> userInfo;
+	NET_SetConVar::Vec_t userInfo;
 	userInfo.EnsureCapacity(userInfoCount);
 
 	for (unsigned int i = 0; i < userInfoCount; ++i)
 	{
-		ConnectUserInfo_s entry = {};
+		NET_SetConVar::Cvar_s entry = {};
 		const unsigned int nameIndex = buf->ReadUBitLong(6);
 
 		if (buf->IsOverflowed())
@@ -659,7 +619,7 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 
 		for (int i = 0; i < userInfo.Count(); ++i)
 		{
-			ConnectUserInfo_s& entry = userInfo[i];
+			NET_SetConVar::Cvar_s& entry = userInfo[i];
 
 			if (strcmp(entry.name, "nucleus_id") == 0)
 			{
