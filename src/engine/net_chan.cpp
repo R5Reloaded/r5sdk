@@ -443,12 +443,13 @@ bool CNetChan::SendNetMsg(INetMessage& msg, const bool bForceReliable, const boo
 	if (pStream == &m_StreamUnreliable && pStream->GetNumBytesLeft() < NET_UNRELIABLE_STREAM_MINSIZE)
 		return true;
 
-	AcquireSRWLockExclusive(&m_Lock);
+    bool ret;
+    {
+        AUTO_LOCK(m_Lock);
 
-	pStream->WriteUBitLong(msg.GetType(), NETMSG_TYPE_BITS);
-	const bool ret = msg.WriteToBuffer(pStream);
-
-	ReleaseSRWLockExclusive(&m_Lock);
+        pStream->WriteUBitLong(msg.GetType(), NETMSG_TYPE_BITS);
+        ret = msg.WriteToBuffer(pStream);
+    }
 
 	return !pStream->IsOverflowed() && ret;
 }

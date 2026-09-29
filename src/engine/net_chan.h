@@ -180,7 +180,7 @@ public:
 
 private:
 	int                 m_nLastRecvFlags;
-	RTL_SRWLOCK         m_Lock;
+	CThreadRWLockUnaligned m_Lock;
 	bf_write            m_StreamReliable;
 	CUtlMemory<byte>    m_ReliableDataBuffer;
 	bf_write            m_StreamUnreliable;
