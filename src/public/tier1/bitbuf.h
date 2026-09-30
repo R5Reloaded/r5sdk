@@ -191,11 +191,12 @@ public:
 	// returns 0 or 1.
 	FORCEINLINE int	ReadOneBit(void);
 
-	FORCEINLINE int ReadChar(void)  { return ReadSBitLong(sizeof(char) << 3); }
-	FORCEINLINE int ReadByte(void)  { return ReadUBitLong(sizeof(unsigned char) << 3); }
-	FORCEINLINE int ReadShort(void) { return ReadSBitLong(sizeof(short) << 3); }
-	FORCEINLINE int ReadWord(void)  { return ReadUBitLong(sizeof(unsigned short) << 3); }
-	FORCEINLINE int ReadLong(void)  { return ReadUBitLong(sizeof(int32) << 3); }
+	FORCEINLINE char           ReadChar(void)  { return (char)ReadSBitLong(sizeof(char) << 3); }
+	FORCEINLINE unsigned char  ReadByte(void)  { return (unsigned char)ReadUBitLong(sizeof(unsigned char) << 3); }
+	FORCEINLINE short          ReadShort(void) { return (short)ReadSBitLong(sizeof(short) << 3); }
+	FORCEINLINE unsigned short ReadWord(void)  { return (unsigned short)ReadUBitLong(sizeof(unsigned short) << 3); }
+	FORCEINLINE long           ReadLong(void)  { return (long)ReadUBitLong(sizeof(long) << 3); }
+
 	FORCEINLINE float ReadFloat(void)
 	{
 		uint32 nUval = ReadUBitLong(sizeof(int32) << 3);
@@ -203,7 +204,8 @@ public:
 	}
 
 	// reads a signed 64-bit integer from the buffer
-	int64           ReadLongLong(void);
+	long long          ReadLongLong(void);
+	unsigned long long ReadULongLong(void);
 
 	// reads a varint encoded integer
 	uint32          ReadVarInt32();
@@ -323,14 +325,14 @@ public:
 	void            WriteBitAngles(const QAngle& fa);
 
 	// byte functions
-	void            WriteChar(int val);
-	void            WriteByte(int val);
-	void            WriteShort(int val);
-	void            WriteWord(int val);
+	void            WriteChar(char val);
+	void            WriteByte(unsigned char val);
+	void            WriteShort(short val);
+	void            WriteWord(unsigned short val);
 	void            WriteLong(long val);
 	void            WriteULong(unsigned long val);
-	void            WriteLongLong(int64 val);
-	void            WriteULongLong(uint64 val);
+	void            WriteLongLong(long long val);
+	void            WriteULongLong(unsigned long long val);
 	void            WriteFloat(float val);
 	bool            WriteBytes(const void* pBuf, int nBytes);
 
