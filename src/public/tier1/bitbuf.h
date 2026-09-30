@@ -196,6 +196,7 @@ public:
 	FORCEINLINE short          ReadShort(void) { return (short)ReadSBitLong(sizeof(short) << 3); }
 	FORCEINLINE unsigned short ReadWord(void)  { return (unsigned short)ReadUBitLong(sizeof(unsigned short) << 3); }
 	FORCEINLINE long           ReadLong(void)  { return (long)ReadUBitLong(sizeof(long) << 3); }
+	FORCEINLINE unsigned long  ReadULong(void) { return (unsigned long)ReadUBitLong(sizeof(unsigned long) << 3); }
 
 	FORCEINLINE float ReadFloat(void)
 	{
