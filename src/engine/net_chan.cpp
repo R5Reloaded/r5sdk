@@ -516,7 +516,15 @@ bool CNetChan::SendSubChannelData(bf_write& buf)
 				buf.WriteUBitLong(static_cast<u32>(fragment->size), NET_RELIABLE_FRAGMENT_SIZE_BITS);
 		}
 
-		buf.WriteBits(fragment->buffer, static_cast<int>(fragment->size * 8));
+		const int bitPos = buf.GetNumBitsWritten();
+
+		if (!buf.WriteBytes(fragment->buffer, static_cast<int>(fragment->size)))
+		{
+			buf.SeekToBit(bitPos);
+			m_MessageHandler->ChannelDisconnect("#DISCONNECT_SEND_RELIABLE_OVERFLOW");
+
+			return false;
+		}
 
 		if (!fragment->isSent)
 		{
