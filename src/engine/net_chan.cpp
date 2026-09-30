@@ -545,24 +545,59 @@ bool CNetChan::SendSubChannelData(bf_write& buf)
 //-----------------------------------------------------------------------------
 bool CNetChan::ReadSubChannelData(bf_read& buf)
 {
+	// security_audit(kawe): check for stream overflow more often as packet
+	// truncation is possible!
+#define CHECK_BUF_OVERFLOW(component) \
+	if (buf.IsOverflowed()) \
+	{ \
+		DevWarning(eDLL_T::ENGINE, "%s(%s): Overflow while reading component \"%s\" of reliable message !!!\n", \
+					__FUNCTION__, GetAddress(), component); \
+		return false; \
+	}
+
+#define ERROR_AND_RETURN(reason) \
+	do \
+	{ \
+		DevWarning(eDLL_T::ENGINE, "%s(%s): Failed to read reliable message: %s !!!\n", \
+					__FUNCTION__, GetAddress(), reason); \
+		return false; \
+	} while (0)
+	//-------------------------------------------------------------------------
+
 	m_bInReliableState = true;
 
 	//-------------------------------------------------------------------------
 	// Subchannel header
 	//-------------------------------------------------------------------------
-	buf.ReadULong(); // NET_RELIABLE_HEADER_MAGIC
-	buf.ReadULong(); // remote m_nSubOutFragmentsAck
-
+	const u32 headerMagic = buf.ReadULong();
+	const u32 remoteFragmentAck = buf.ReadULong();
 	const unsigned int fragmentAck = buf.ReadUBitLong(NET_RELIABLE_FRAGMENT_SERIAL_BITS);
+
+	CHECK_BUF_OVERFLOW("header"); // trunc!
+
+	if (headerMagic != NET_RELIABLE_HEADER_MAGIC)
+		ERROR_AND_RETURN("unrecognized header");
+
+	// security_audit(kawe): both values originate from the same remote
+	// fragment counter, so mismatching low bits indicate malformed hdr.
+	if ((remoteFragmentAck & NET_RELIABLE_FRAGMENT_SERIAL_MASK) != fragmentAck)
+		ERROR_AND_RETURN("fragment ack mismatch");
 
 	// Nonce sync.
 	if (!fragmentAck)
 	{
 		const bool hasNonce = buf.ReadOneBit() != 0;
+		CHECK_BUF_OVERFLOW("hasNonce");
+
+		// security_audit(kawe): a nonce is only sent when the full fragment
+		// counter is 0; low-bit wraps must not start another nonce exchange.
+		if (hasNonce != (remoteFragmentAck == 0))
+			ERROR_AND_RETURN("invalid nonce state");
 
 		if (hasNonce)
 		{
-			const uint32_t nonceRemote = buf.ReadUBitLong(32);
+			const u32 nonceRemote = buf.ReadULong();
+			CHECK_BUF_OVERFLOW("nonceRemote");
 
 			if (nonceRemote != m_nNonceRemote)
 			{
@@ -571,22 +606,27 @@ bool CNetChan::ReadSubChannelData(bf_read& buf)
 				m_bInReliableState = false;
 				m_nSubInFragments = 0;
 
-                m_bPendingRemoteNonceAck = true;
+				m_bPendingRemoteNonceAck = true;
 				FreeReceiveList();
 			}
 		}
-        else
-        {
-            m_bPendingRemoteNonceAck = false;
-        }
+		else
+		{
+			m_bPendingRemoteNonceAck = false;
+		}
 	}
-    else
-    {
-        m_bPendingRemoteNonceAck = false;
-    }
+	else
+	{
+		m_bPendingRemoteNonceAck = false;
+	}
 
-    // Count retransmitted fragments. Until the remote nonce is known, 
-    // fragments are only consumed and discarded
+	// security_audit(kawe): a resident transfer requires at least one
+	// fragment accepted since the current nonce.
+	if (m_bReceivedRemoteNonce && !m_nSubInFragments && m_ReceiveList.buffer)
+		ERROR_AND_RETURN("invalid receive state");
+
+	// Count retransmitted fragments. Until the remote nonce is known,
+	// fragments are only consumed and discarded
 	int fragmentsRemaining = INT_MAX;
 
 	if (m_bReceivedRemoteNonce)
@@ -595,57 +635,101 @@ bool CNetChan::ReadSubChannelData(bf_read& buf)
 
 		if (fragmentsRemaining < 0)
 			fragmentsRemaining += NET_RELIABLE_FRAGMENT_SERIAL_COUNT;
+
+		// security_audit(kawe): retransmits cannot exceed accepted fragments;
+		// reject before full counter reconstruction to avoid unsigned wrap.
+		if (fragmentsRemaining > m_nSubInFragments)
+			ERROR_AND_RETURN("invalid retransmit count");
+
+		// security_audit(kawe): reconstruct the full fragment counter from the
+		// low-bit ack and local receive state, anf require the same generation.
+		const u32 expectedRemoteFragmentAck = static_cast<u32>(m_nSubInFragments) - static_cast<u32>(fragmentsRemaining);
+
+		if (remoteFragmentAck != expectedRemoteFragmentAck)
+			ERROR_AND_RETURN("fragment ack generation mismatch");
 	}
+
+	unsigned int fragmentCount = 0;
 
 	for (;;)
 	{
+		// security_audit(kawe): SendSubChannelData(...) cannot place more than
+		// NET_RELIABLE_FRAGMENT_SERIAL_MASK fragments in one subchannel packet.
+		if (fragmentCount >= NET_RELIABLE_FRAGMENT_SERIAL_MASK)
+			ERROR_AND_RETURN("fragment serial overflow");
+
 		const u32 fragmentSerial = buf.ReadULong();
+		CHECK_BUF_OVERFLOW("fragmentSerial");
+
+		// security_audit(kawe): fragment serials must be contiguous, the expected
+		// serial is derived from the ack'd fragment serial + this fragment's index
+		// within subchannel payload.
+		const u32 expectedFragmentSerial = remoteFragmentAck + static_cast<u32>(fragmentCount);
+
+		if (fragmentSerial != expectedFragmentSerial)
+			ERROR_AND_RETURN("fragment serial mismatch");
+
+		++fragmentCount;
 
 		int fragmentBytes = NET_MAX_RELIABLE_FRAGMENT_SIZE;
 		const bool firstFragment = buf.ReadOneBit() != 0;
 
-        bool isCompressed = false;
-        bool lastFragment = false;
-        int uncompressedSize = -1;
-        int transferSize = -1;
+		bool isCompressed = false;
+		bool lastFragment = false;
+		int uncompressedSize = -1;
+		int transferSize = -1;
 
-        if (firstFragment)
-        {
-            // A new transfer cannot begin while the previous one is still pending.
-            if (!fragmentsRemaining && m_ReceiveList.buffer)
-            {
-                return false;
-            }
+		if (firstFragment)
+		{
+			// A new transfer cannot begin while the previous one is still pending.
+			if (!fragmentsRemaining && m_ReceiveList.buffer)
+				ERROR_AND_RETURN("new transfer while previous transfer pending");
 
-            transferSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_TRANSFER_SIZE_BITS));
+			transferSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_TRANSFER_SIZE_BITS));
 
-            if (transferSize > NET_MAX_PAYLOAD)
-                return false;
+			// security_audit(kawe): a 0 sized transfer cannot contain a
+			// fragment and would create inconsistent receive state.
+			if (transferSize <= 0 || transferSize > NET_MAX_PAYLOAD)
+				ERROR_AND_RETURN("invalid transfer size");
 
-            lastFragment = transferSize <= NET_MAX_RELIABLE_FRAGMENT_SIZE;
+			lastFragment = transferSize <= NET_MAX_RELIABLE_FRAGMENT_SIZE;
 
-            if (transferSize < fragmentBytes)
-                fragmentBytes = transferSize;
+			if (transferSize < fragmentBytes)
+				fragmentBytes = transferSize;
 
-            isCompressed = buf.ReadOneBit() != 0;
+			isCompressed = buf.ReadOneBit() != 0;
 
-            if (isCompressed)
-                uncompressedSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_UNCOMPRESSED_SIZE_BITS));
-        }
-        else
-        {
-            lastFragment = buf.ReadOneBit() != 0;
+			if (isCompressed)
+			{
+				uncompressedSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_UNCOMPRESSED_SIZE_BITS));
 
-            if (lastFragment)
-                fragmentBytes = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_FRAGMENT_SIZE_BITS));
-        }
+				// security_audit(kawe): compressed size metadata is entirely
+				// network controlled and is later used as an allocation size!
+				if (uncompressedSize <= 0 || uncompressedSize > NET_MAX_PAYLOAD)
+					ERROR_AND_RETURN("invalid uncompressed size");
+			}
+		}
+		else
+		{
+			lastFragment = buf.ReadOneBit() != 0;
+
+			if (lastFragment)
+				fragmentBytes = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_FRAGMENT_SIZE_BITS));
+		}
+
+		// security_audit(kawe): the networked last fragment size is wider
+		// than the maximum reliable fragment size (stack BOF).
+		if (fragmentBytes <= 0 || fragmentBytes > NET_MAX_RELIABLE_FRAGMENT_SIZE)
+			ERROR_AND_RETURN("invalid fragment size");
+
+		CHECK_BUF_OVERFLOW("fragmentDescriptor");
 
 		if (net_showfragments->GetBool())
 		{
 			const char* state = "";
 
 			if (firstFragment && lastFragment)
-				state = ", single";
+				state = ", first, last";
 			else if (firstFragment)
 				state = ", first";
 			else if (lastFragment)
@@ -666,12 +750,54 @@ bool CNetChan::ReadSubChannelData(bf_read& buf)
 		if (fragmentsRemaining)
 		{
 			char packetBuffer[NET_MAX_RELIABLE_FRAGMENT_SIZE];
-			buf.ReadBits(packetBuffer, fragmentBytes * 8);
+			buf.ReadBytes(packetBuffer, fragmentBytes);
 
+			CHECK_BUF_OVERFLOW("discardedFragmentData");
 			--fragmentsRemaining;
 		}
 		else // Begin a new transfer
 		{
+			// security_audit(kawe): continuation fragments are valid only for
+			// an active transfer established by a preceding first fragment.
+			if (!firstFragment && !m_ReceiveList.buffer)
+				ERROR_AND_RETURN("continuation without active transfer");
+
+			const int currentOffset = firstFragment ? 0 : m_ReceiveList.currentOffset;
+			const int currentTransferSize = firstFragment ? transferSize : m_ReceiveList.transferSize;
+
+			// security_audit(kawe): avoid relying on addition of networked
+			// lengths when checking destination buffer bounds.
+			if (currentOffset < 0 ||
+				currentOffset > currentTransferSize ||
+				fragmentBytes > currentTransferSize - currentOffset)
+			{
+				ERROR_AND_RETURN("fragment exceeds transfer bounds");
+			}
+
+			if (!firstFragment)
+			{
+				const int bytesRemaining = currentTransferSize - currentOffset;
+
+				// security_audit(kawe): the sender marks the fragment as last
+				// exactly when it carries all remaining transfer bytes.
+				if (lastFragment)
+				{
+					if (fragmentBytes != bytesRemaining)
+						ERROR_AND_RETURN("invalid last fragment size");
+				}
+				else if (bytesRemaining <= NET_MAX_RELIABLE_FRAGMENT_SIZE)
+				{
+					ERROR_AND_RETURN("missing last fragment marker");
+				}
+			}
+
+			// security_audit(kawe): stage the fragment before modifying receive
+			// state so truncation cannot leave a partial transfer or advance state.
+			char packetBuffer[NET_MAX_RELIABLE_FRAGMENT_SIZE];
+			buf.ReadBytes(packetBuffer, fragmentBytes);
+
+			CHECK_BUF_OVERFLOW("fragmentData");
+
 			if (firstFragment)
 			{
 				m_ReceiveList.size = transferSize;
@@ -684,12 +810,7 @@ bool CNetChan::ReadSubChannelData(bf_read& buf)
 				m_ReceiveList.isCompressed = isCompressed;
 			}
 
-			const int currentOffset = m_ReceiveList.currentOffset;
-
-			if (currentOffset + fragmentBytes > m_ReceiveList.transferSize)
-				return false;
-
-			buf.ReadBits(&m_ReceiveList.buffer[currentOffset], fragmentBytes * 8);
+			memcpy(&m_ReceiveList.buffer[currentOffset], packetBuffer, static_cast<size_t>(fragmentBytes));
 
 			m_ReceiveList.currentOffset += fragmentBytes;
 			++m_nSubInFragments;
@@ -701,29 +822,56 @@ bool CNetChan::ReadSubChannelData(bf_read& buf)
 
 				if (m_ReceiveList.isCompressed)
 				{
-					dataSize = m_ReceiveList.uncompressedSize;
+					// security_audit(kawe): compressed size metadata is network controlled,
+					// max size uncompressed (as set by CNetChan::Setup) is NET_MAX_PAYLOAD!
+					if (m_ReceiveList.size <= sizeof(lzss_header_t) ||
+						m_ReceiveList.uncompressedSize == 0 ||
+						m_ReceiveList.uncompressedSize > NET_MAX_PAYLOAD)
+					{
+						ERROR_AND_RETURN("invalid compressed transfer metadata");
+					}
+
+					// security_audit(kawe): NET_BufferToBufferCompress only selects
+					// compression when the compressed transfer fits within original
+					// reliable payload.
+					if (m_ReceiveList.size > m_ReceiveList.uncompressedSize)
+						ERROR_AND_RETURN("compressed transfer larger than original");
+
+					unsigned char* const compressedData = reinterpret_cast<unsigned char*>(m_ReceiveList.buffer);
+
+					CLZSS lzss;
+
+					// security_audit(kawe): the compression flag must describe a valid
+					// LZSS stream; malformed data must not fall back to uncompressed!
+					if (!lzss.IsCompressed(compressedData))
+						ERROR_AND_RETURN("invalid LZSS header");
+
+					const unsigned int actualSize = lzss.GetActualSize(compressedData);
+
+					// security_audit(kawe): require the LZSS header, metadata and payload
+					// limit to agree before allocating the decompressed buffer.
+					if (!actualSize ||
+						actualSize != static_cast<u32>(m_ReceiveList.uncompressedSize) ||
+						actualSize > static_cast<u32>(NET_MAX_PAYLOAD))
+					{
+						ERROR_AND_RETURN("invalid LZSS decompressed size");
+					}
+
+					dataSize = actualSize;
 
 					const size_t allocationSize = PAD_NUMBER(dataSize, 4);
 					char* const uncompressedData = new char[allocationSize];
 
-					unsigned char* const compressedData = reinterpret_cast<unsigned char*>(m_ReceiveList.buffer);
 					unsigned char* const outputData = reinterpret_cast<unsigned char*>(uncompressedData);
+					const size_t decompressedSize = lzss.SafeUncompress(compressedData, outputData, static_cast<u32>(dataSize));
 
-					CLZSS lzss;
-
-					if (lzss.IsCompressed(compressedData))
+					if (decompressedSize != actualSize)
 					{
-						const unsigned int actualSize = lzss.GetActualSize(compressedData);
-
-						if (actualSize <= dataSize)
-							dataSize = lzss.SafeUncompress(compressedData, outputData, static_cast<u32>(dataSize));
-					}
-					else if (m_ReceiveList.size <= dataSize)
-					{
-						memcpy(uncompressedData, m_ReceiveList.buffer, m_ReceiveList.size);
-						dataSize = m_ReceiveList.size;
+						delete[] uncompressedData;
+						ERROR_AND_RETURN("LZSS decompression size mismatch");
 					}
 
+					dataSize = decompressedSize;
 					delete[] m_ReceiveList.buffer;
 
 					m_ReceiveList.buffer = uncompressedData;
@@ -736,20 +884,24 @@ bool CNetChan::ReadSubChannelData(bf_read& buf)
 				}
 
 				bf_read messageBuffer(m_ReceiveList.buffer, static_cast<int>(dataSize));
-
+				
 				if (!ProcessMessages(&messageBuffer))
-					return false;
+					ERROR_AND_RETURN("reliable message processing failed");
 
 				FreeReceiveList();
 			}
 		}
 
 		// Another fragment follows?
-		if (!buf.ReadOneBit())
-		{
+		const bool hasMoreFragments = buf.ReadOneBit() != 0;
+		CHECK_BUF_OVERFLOW("hasMoreFragments");
+
+		if (!hasMoreFragments)
 			return true;
-		}
 	}
+
+#undef ERROR_AND_RETURN
+#undef CHECK_BUF_OVERFLOW
 }
 
 //-----------------------------------------------------------------------------
