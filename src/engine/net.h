@@ -13,8 +13,6 @@ constexpr const char DEFAULT_NET_ENCRYPTION_KEY[AES_128_B64_ENCODED_SIZE+1] = "W
 #define MAX_RATE		1000000000
 
 #define MAX_STREAMS         2
-#define FRAGMENT_BITS       8
-#define FRAGMENT_SIZE       (1<<FRAGMENT_BITS)
 
 // user message
 #define MAX_USER_MSG_DATA 511 // <-- 255 in Valve Source.

@@ -414,10 +414,289 @@ bool CNetChan::ProcessMessages(bf_read* buf)
     }
 }
 
+bool CNetChan::_SendSubChannelData(CNetChan* pChan, bf_write* buf)
+{
+	return pChan->SendSubChannelData(*buf);
+}
+
+bool CNetChan::_ReadSubChannelData(CNetChan* pChan, bf_read* buf)
+{
+	return pChan->ReadSubChannelData(*buf);
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: writes pending reliable fragment data to the subchannel
+// Input  : &buf -
+// Output : true on success, false otherwise
+//-----------------------------------------------------------------------------
+bool CNetChan::SendSubChannelData(bf_write& buf)
+{
+	if (m_bShuttingDown)
+		return false;
+
+	int fragmentCount = m_WaitingList.Count();
+
+	if (!fragmentCount)
+		return false;
+
+	//-------------------------------------------------------------------------
+	// Subchannel header
+	//-------------------------------------------------------------------------
+	buf.WriteULong(NET_RELIABLE_HEADER_MAGIC);
+    buf.WriteULong(m_nSubOutFragmentsAck);
+
+	const unsigned int fragmentAck = static_cast<u32>(m_nSubOutFragmentsAck) & NET_RELIABLE_FRAGMENT_SERIAL_MASK;
+	buf.WriteUBitLong(fragmentAck, NET_RELIABLE_FRAGMENT_SERIAL_BITS);
+
+	if (!fragmentAck) // Also used to carry the initial nonce.
+	{
+		const bool hasNonce = m_nSubOutFragmentsAck == 0;
+		buf.WriteOneBit(hasNonce);
+
+		if (hasNonce)
+			buf.WriteULong(m_nNonceHost);
+	}
+
+	m_nSubOutSequenceNr = m_nOutSequenceNr;
+
+	if (fragmentCount > NET_RELIABLE_FRAGMENT_SERIAL_MASK)
+		fragmentCount = NET_RELIABLE_FRAGMENT_SERIAL_MASK;
+
+	//-------------------------------------------------------------------------
+	// Fragment data
+	//-------------------------------------------------------------------------
+	for (int i = 0; i < fragmentCount; ++i)
+	{
+		dataFragments_t* const fragment = m_WaitingList[i];
+
+		// Every fragment after the first is preceded by a continuation bit
+		if (i)
+			buf.WriteOneBit(true);
+
+		buf.WriteULong(static_cast<u32>(m_nSubOutFragmentsAck + i));
+		buf.WriteOneBit(fragment->firstFragment);
+
+		if (fragment->firstFragment)
+		{
+			// First fragment describes the complete transfer
+			buf.WriteUBitLong(static_cast<u32>(fragment->transferSize),	NET_RELIABLE_TRANSFER_SIZE_BITS);
+			buf.WriteOneBit(fragment->isCompressed);
+
+			if (fragment->isCompressed)
+				buf.WriteUBitLong(static_cast<u32>(fragment->uncompressedSize),	NET_RELIABLE_UNCOMPRESSED_SIZE_BITS);
+		}
+		else
+		{
+			buf.WriteOneBit(fragment->lastFragment);
+
+            // Only last fragment can transmit its actual size.
+			if (fragment->lastFragment)
+				buf.WriteUBitLong(static_cast<u32>(fragment->size), NET_RELIABLE_FRAGMENT_SIZE_BITS);
+		}
+
+		buf.WriteBits(fragment->buffer, static_cast<int>(fragment->size * 8));
+
+		if (!fragment->isSent)
+		{
+			fragment->isSent = true;
+			fragment->sendSeqNr = m_nOutSequenceNr;
+		}
+	}
+
+	// No more fragments follow
+	buf.WriteOneBit(false);
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: reads reliable fragment data from the subchannel
+// Input  : &buf -
+// Output : true on success, false otherwise
+//-----------------------------------------------------------------------------
 bool CNetChan::ReadSubChannelData(bf_read& buf)
 {
-    // TODO: rebuild this and hook
-    return false;
+	m_bInReliableState = true;
+
+	//-------------------------------------------------------------------------
+	// Subchannel header
+	//-------------------------------------------------------------------------
+	buf.ReadULong(); // NET_RELIABLE_HEADER_MAGIC
+	buf.ReadULong(); // remote m_nSubOutFragmentsAck
+
+	const unsigned int fragmentAck = buf.ReadUBitLong(NET_RELIABLE_FRAGMENT_SERIAL_BITS);
+
+	// Nonce sync.
+	if (!fragmentAck)
+	{
+		const bool hasNonce = buf.ReadOneBit() != 0;
+
+		if (hasNonce)
+		{
+			const uint32_t nonceRemote = buf.ReadUBitLong(32);
+
+			if (nonceRemote != m_nNonceRemote)
+			{
+				m_nNonceRemote = nonceRemote;
+				m_bReceivedRemoteNonce = true;
+				m_bInReliableState = false;
+				m_nSubInFragments = 0;
+
+                m_bPendingRemoteNonceAck = true;
+				FreeReceiveList();
+			}
+		}
+        else
+        {
+            m_bPendingRemoteNonceAck = false;
+        }
+	}
+    else
+    {
+        m_bPendingRemoteNonceAck = false;
+    }
+
+    // Count retransmitted fragments. Until the remote nonce is known, 
+    // fragments are only consumed and discarded
+	int fragmentsRemaining = INT_MAX;
+
+	if (m_bReceivedRemoteNonce)
+	{
+		fragmentsRemaining = (m_nSubInFragments & NET_RELIABLE_FRAGMENT_SERIAL_MASK) - static_cast<int>(fragmentAck);
+
+		if (fragmentsRemaining < 0)
+			fragmentsRemaining += NET_RELIABLE_FRAGMENT_SERIAL_COUNT;
+	}
+
+	for (;;)
+	{
+		buf.ReadLong(); // Sender writes m_nSubOutFragmentsAck + fragment here
+
+		int fragmentBytes = NET_MAX_RELIABLE_FRAGMENT_SIZE;
+		const bool firstFragment = buf.ReadOneBit() != 0;
+
+		bool isCompressed = false;
+		int uncompressedSize = -1;
+		int transferSize = -1;
+
+		if (firstFragment)
+		{
+			// A new transfer cannot begin while the previous one is still pending.
+			if (!fragmentsRemaining && m_ReceiveList.buffer)
+			{
+				return false;
+			}
+
+			transferSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_TRANSFER_SIZE_BITS));
+
+			if (transferSize > NET_MAX_PAYLOAD)
+				return false;
+
+			if (transferSize < fragmentBytes)
+				fragmentBytes = transferSize;
+
+			isCompressed = buf.ReadOneBit() != 0;
+
+			if (isCompressed)
+				uncompressedSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_UNCOMPRESSED_SIZE_BITS));
+		}
+		else
+		{
+			const bool lastFragment = buf.ReadOneBit() != 0;
+
+			if (lastFragment)
+				fragmentBytes = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_FRAGMENT_SIZE_BITS));
+		}
+
+		//---------------------------------------------------------------------
+		// Retransmitted fragment
+		//---------------------------------------------------------------------
+		if (fragmentsRemaining)
+		{
+			char packetBuffer[NET_MAX_RELIABLE_FRAGMENT_SIZE];
+			buf.ReadBits(packetBuffer, fragmentBytes * 8);
+
+			--fragmentsRemaining;
+		}
+		else // Begin a new transfer
+		{
+			if (firstFragment)
+			{
+				m_ReceiveList.size = transferSize;
+				m_ReceiveList.transferSize = transferSize;
+				m_ReceiveList.currentOffset = 0;
+
+				m_ReceiveList.buffer = new char[static_cast<size_t>(transferSize)];
+
+				m_ReceiveList.uncompressedSize = uncompressedSize;
+				m_ReceiveList.isCompressed = isCompressed;
+			}
+
+			const int currentOffset = m_ReceiveList.currentOffset;
+
+			if (currentOffset + fragmentBytes > m_ReceiveList.transferSize)
+				return false;
+
+			buf.ReadBits(&m_ReceiveList.buffer[currentOffset], fragmentBytes * 8);
+
+			m_ReceiveList.currentOffset += fragmentBytes;
+			++m_nSubInFragments;
+
+			// Complete transfer.
+			if (m_ReceiveList.currentOffset == m_ReceiveList.transferSize)
+			{
+				size_t dataSize;
+
+				if (m_ReceiveList.isCompressed)
+				{
+					dataSize = m_ReceiveList.uncompressedSize;
+
+					const size_t allocationSize = PAD_NUMBER(dataSize, 4);
+					char* const uncompressedData = new char[allocationSize];
+
+					unsigned char* const compressedData = reinterpret_cast<unsigned char*>(m_ReceiveList.buffer);
+					unsigned char* const outputData = reinterpret_cast<unsigned char*>(uncompressedData);
+
+					CLZSS lzss;
+
+					if (lzss.IsCompressed(compressedData))
+					{
+						const unsigned int actualSize = lzss.GetActualSize(compressedData);
+
+						if (actualSize <= dataSize)
+							dataSize = lzss.SafeUncompress(compressedData, outputData, static_cast<u32>(dataSize));
+					}
+					else if (m_ReceiveList.size <= dataSize)
+					{
+						memcpy(uncompressedData, m_ReceiveList.buffer, m_ReceiveList.size);
+						dataSize = m_ReceiveList.size;
+					}
+
+					delete[] m_ReceiveList.buffer;
+
+					m_ReceiveList.buffer = uncompressedData;
+					m_ReceiveList.size = dataSize;
+					m_ReceiveList.isCompressed = false;
+				}
+				else
+				{
+					dataSize = m_ReceiveList.size;
+				}
+
+				bf_read messageBuffer(m_ReceiveList.buffer, static_cast<int>(dataSize));
+
+				if (!ProcessMessages(&messageBuffer))
+					return false;
+
+				FreeReceiveList();
+			}
+		}
+
+		// Another fragment follows?
+		if (!buf.ReadOneBit())
+		{
+			return true;
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -542,11 +821,11 @@ bool CNetChan::RegisterMessage(INetMessage* msg)
 //-----------------------------------------------------------------------------
 void CNetChan::FreeReceiveList()
 {
-    m_ReceiveList.blockSize = NULL;
+    m_ReceiveList.size = NULL;
     m_ReceiveList.transferSize = NULL;
     if (m_ReceiveList.buffer)
     {
-        delete m_ReceiveList.buffer;
+        delete [] m_ReceiveList.buffer;
         m_ReceiveList.buffer = nullptr;
     }
 }
@@ -574,4 +853,6 @@ void VNetChan::Detour(const bool bAttach) const
 	DetourSetup(&CNetChan__Shutdown, &CNetChan::_Shutdown, bAttach);
 	DetourSetup(&CNetChan__FlowNewPacket, &CNetChan::_FlowNewPacket, bAttach);
 	DetourSetup(&CNetChan__ProcessMessages, &CNetChan::_ProcessMessages, bAttach);
+	DetourSetup(&CNetChan__SendSubChannelData, &CNetChan::_SendSubChannelData, bAttach);
+	DetourSetup(&CNetChan__ReadSubChannelData, &CNetChan::_ReadSubChannelData, bAttach);
 }
