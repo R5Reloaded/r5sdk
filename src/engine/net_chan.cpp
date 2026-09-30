@@ -473,6 +473,28 @@ bool CNetChan::SendSubChannelData(bf_write& buf)
 		if (i)
 			buf.WriteOneBit(true);
 
+        if (net_showfragments->GetBool())
+        {
+            const char* state = "";
+
+            if (fragment->firstFragment && fragment->lastFragment)
+                state = ", single";
+            else if (fragment->firstFragment)
+                state = ", first";
+            else if (fragment->lastFragment)
+                state = ", last";
+
+            Msg(eDLL_T::ENGINE, "%s(%s): Reliable fragment #%u (%i bytes, %i/%i, seq %i%s%s)\n",
+                __FUNCTION__, GetAddress(),
+                static_cast<u32>(m_nSubOutFragmentsAck + i),
+                static_cast<int>(fragment->size),
+                i + 1,
+                fragmentCount,
+                m_nOutSequenceNr,
+                state,
+                fragment->isCompressed ? ", compressed" : "");
+        }
+
 		buf.WriteULong(static_cast<u32>(m_nSubOutFragmentsAck + i));
 		buf.WriteOneBit(fragment->firstFragment);
 
@@ -569,42 +591,65 @@ bool CNetChan::ReadSubChannelData(bf_read& buf)
 
 	for (;;)
 	{
-		buf.ReadLong(); // Sender writes m_nSubOutFragmentsAck + fragment here
+		const u32 fragmentSerial = buf.ReadULong();
 
 		int fragmentBytes = NET_MAX_RELIABLE_FRAGMENT_SIZE;
 		const bool firstFragment = buf.ReadOneBit() != 0;
 
-		bool isCompressed = false;
-		int uncompressedSize = -1;
-		int transferSize = -1;
+        bool isCompressed = false;
+        bool lastFragment = false;
+        int uncompressedSize = -1;
+        int transferSize = -1;
 
-		if (firstFragment)
+        if (firstFragment)
+        {
+            // A new transfer cannot begin while the previous one is still pending.
+            if (!fragmentsRemaining && m_ReceiveList.buffer)
+            {
+                return false;
+            }
+
+            transferSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_TRANSFER_SIZE_BITS));
+
+            if (transferSize > NET_MAX_PAYLOAD)
+                return false;
+
+            lastFragment = transferSize <= NET_MAX_RELIABLE_FRAGMENT_SIZE;
+
+            if (transferSize < fragmentBytes)
+                fragmentBytes = transferSize;
+
+            isCompressed = buf.ReadOneBit() != 0;
+
+            if (isCompressed)
+                uncompressedSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_UNCOMPRESSED_SIZE_BITS));
+        }
+        else
+        {
+            lastFragment = buf.ReadOneBit() != 0;
+
+            if (lastFragment)
+                fragmentBytes = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_FRAGMENT_SIZE_BITS));
+        }
+
+		if (net_showfragments->GetBool())
 		{
-			// A new transfer cannot begin while the previous one is still pending.
-			if (!fragmentsRemaining && m_ReceiveList.buffer)
-			{
-				return false;
-			}
+			const char* state = "";
 
-			transferSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_TRANSFER_SIZE_BITS));
+			if (firstFragment && lastFragment)
+				state = ", single";
+			else if (firstFragment)
+				state = ", first";
+			else if (lastFragment)
+				state = ", last";
 
-			if (transferSize > NET_MAX_PAYLOAD)
-				return false;
-
-			if (transferSize < fragmentBytes)
-				fragmentBytes = transferSize;
-
-			isCompressed = buf.ReadOneBit() != 0;
-
-			if (isCompressed)
-				uncompressedSize = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_UNCOMPRESSED_SIZE_BITS));
-		}
-		else
-		{
-			const bool lastFragment = buf.ReadOneBit() != 0;
-
-			if (lastFragment)
-				fragmentBytes = static_cast<int>(buf.ReadUBitLong(NET_RELIABLE_FRAGMENT_SIZE_BITS));
+			Msg(eDLL_T::ENGINE, "%s(%s): Reliable fragment #%u (%i bytes%s%s%s)\n",
+				__FUNCTION__, GetAddress(),
+				fragmentSerial,
+				fragmentBytes,
+				state,
+				isCompressed ? ", compressed" : "",
+				fragmentsRemaining ? ", retransmitted" : "");
 		}
 
 		//---------------------------------------------------------------------

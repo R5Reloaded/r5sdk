@@ -163,6 +163,8 @@ ConVar* fs_showAllReads                    = nullptr;
 //-----------------------------------------------------------------------------
 // NETCHANNEL                                                                 |
 ConVar* net_usesocketsforloopback;
+ConVar* net_showfragments;
+
 ConVar* net_data_block_enabled             = nullptr;
 ConVar* net_debugDataBlockSender           = nullptr;
 ConVar* net_debugDataBlockReceiver         = nullptr;
@@ -297,6 +299,7 @@ void ConVar_InitShipped(void)
 	net_datablock_fastRate           = g_pCVar->FindVar("net_datablock_fastRate");
 
 	net_usesocketsforloopback        = g_pCVar->FindVar("net_usesocketsforloopback");
+	net_showfragments                = g_pCVar->FindVar("net_showfragments");
 
 	net_showmsg = g_pCVar->FindVar("net_showmsg");
 	net_blockmsg = g_pCVar->FindVar("net_blockmsg");

@@ -149,6 +149,7 @@ extern ConVar* fs_showAllReads;
 //-------------------------------------------------------------------------
 // NETCHANNEL                                                             |
 extern ConVar* net_usesocketsforloopback;
+extern ConVar* net_showfragments;
 
 extern ConVar* net_data_block_enabled;
 extern ConVar* net_debugDataBlockSender;
