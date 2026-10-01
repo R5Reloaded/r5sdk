@@ -364,6 +364,45 @@ unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutpu
 	return totalBytes;
 }
 
+/*
+* note(kawe): while I was auditing the reliable channel of the network stack,
+* I found an issue inside SafeUncompress() where the algorithm would read past
+* the end of the input buffer. The reason for this is because code expects a
+* count==1 sentinel at the end of the buffer. Simply omitting this sentinel
+* will have it read past it! Run this POC with skipSentinel=true on the
+* original implementation to see the buffer overrun. (Enable ASAN to see more!)
+* 
+static void LZSS_TestNoMarker( const bool skipSentinel )
+{
+	unsigned char input[ sizeof(lzss_header_t) + 1 + 8 + 3 ];
+	lzss_header_t* const hdr = (lzss_header_t*)input;
+
+	hdr->id = LZSS_ID;
+	hdr->actualSize = 16;
+
+	unsigned char* const body = input + sizeof(lzss_header_t);
+	body[ 0 ] = 0x00;
+
+	const char* const moGus = "Amos";
+
+	for ( int i = 1; i <= 8; i++ )
+		body[ i ] = ( i <= 4 ) ? (unsigned char)moGus[ i - 1 ] : 0x00;
+
+	if ( !skipSentinel )
+	{
+		body[ 9 ] = 0x01;
+		body[ 10 ] = 0x00;
+		body[ 11 ] = 0x00;
+	}
+
+	unsigned char output[ 64 ];
+	memset( output, 0xCC, sizeof(output) );
+
+	CLZSS lzss;
+	unsigned int r = lzss.SafeUncompress( input, output, sizeof(output) );
+}
+*/
+
 //-----------------------------------------------------------------------------
 // Uncompress a buffer, Returns the uncompressed size. Caller must provide an
 // adequate sized output buffer or memory corruption will occur.
