@@ -291,11 +291,16 @@ unsigned int CLZSS::Uncompress( unsigned char *pInput, CUtlBuffer &buf )
 }
 */
 
-unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutput, unsigned int unBufSize )
+unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned int inBufSize, unsigned char *pOutput, unsigned int unBufSize )
 {
 	unsigned int totalBytes = 0;
 	int cmdByte = 0;
 	int getCmdByte = 0;
+
+	if ( inBufSize < sizeof( lzss_header_t ) )
+	{
+		return 0;
+	}
 
 	unsigned int actualSize = GetActualSize( pInput );
 	if ( !actualSize )
@@ -309,18 +314,31 @@ unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutpu
 		return 0;
 	}
 
+	unsigned char *pInputEnd = pInput + inBufSize;
 	pInput += sizeof( lzss_header_t );
 
 	for ( ;; )
 	{
 		if ( !getCmdByte ) 
 		{
+			// security_audit(kawe): make sure we don't read past input buf!
+			if ( pInput >= pInputEnd )
+			{
+				return 0;
+			}
+
 			cmdByte = *pInput++;
 		}
 		getCmdByte = ( getCmdByte + 1 ) & 0x07;
 
 		if ( cmdByte & 0x01 )
 		{
+			// security_audit(kawe): make sure we don't read past input buf!
+			if ( pInputEnd - pInput < 2 )
+			{
+				return 0;
+			}
+
 			int position = *pInput++ << LZSS_LOOKSHIFT;
 			position |= ( *pInput >> LZSS_LOOKSHIFT );
 			int count = ( *pInput++ & 0x0F ) + 1;
@@ -329,7 +347,8 @@ unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutpu
 				break;
 			}
 
-			if ( (unsigned int)( position + 1 ) > totalBytes || // out of bounds
+			// security_audit(kawe): make sure we don't read past output buf!
+			if ( (unsigned int)( position + 1 ) > totalBytes ||
 				totalBytes + count > unBufSize )
 			{
 				return 0;
@@ -345,8 +364,16 @@ unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutpu
 		} 
 		else 
 		{
-			if ( totalBytes + 1 > unBufSize )
+			// security_audit(kawe): make sure we don't read past input buf!
+			if ( pInput >= pInputEnd )
+			{
 				return 0;
+			}
+
+			if ( totalBytes + 1 > unBufSize )
+			{
+				return 0;
+			}
 
 			*pOutput++ = *pInput++;
 			totalBytes++;

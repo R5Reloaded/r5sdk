@@ -37,7 +37,7 @@ inline bool(*v_NET_ReceiveDatagram)(int iSocket, netpacket_s* pInpacket, bool bR
 inline int(*v_NET_SendDatagram)(SOCKET s, void* pPayload, int iLenght, netadr_t* pAdr, bool bEncrypted);
 
 inline bool(*v_NET_BufferToBufferCompress)(uint8_t* const dest, size_t* const destLen, uint8_t* const source, const size_t sourceLen);
-inline unsigned int(*v_NET_BufferToBufferDecompress_LZSS)(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize);
+inline unsigned int(*v_NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP)(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize);
 
 inline bool (*v_NET_IsLocalHost)(const CNetAdr* const adr);
 
@@ -55,9 +55,7 @@ void NET_PrintFunc(const char* fmt, ...);
 void NET_RemoveChannel(CClient* pClient, int nIndex, const char* szReason, uint8_t bBadRep, bool bRemoveNow);
 
 bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint8_t* const source, const size_t sourceLen);
-unsigned int NET_BufferToBufferDecompress(uint8_t* pInput, size_t& coBufsize, uint8_t* pOutput, const size_t unBufSize);
-
-unsigned int NET_BufferToBufferDecompress_LZSS(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize);
+bool NET_BufferToBufferDecompress(uint8_t* const source, const size_t sourceLen, uint8_t* const dest, size_t* const destLen);
 
 bool NET_ReadMessageType(int* outType, bf_read* buffer);
 bool NET_IsLocalHost(const CNetAdr& netAdr);
@@ -88,7 +86,7 @@ class VNet : public IDetour
 		LogFunAdr("NET_SendDatagram", v_NET_SendDatagram);
 
 		LogFunAdr("NET_BufferToBufferCompress", v_NET_BufferToBufferCompress);
-		LogFunAdr("NET_BufferToBufferDecompress_LZSS", v_NET_BufferToBufferDecompress_LZSS);
+		LogFunAdr("NET_BufferToBufferDecompress_LZSS", v_NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP);
 
 		LogFunAdr("NET_IsLocalHost", v_NET_IsLocalHost);
 
@@ -115,7 +113,7 @@ class VNet : public IDetour
 		Module_FindPattern(g_GameDll, "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 57 41 56 41 57 48 81 EC ?? 05 ?? ??").GetPtr(v_NET_SendDatagram);
 
 		Module_FindPattern(g_GameDll, "48 89 6C 24 ?? 48 89 74 24 ?? 57 41 56 41 57 48 83 EC 50 48 8B 05 ?? ?? ?? ?? 49 8B E9").GetPtr(v_NET_BufferToBufferCompress);
-		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 41 56 45 33 F6").GetPtr(v_NET_BufferToBufferDecompress_LZSS);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 41 56 45 33 F6").GetPtr(v_NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP);
 
 		Module_FindPattern(g_GameDll, "83 39 ?? 74 ?? 48 8B 05 ?? ?? ?? ?? 48 3B 41").GetPtr(v_NET_IsLocalHost);
 

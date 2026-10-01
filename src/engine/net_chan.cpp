@@ -822,53 +822,33 @@ bool CNetChan::ReadSubChannelData(bf_read& buf)
 
 				if (m_ReceiveList.isCompressed)
 				{
-					// security_audit(kawe): compressed size metadata is network controlled,
-					// max size uncompressed (as set by CNetChan::Setup) is NET_MAX_PAYLOAD!
-					if (m_ReceiveList.size <= sizeof(lzss_header_t) ||
-						m_ReceiveList.uncompressedSize == 0 ||
-						m_ReceiveList.uncompressedSize > NET_MAX_PAYLOAD)
-					{
-						ERROR_AND_RETURN("invalid compressed transfer metadata");
-					}
-
 					// security_audit(kawe): NET_BufferToBufferCompress only selects
 					// compression when the compressed transfer fits within original
 					// reliable payload.
 					if (m_ReceiveList.size > m_ReceiveList.uncompressedSize)
 						ERROR_AND_RETURN("compressed transfer larger than original");
 
-					unsigned char* const compressedData = reinterpret_cast<unsigned char*>(m_ReceiveList.buffer);
+					size_t dataSizeExpected = static_cast<size_t>(m_ReceiveList.uncompressedSize);
 
-					CLZSS lzss;
-
-					// security_audit(kawe): the compression flag must describe a valid
-					// LZSS stream; malformed data must not fall back to uncompressed!
-					if (!lzss.IsCompressed(compressedData))
-						ERROR_AND_RETURN("invalid LZSS header");
-
-					const unsigned int actualSize = lzss.GetActualSize(compressedData);
-
-					// security_audit(kawe): require the LZSS header, metadata and payload
-					// limit to agree before allocating the decompressed buffer.
-					if (!actualSize ||
-						actualSize != static_cast<u32>(m_ReceiveList.uncompressedSize) ||
-						actualSize > static_cast<u32>(NET_MAX_PAYLOAD))
-					{
-						ERROR_AND_RETURN("invalid LZSS decompressed size");
-					}
-
-					dataSize = actualSize;
-
-					const size_t allocationSize = PAD_NUMBER(dataSize, 4);
+					const size_t allocationSize = PAD_NUMBER(dataSizeExpected, 4);
 					char* const uncompressedData = new char[allocationSize];
 
-					unsigned char* const outputData = reinterpret_cast<unsigned char*>(uncompressedData);
-					const size_t decompressedSize = lzss.SafeUncompress(compressedData, outputData, static_cast<u32>(dataSize));
+					size_t decompressedSize = dataSizeExpected;
 
-					if (decompressedSize != actualSize)
+					if (!NET_BufferToBufferDecompress(
+						reinterpret_cast<uint8_t*>(m_ReceiveList.buffer),
+						static_cast<size_t>(m_ReceiveList.transferSize),
+						reinterpret_cast<uint8_t*>(uncompressedData),
+						&decompressedSize))
 					{
 						delete[] uncompressedData;
-						ERROR_AND_RETURN("LZSS decompression size mismatch");
+						ERROR_AND_RETURN("decompress failed");
+					}
+
+					if (decompressedSize != dataSizeExpected)
+					{
+						delete[] uncompressedData;
+						ERROR_AND_RETURN("decompressed size mismatch");
 					}
 
 					dataSize = decompressedSize;

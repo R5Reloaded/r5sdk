@@ -119,6 +119,7 @@ bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint
 
 	if (!lzss.CompressNoAlloc(source, (uint32_t)sourceLen, dest, &compLen))
 	{
+		DevWarning(eDLL_T::ENGINE, "NET_BufferToBufferCompress: failed to compress data! ( input %p[%zu], output %p[%zu] )\n", source, sourceLen, dest, destLen);
 		memcpy(dest, source, sourceLen);
 
 		*destLen = sourceLen;
@@ -130,26 +131,54 @@ bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint
 }
 
 //-----------------------------------------------------------------------------
+static unsigned int NET_GetUncompressedSize(const void* compressed, const size_t compressedLen)
+{
+	if (compressedLen < sizeof(lzss_header_t))
+		return 0;
+
+	const lzss_header_t* const header = (const lzss_header_t*)compressed;
+
+	if (header->id != LZSS_ID)
+		return 0;
+
+	return LittleLong(header->actualSize);
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: decompresses the input buffer into the output buffer
 // Input  : *source - 
-//			&sourceLen - 
+//			sourceLen - 
 //			*dest - 
-//			destLen - 
+//			*destLen - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-unsigned int NET_BufferToBufferDecompress(uint8_t* const source, size_t& sourceLen, uint8_t* const dest, const size_t destLen)
+bool NET_BufferToBufferDecompress(uint8_t* const source, const size_t sourceLen, uint8_t* const dest, size_t* const destLen)
 {
-	Assert(source);
-	Assert(sourceLen);
+	const unsigned int decompressedSize = NET_GetUncompressedSize(source, sourceLen);
 
-	CLZSS lzss;
-
-	if (lzss.IsCompressed(source))
+	if (!decompressedSize)
 	{
-		return lzss.SafeUncompress(source, dest, (unsigned int)destLen);
+		DevWarning(eDLL_T::ENGINE, "NET_BufferToBufferDecompress: failed to get decompress size from header!\n");
+		return false;
 	}
 
-	return 0;
+	if (decompressedSize > *destLen)
+	{
+		DevWarning(eDLL_T::ENGINE, "NET_BufferToBufferDecompress: improperly sized destination buffer! ( %u in, %u needed )\n", (unsigned int*)*destLen, decompressedSize);
+		return false;
+	}
+
+	CLZSS lzss;
+	const unsigned int actualSize = lzss.SafeUncompress(source, (unsigned int)sourceLen, dest, (unsigned int)*destLen);
+
+	if (actualSize != decompressedSize)
+	{
+		DevWarning(eDLL_T::ENGINE, "NET_BufferToBufferDecompress: improperly sized decompressed data! ( %u expected, %u actual )\n", decompressedSize, actualSize);
+		return false;
+	}
+
+	*destLen = actualSize;
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -160,9 +189,14 @@ unsigned int NET_BufferToBufferDecompress(uint8_t* const source, size_t& sourceL
 //			unBufSize - 
 // Output : total decompressed bytes
 //-----------------------------------------------------------------------------
-unsigned int NET_BufferToBufferDecompress_LZSS(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize)
+static unsigned int NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize)
 {
-	return lzss->SafeUncompress(pInput, pOutput, unBufSize);
+	// todo(kawe): this is now only used by NET_ReceiveDatagram() internally,
+	// and since we know the stack size (4096) I hardcoded it here. Remove
+	// this entirely once that function is rebuilt in the SDK. For now that
+	// function is now perfectly and secure after this input size patch, so
+	// no priority to rework that. REMOVE this hook in its full once rebuilt!
+	return lzss->SafeUncompress(pInput, 4096, pOutput, unBufSize);
 }
 
 //-----------------------------------------------------------------------------
@@ -405,7 +439,7 @@ void VNet::Detour(const bool bAttach) const
 	DetourSetup(&v_NET_SendDatagram, &NET_SendDatagram, bAttach);
 
 	DetourSetup(&v_NET_BufferToBufferCompress, &NET_BufferToBufferCompress, bAttach);
-	DetourSetup(&v_NET_BufferToBufferDecompress_LZSS, &NET_BufferToBufferDecompress_LZSS, bAttach);
+	DetourSetup(&v_NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP, &NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP, bAttach);
 	DetourSetup(&v_NET_PrintFunc, &NET_PrintFunc, bAttach);
 }
 

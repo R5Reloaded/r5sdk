@@ -126,6 +126,47 @@ bool SVC_SystemSayText::Process(void)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
+// Net message to transmit playlists to the client
+///////////////////////////////////////////////////////////////////////////////////
+bool SVC_Playlists::ReadFromBufferImpl(bf_read* const buf)
+{
+	const bool isCompressed = buf->ReadOneBit() != 0;
+	int dataSize = buf->ReadLong();
+
+	if (dataSize < 0 || static_cast<size_t>(dataSize) > sizeof(m_scratchBuffer))
+	{
+		m_dataSize = 0;
+		return false;
+	}
+
+	buf->ReadBytes(m_scratchBuffer, dataSize);
+
+	if (buf->IsOverflowed())
+	{
+		m_dataSize = 0;
+		return false;
+	}
+
+	if (isCompressed)
+	{
+		uint8_t uncompressedBuffer[sizeof(m_scratchBuffer)];
+		size_t destLen = sizeof(uncompressedBuffer);
+
+		if (!NET_BufferToBufferDecompress(reinterpret_cast<uint8_t*>(m_scratchBuffer),
+			static_cast<size_t>(dataSize), uncompressedBuffer, &destLen))
+		{
+			m_dataSize = 0;
+			return false;
+		}
+
+		dataSize = static_cast<int>(destLen);
+	}
+
+	m_dataSize = dataSize;
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////
 // Below functions are hooked as playlist overrides can be abused from the client.
 // The client could basically manage the server's playlists. Only allow read/write
 // when cheats are enabled.
@@ -228,9 +269,11 @@ void V_NetMessages::Detour(const bool bAttach) const
 	{
 		auto hk_SVCPrint_Process = &SVC_Print::ProcessImpl;
 		auto hk_SVCUserMessage_Process = &SVC_UserMessage::ProcessImpl;
+		auto hk_SVCPlaylists_ReadFromBuffer = &SVC_Playlists::ReadFromBufferImpl;
 
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_Print_VFTable, (LPVOID&)hk_SVCPrint_Process, NetMessageVtbl::Process, (LPVOID*)&SVC_Print_Process);
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_UserMessage_VFTable, (LPVOID&)hk_SVCUserMessage_Process, NetMessageVtbl::Process, (LPVOID*)&SVC_UserMessage_Process);
+		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_Playlists_VFTable, (LPVOID&)hk_SVCPlaylists_ReadFromBuffer, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&SVC_Playlists_ReadFromBuffer);
 		CMemory::HookVirtualMethod((uintptr_t)g_pBase_CmdKeyValues_VFTable, (LPVOID*)&Base_CmdKeyValues::ReadFromBufferImpl, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&Base_CmdKeyValues_ReadFromBuffer);
 		CMemory::HookVirtualMethod((uintptr_t)g_pBase_CmdKeyValues_VFTable, (LPVOID*)&Base_CmdKeyValues::WriteToBufferImpl, NetMessageVtbl::WriteToBuffer, (LPVOID*)&Base_CmdKeyValues_WriteToBuffer);
 		CMemory::HookVirtualMethod((uintptr_t)g_pCLC_SetPlaylistVarOverride_VFTable, (LPVOID*)&CLC_SetPlaylistVarOverride::ReadFromBufferImpl, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&CLC_SetPlaylistVarOverride_ReadFromBuffer);
@@ -241,6 +284,7 @@ void V_NetMessages::Detour(const bool bAttach) const
 		void* hkRestore = nullptr;
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_Print_VFTable, (LPVOID)SVC_Print_Process, NetMessageVtbl::Process, (LPVOID*)&hkRestore);
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_UserMessage_VFTable, (LPVOID)SVC_UserMessage_Process, NetMessageVtbl::Process, (LPVOID*)&hkRestore);
+		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_Playlists_VFTable, (LPVOID)SVC_Playlists_ReadFromBuffer, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&hkRestore);
 		CMemory::HookVirtualMethod((uintptr_t)g_pBase_CmdKeyValues_VFTable, (LPVOID)Base_CmdKeyValues_ReadFromBuffer, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&hkRestore);
 		CMemory::HookVirtualMethod((uintptr_t)g_pBase_CmdKeyValues_VFTable, (LPVOID)Base_CmdKeyValues_WriteToBuffer, NetMessageVtbl::WriteToBuffer, (LPVOID*)&hkRestore);
 		CMemory::HookVirtualMethod((uintptr_t)g_pCLC_SetPlaylistVarOverride_VFTable, (LPVOID)CLC_SetPlaylistVarOverride_ReadFromBuffer, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&hkRestore);

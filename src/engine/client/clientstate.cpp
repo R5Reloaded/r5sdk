@@ -334,7 +334,7 @@ bool CClientState::_ProcessCreateStringTable(CClientState* thisptr, SVC_CreateSt
             msg->m_DataIn.ReadBytes(compressedBuffer, msgCompressedSize);
 
             // uncompress data
-            bSuccess = NET_BufferToBufferDecompress(compressedBuffer, compressedSize, uncompressedBuffer, uncompressedSize);
+            bSuccess = NET_BufferToBufferDecompress(compressedBuffer, compressedSize, uncompressedBuffer, &uncompressedSize);
             bSuccess &= (uncompressedSize == msgUncompressedSize);
 
             if (bSuccess)

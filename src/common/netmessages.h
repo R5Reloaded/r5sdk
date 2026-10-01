@@ -24,6 +24,7 @@
 class CNetChan;
 class SVC_Print;
 class SVC_UserMessage;
+class SVC_Playlists;
 class SVC_PlaylistOverrides;
 class CLC_SetPlaylistVarOverride;
 class Base_CmdKeyValues;
@@ -54,6 +55,12 @@ inline void* g_pSVC_ServerTick_VFTable = nullptr;
 // SVC_VoiceData
 //-------------------------------------------------------------------------
 inline void* g_pSVC_VoiceData_VFTable = nullptr;
+
+//-------------------------------------------------------------------------
+// SVC_Playlists
+//-------------------------------------------------------------------------
+inline bool(*SVC_Playlists_ReadFromBuffer)(SVC_Playlists* thisptr, bf_read* buffer);
+inline void* g_pSVC_Playlists_VFTable = nullptr;
 
 //-------------------------------------------------------------------------
 // SVC_PlaylistOverrides
@@ -453,6 +460,22 @@ public:
 	void* m_DataOut;
 };
 
+class SVC_Playlists : public CNetMessage
+{
+public:
+	bool ReadFromBufferImpl(bf_read* const buf);
+	enum
+	{
+		MAX_SCRATCH_SIZE = 500 * 1024
+	};
+private:
+	IServerMessageHandler* m_pMessageHandler;
+	bool m_isCompressed;
+	char m_scratchBuffer[MAX_SCRATCH_SIZE];
+	int m_dataSize;
+	int m_dataSizeUncompressed;
+};
+
 class SVC_PlaylistOverrides : public CNetMessage
 {
 private:
@@ -707,6 +730,7 @@ class V_NetMessages : public IDetour
 		LogConAdr("SVC_UserMessage::`vftable'", g_pSVC_UserMessage_VFTable);
 		LogConAdr("SVC_ServerTick::`vftable'", g_pSVC_ServerTick_VFTable);
 		LogConAdr("SVC_VoiceData::`vftable'", g_pSVC_VoiceData_VFTable);
+		LogConAdr("SVC_Playlists::`vftable'", g_pSVC_Playlists_VFTable);
 		LogConAdr("SVC_PlaylistOverrides::`vftable'", g_pSVC_PlaylistOverrides_VFTable);
 		LogConAdr("CLC_ClientTick::`vftable'", g_pCLC_ClientTick_VFTable);
 		LogConAdr("CLC_SetPlaylistVarOverride::`vftable'", g_pCLC_SetPlaylistVarOverride_VFTable);
@@ -726,6 +750,7 @@ class V_NetMessages : public IDetour
 		g_pSVC_UserMessage_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_UserMessage@@");
 		g_pSVC_ServerTick_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_ServerTick@@");
 		g_pSVC_VoiceData_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_VoiceData@@");
+		g_pSVC_Playlists_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_Playlists@@");
 		g_pSVC_PlaylistOverrides_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_PlaylistOverrides@@");
 		g_pCLC_ClientTick_VFTable = g_GameDll.GetVirtualMethodTable(".?AVCLC_ClientTick@@");
 		g_pCLC_SetPlaylistVarOverride_VFTable = g_GameDll.GetVirtualMethodTable(".?AVCLC_SetPlaylistVarOverride@@");
