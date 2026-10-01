@@ -35,8 +35,6 @@
 #define NET_RELIABLE_TRANSFER_SIZE_BITS		19
 #define NET_RELIABLE_UNCOMPRESSED_SIZE_BITS	22
 
-#define NET_MAX_PAYLOAD						262144 // <-- 288000 in Valve Source.
-
 //-----------------------------------------------------------------------------
 // Purpose: forward declarations
 //-----------------------------------------------------------------------------

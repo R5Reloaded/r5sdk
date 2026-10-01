@@ -19,7 +19,9 @@ constexpr const char DEFAULT_NET_ENCRYPTION_KEY[AES_128_B64_ENCODED_SIZE+1] = "W
 
 #define NETMSG_TYPE_BITS	7	// must be 2^NETMSG_TYPE_BITS > SVC_LASTMSG (6 in Valve Source).
 #define NETMSG_LENGTH_BITS	12	// 512 bytes (11 in Valve Source, 256 bytes).
+
 #define NET_MIN_MESSAGE 5 // Even connectionless packets require int32 value (-1) + 1 byte content
+#define NET_MAX_PAYLOAD	262144 // <-- 288000 in Valve Source.
 
 /* ==== CNETCHAN ======================================================================================================================================================== */
 inline void*(*v_NET_Init)(bool bDeveloper);
