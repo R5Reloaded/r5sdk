@@ -783,7 +783,7 @@ bool CServer::ProcessChallenge(netpacket_t* const packet, bf_read& msg)
 	ALIGN4 u8 challengeBuffer[512];
 	bf_write challengeMsg(challengeBuffer, sizeof(challengeBuffer));
 
-	challengeMsg.WriteLong(CONNECTIONLESS_HEADER);
+	challengeMsg.WriteULong(CONNECTIONLESS_HEADER);
 	challengeMsg.WriteByte(S2C_CHALLENGE);
 	challengeMsg.WriteLong(challenge);
 	challengeMsg.WriteULongLong(nucleusId);

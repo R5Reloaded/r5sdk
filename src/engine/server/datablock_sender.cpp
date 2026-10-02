@@ -37,7 +37,7 @@ void ServerDataBlockSender::SendFragmentGuts(ServerDataBlockSender* const sender
 	bf_write buf(&dataBuf, sizeof(dataBuf));
 
 	// msg data (gets processed on client's out of band packet handler)
-	buf.WriteLong(CONNECTIONLESS_HEADER);
+	buf.WriteULong(CONNECTIONLESS_HEADER);
 	buf.WriteByte(S2C_DATABLOCK_FRAGMENT);
 
 	// transfer info
