@@ -706,6 +706,9 @@ bool CServer::ProcessConnect(const netadr_t& from, bf_read& msg)
 	creds.trial = trial;
 	creds.forceEAAccess = forceEAAccess;
 
+	// security_audit(kawe): this bool was left uninitialized,
+	// but is used in ConnectClient.
+	creds.originTokenUnknown = false;
 	creds.platform = platform;
 
 	creds.playlistCRC = playlistCRC;
