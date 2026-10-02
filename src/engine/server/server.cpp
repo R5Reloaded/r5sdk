@@ -751,8 +751,7 @@ int CServer::GetOrCreateChallenge(const netpacket_t* const packet, const Nucleus
 		}
 	}
 
-	// todo(kawe): should this be >= ?
-	if (challengeCount > MAX_SERVER_CONNECT_CHALLENGES)
+	if (challengeCount >= MAX_SERVER_CONNECT_CHALLENGES)
 		m_ConnectionChallenges.FastRemove(oldestChallengeIndex);
 
 	const int newIndex = m_ConnectionChallenges.AddToTail();
