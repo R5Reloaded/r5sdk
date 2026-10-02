@@ -74,7 +74,7 @@ enum netsocket_e
 	// unknown as this seems unused in R5, but if the socket equals to this in
 	// CServer::ConnectionlessPacketHandler() in case C2S_Challenge, the packet
 	// sent back won't be encrypted
-	NS_UNK0,
+	NS_RESERVED,
 
 	// used for chat room, communities, discord presence, EA/Origin, etc
 	NS_PRESENCE,
