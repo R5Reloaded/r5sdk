@@ -408,7 +408,7 @@ bool CServer::ProcessConnect(const netadr_t& from, bf_read& msg)
 	//-------------------------------------------------------------------------
 	// Client identity and server filter.
 	//-------------------------------------------------------------------------
-	const NucleusID_t personaId = static_cast<NucleusID_t>(msg.ReadLongLong());
+	const NucleusID_t personaId = static_cast<NucleusID_t>(msg.ReadULongLong());
 
 	if (msg.IsOverflowed())
 	{
