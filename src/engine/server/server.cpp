@@ -786,7 +786,6 @@ int CServer::GetOrCreateChallenge(const netpacket_t* const packet, const Nucleus
 bool CServer::ProcessChallenge(netpacket_t* const packet, bf_read& msg)
 {
 	Assert(packet);
-	Assert(msg);
 
 	char commandName[16] = {};
 	msg.ReadString(commandName, sizeof(commandName));
