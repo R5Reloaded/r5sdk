@@ -43,11 +43,11 @@ static void SetName_f(const CCommand& args)
 
     const size_t nLen = strlen(pszName);
 
-    if (nLen >= MAX_PERSONA_NAME_LEN)
+    if (nLen >= ORIGIN_MAX_USERNAME_LENGTH)
         return;
 
     // Update nucleus name.
-    strncpy(g_PersonaName, pszName, nLen + 1);
+    strncpy(g_originState->userName, pszName, nLen+1);
     name_cvar->SetValue(pszName);
 }
 static void Reconnect_f(const CCommand& args)

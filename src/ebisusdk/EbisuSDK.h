@@ -1,20 +1,105 @@
 #pragma once
+#include "ebisusdk/EbisuTypes.h"
 
-#define MAX_PERSONA_NAME_LEN 64 // sizeof( g_PersonaName )
+#define ORIGIN_MAX_USERNAME_LENGTH 64
+#define ORIGIN_MAX_COUNTRY_LENGTH 64
+
+#define ORIGIN_MAX_AUTH_CODE_LENGTH 256
+#define ORIGIN_MAX_TOKEN_LENGTH 1024
+
+#define ORIGIN_MAX_ENVIRONMENT_LENGTH 64
+#define ORIGIN_MAX_STORE_URI_LENGTH 2048
+
 #define FAKE_BASE_NUCLEUD_ID 9990000
+
+struct OriginQuery_s
+{
+	unsigned int requestHandle;
+	char queryPath[1024];
+	CUtlBuffer queryParams;
+};
+
+struct OriginTokenRequest_s
+{
+	OriginQuery_s requestTokenData;
+	char refreshTokenHttpData[4096]; // Some internal HTTP struct, needs further reversal.
+	OriginQuery_s refreshTokenData;
+};
+
+struct OriginState_s
+{
+	bool isInitialized;
+	bool isOriginChatActive;
+
+	bool isOnline;
+	bool onlineStale;
+
+	bool requestingProfile;
+	bool hasProfile;
+
+	bool hasOnlineAccess;
+	bool isUpToDate;
+	bool isTrialVersion;
+
+	// IGO stuff
+	bool isOverlayAvailable;
+	bool isOverlayEnabled;
+	bool isOverlayDisplayed;
+
+	bool requestingAuthCode;
+	bool requestingToken;
+	bool refreshingToken;
+
+	bool unkF;
+
+	bool isProduction;
+	bool ugcRestriction;
+	bool isSubscriber;
+	bool gamePurchased;
+	bool isUnderAge;
+	bool entitlementsChanged; // [r5apex + 0x32DFF0]
+
+	bool errorHandled;
+	int errorLevel;
+
+	_BYTE gap1C[4];
+
+	NucleusID_t userId;
+	u64 personaId;
+	u64 unk30;
+
+	double unk38; // I really don't know.
+
+	double tokenTime;
+	int tokenExpiry;
+
+	void* unk50;
+	void* somethingWithEntitlements;
+	void* unk60[4];
+
+	OriginTokenRequest_s tokenRequest;
+
+	char unk1940[256];
+	u64 unk1A40;
+
+	char authCode[ORIGIN_MAX_AUTH_CODE_LENGTH];
+	char token[ORIGIN_MAX_TOKEN_LENGTH];
+	char userName[ORIGIN_MAX_USERNAME_LENGTH];
+	char country[ORIGIN_MAX_COUNTRY_LENGTH];
+	char avatarId[MAX_OSPATH];
+	char environment[ORIGIN_MAX_ENVIRONMENT_LENGTH];
+	char storeUri[ORIGIN_MAX_STORE_URI_LENGTH];
+
+	// todo: reverse
+	char precenseStuff[780];
+};
+
+inline OriginState_s* g_originState;
 
 inline void(*EbisuSDK_Tier0_Init)(void);
 inline void(*EbisuSDK_CVar_Init)(void);
 inline void(*EbisuSDK_RunFrame)(void);
 inline const char*(*EbisuSDK_GetLanguage)(void);
-
-inline uint64_t* g_NucleusID = nullptr;
-inline char* g_NucleusToken = nullptr; /*SIZE = 1024*/
-inline char* g_OriginAuthCode = nullptr; /*SIZE = 256*/
-inline char* g_PersonaName = nullptr; /*SIZE = 64*/
-inline int* g_OriginErrorLevel = nullptr;
-inline bool* g_EbisuSDKInit = nullptr;
-inline bool* g_EbisuProfileInit = nullptr;
 
 ///////////////////////////////////////////////////////////////////////////////
 void HEbisuSDK_Init();
@@ -34,13 +119,7 @@ class VEbisuSDK : public IDetour
 		LogFunAdr("EbisuSDK_CVar_Init", EbisuSDK_CVar_Init);
 		LogFunAdr("EbisuSDK_RunFrame", EbisuSDK_RunFrame);
 		LogFunAdr("EbisuSDK_GetLanguage", EbisuSDK_GetLanguage);
-		LogVarAdr("g_NucleusID", g_NucleusID);
-		LogVarAdr("g_NucleusToken", g_NucleusToken);
-		LogVarAdr("g_OriginAuthCode", g_OriginAuthCode);
-		LogVarAdr("g_PersonaName", g_PersonaName);
-		LogVarAdr("g_OriginErrorLevel", g_OriginErrorLevel);
-		LogVarAdr("g_EbisuProfileInit", g_EbisuProfileInit);
-		LogVarAdr("g_EbisuSDKInit", g_EbisuSDKInit);
+		LogVarAdr("g_originState", g_originState);
 	}
 	virtual void GetFun(void) const
 	{
@@ -51,13 +130,7 @@ class VEbisuSDK : public IDetour
 	}
 	virtual void GetVar(void) const
 	{
-		g_NucleusID = CMemory(EbisuSDK_CVar_Init).Offset(0x20).FindPatternSelf("4C 89 05", CMemory::Direction::DOWN, 150).ResolveRelativeAddressSelf(0x3, 0x7).RCast<uint64_t*>();
-		g_NucleusToken = CMemory(EbisuSDK_RunFrame).Offset(0x1EF).FindPatternSelf("80 3D", CMemory::Direction::DOWN, 150).ResolveRelativeAddressSelf(0x2, 0x7).RCast<char*>();
-		g_OriginAuthCode = CMemory(EbisuSDK_RunFrame).Offset(0x1BF).FindPatternSelf("0F B6", CMemory::Direction::DOWN, 150).ResolveRelativeAddressSelf(0x3, 0x7).RCast<char*>();
-		g_PersonaName = CMemory(EbisuSDK_CVar_Init).Offset(0x120).FindPatternSelf("48 8D 0D", CMemory::Direction::DOWN, 150).ResolveRelativeAddressSelf(0x3, 0x7).RCast<char*>();
-		g_OriginErrorLevel = CMemory(EbisuSDK_RunFrame).Offset(0x20).FindPatternSelf("89 05", CMemory::Direction::DOWN, 150).ResolveRelativeAddressSelf(0x2, 0x6).RCast<int*>();
-		g_EbisuProfileInit = CMemory(EbisuSDK_CVar_Init).Offset(0x12A).FindPatternSelf("C6 05", CMemory::Direction::DOWN, 150).ResolveRelativeAddressSelf(0x2, 0x7).RCast<bool*>();
-		g_EbisuSDKInit = CMemory(EbisuSDK_Tier0_Init).Offset(0x0).FindPatternSelf("80 3D", CMemory::Direction::DOWN, 150).ResolveRelativeAddressSelf(0x2, 0x7).RCast<bool*>();
+		g_originState = CMemory(EbisuSDK_Tier0_Init).Offset(0x0).FindPatternSelf("80 3D", CMemory::Direction::DOWN, 150).ResolveRelativeAddressSelf(0x2, 0x7).RCast<OriginState_s*>();
 	}
 	virtual void GetCon(void) const { }
 	virtual void Detour(const bool bAttach) const;
