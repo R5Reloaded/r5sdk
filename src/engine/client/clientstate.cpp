@@ -740,10 +740,24 @@ bool CClientState::ProcessConnectionAccept(const netadr_t& from, bf_read& msg)
 	dword18D3C = 7;
 	dword18D40 = -1;
 
-	from.ToString(false);
-
 	char levelName[256];
-	msg.ReadString(levelName, sizeof(levelName), false);
+	{
+		if (!msg.ReadString(levelName, sizeof(levelName), false))
+		{
+			DevWarning(eDLL_T::ENGINE, __FUNC__"(%s): level name buffer overflow !!!\n", from.ToString());
+			return false;
+		}
+
+		// security_audit(kawe): original code allowed path traversal components!
+		if (V_UnqualifiedFileName(levelName) != levelName)
+		{
+			DevWarning(eDLL_T::ENGINE, __FUNC__"(%s): level path was not unqualified !!!\n", from.ToString());
+			// note: just bail out here, do not use the value of V_UnqualifiedFileName,
+			// or V_UnqualifyFileName the array because if the name isn't unqualified
+			// to begin with its always something bad.
+			return false;
+		}
+	}
 
 	char gameModeName[256];
 	msg.ReadString(gameModeName, sizeof(gameModeName));
@@ -779,11 +793,19 @@ bool CClientState::ProcessConnectionReject(const netadr_t& from, bf_read& msg)
 	if (!IsChallenging() && !m_bSendChallengeRequest)
 		return true;
 
+	// security_audit(kawe): reject connection responses that did not
+	// originate from the server we're currently challenging.
+	if (!from.IsLoopback() && m_RemoteAddress != from)
+		return true;
+
 	char reason[1200];
 	msg.ReadString(reason, sizeof(reason));
 
 	if (!m_bSendChallengeRequest)
-		COM_ExplainDisconnection(true, reason);
+	{
+		// security_audit(kawe): code originally took uncontrolled format strings!
+		COM_ExplainDisconnection(true, "%s", reason);
+	}
 
 	ClientState_HandleConnectionRejectMatchmaking(this);
 	return true;
@@ -908,6 +930,14 @@ bool CClientState::ProcessDataBlockFragment(const netadr_t& from, bf_read& msg)
 	if (!m_NetChannel)
 	{
 		DevWarning(eDLL_T::ENGINE, __FUNC__"(%s): got datablock packet without installed netchannel !!!\n", from.ToString());
+		return true;
+	}
+
+	// security_audit(kawe): only accept datablock fragments from
+	// the remote endpoint associated with the current netchannel.
+	if (from != m_NetChannel->GetRemoteAddress())
+	{
+		DevWarning(eDLL_T::ENGINE, __FUNC__"(%s): got datablock packet from source outside current connection !!!\n", from.ToString());
 		return true;
 	}
 
