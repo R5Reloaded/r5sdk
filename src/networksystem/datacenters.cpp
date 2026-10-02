@@ -232,6 +232,11 @@ static void Datacenters_UpdateSelection(const int recordIdx)
 void Datacenters_ProcessPingReply(bf_read& reply)
 {
 	const u8 recordIdx = static_cast<u8>(reply.ReadByte());
+
+	// security(kawe): this check was originally missing !!!
+	if (!Datacenters_IsIndexValid(recordIdx))
+		return;
+
 	const float sendTime = reply.ReadBitFloat();
 
 	const int pingGeneration = reply.ReadLong();
