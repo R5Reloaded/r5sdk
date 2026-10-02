@@ -17,6 +17,7 @@ add_sources( SOURCE_GROUP "Private"
 add_sources( SOURCE_GROUP "Public"
     "serverlisting.h"
     "sm_protocol.h"
+    "persistence.h"
 )
 
 end_sources()

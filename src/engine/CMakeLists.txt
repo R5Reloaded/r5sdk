@@ -109,8 +109,6 @@ endif()
 
 if( NOT ${PROJECT_NAME} STREQUAL "engine_cl" )
 add_sources( SOURCE_GROUP "Server"
-    "server/persistence.cpp"
-    "server/persistence.h"
     "server/server.cpp"
     "server/server.h"
     "server/sv_rcon.cpp"
