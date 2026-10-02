@@ -626,7 +626,7 @@ bool CServer::ProcessConnect(const netadr_t& from, bf_read& msg)
 		{
 			NET_SetConVar::Cvar_s& entry = userInfo[i];
 
-			if (strcmp(entry.name, "nucleus_id") == 0)
+			if (!foundNucleusId && V_strcmp(entry.name, "nucleus_id") == 0)
 			{
 				foundNucleusId = true;
 
@@ -636,7 +636,7 @@ bool CServer::ProcessConnect(const netadr_t& from, bf_read& msg)
 					break;
 				}
 			}
-			else if (strcmp(entry.name, "nucleus_pid") == 0)
+			else if (!foundNucleusPid && V_strcmp(entry.name, "nucleus_pid") == 0)
 			{
 				foundNucleusPid = true;
 
