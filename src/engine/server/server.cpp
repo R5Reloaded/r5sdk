@@ -20,6 +20,7 @@
 #include "engine/server/sv_main.h"
 #include "engine/server/server.h"
 #include "engine/shared/entitlements.h"
+#include "engine/shared/oob_types.h"
 #include "networksystem/pylon.h"
 #include "networksystem/bansystem.h"
 #include "ebisusdk/EbisuSDK.h"
@@ -93,7 +94,7 @@ int CServer::GetNumClients(void) const
 	return nClients;
 }
 
-CClient* CServer::GetClientByAdr(const netadr_t* const netAdr)
+CClient* CServer::GetClientByAdr(const netadr_t& netAdr)
 {
 	if (m_nMaxClients <= 0)
 		return nullptr;
@@ -113,10 +114,10 @@ CClient* CServer::GetClientByAdr(const netadr_t* const netAdr)
 
 		const netadr_t& adr = chan->GetRemoteAddress();
 
-		if (!netAdr->ComparePort(adr))
+		if (!netAdr.ComparePort(adr))
 			continue;
 
-		if (!netAdr->CompareAdr(adr))
+		if (!netAdr.CompareAdr(adr))
 			continue;
 
 		return cl;
@@ -344,133 +345,131 @@ static NucleusID_t Server_ParseNucleusID(const char* const value)
 // security_audit(kawe): helpers here since we now check far more often
 // for truncation and desync.
 
-static void Server_RejectTruncConnectPacket(CServer* const sv, const netadr_t* adr)
+static void Server_RejectTruncConnectPacket(CServer* const sv, const netadr_t& adr)
 {
-	sv->RejectConnection(sv->GetSocket(), adr, "Truncated packet in C2S_CONNECT message\n");
+	sv->RejectConnection(sv->GetSocket(), &adr, "Truncated packet in C2S_CONNECT message\n");
 }
 
-static void Server_RejectDesyncConnectPacket(CServer* const sv, const netadr_t* adr)
+static void Server_RejectDesyncConnectPacket(CServer* const sv, const netadr_t& adr)
 {
-	sv->RejectConnection(sv->GetSocket(), adr, "C2S_CONNECT desync\n");
+	sv->RejectConnection(sv->GetSocket(), &adr, "C2S_CONNECT desync\n");
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: processes a C2S_CONNECT connectionless packet
 //-----------------------------------------------------------------------------
-void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
+bool CServer::ProcessConnect(const netadr_t& from, bf_read& msg)
 {
-	Assert(buf);
-	Assert(adr);
 	Assert(g_hostEntitlements);
 
 	//-------------------------------------------------------------------------
 	// Connection protocol.
 	//-------------------------------------------------------------------------
-	const int clientProtVer = static_cast<int>(buf->ReadLong());
+	const int clientProtVer = msg.ReadLong();
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	if (clientProtVer != PROTOCOL_VERSION)
 	{
-		RejectConnection(m_Socket, adr, "Client has network protocol %i, server has network protocol %i\n",
+		RejectConnection(m_Socket, &from, "Client has network protocol %i, server has network protocol %i\n",
 			clientProtVer, PROTOCOL_VERSION);
 
-		return;
+		return false;
 	}
 
 	if (!m_nMaxPlayers)
 	{
-		RejectConnection(m_Socket, adr,	"Server is not running\n");
-		return;
+		RejectConnection(m_Socket, &from, "Server is not running\n");
+		return false;
 	}
 
-	const i32 protocolVersion = static_cast<i32>(buf->ReadLong());
-	const i32 challenge = static_cast<i32>(buf->ReadLong());
-	const u32 reservation = static_cast<u32>(buf->ReadLong());
+	const i32 protocolVersion = msg.ReadLong();
+	const i32 challenge = msg.ReadLong();
+	const u32 reservation = msg.ReadULong();
 
-	const HardwareType_e platform = static_cast<HardwareType_e>(buf->ReadByte());
+	const HardwareType_e platform = static_cast<HardwareType_e>(msg.ReadByte());
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	if (platform >= HardwareType_e::PLAT_UNSPECIFIED)
 	{
-		RejectConnection(m_Socket, adr, "Invalid platform.\n");
-		return;
+		RejectConnection(m_Socket, &from, "Invalid platform.\n");
+		return false;
 	}
 
 	//-------------------------------------------------------------------------
 	// Client identity and server filter.
 	//-------------------------------------------------------------------------
-	const NucleusID_t personaId = static_cast<NucleusID_t>(buf->ReadLongLong());
+	const NucleusID_t personaId = static_cast<NucleusID_t>(msg.ReadLongLong());
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	if (!personaId)
 	{
-		RejectConnection(m_Socket, adr, "Null client user ID.\n");
-		return;
+		RejectConnection(m_Socket, &from, "Null client user ID.\n");
+		return false;
 	}
 
 	char personaName[256];
 
-	if (!buf->ReadString(personaName, sizeof(personaName), false))
+	if (!msg.ReadString(personaName, sizeof(personaName), false))
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	char serverFilter[256];
 
-	if (!buf->ReadString(serverFilter, sizeof(serverFilter), false))
+	if (!msg.ReadString(serverFilter, sizeof(serverFilter), false))
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	//-------------------------------------------------------------------------
 	// Playlist / persistence information.
 	//-------------------------------------------------------------------------
-	const u64 playlistCRC = static_cast<u64>(buf->ReadLongLong());
-	const u64 persistenceVersion = static_cast<u64>(buf->ReadLongLong());
-	const u32 persistenceCRC = static_cast<u32>(buf->ReadLong());
+	const u64 playlistCRC = msg.ReadULongLong();
+	const u64 persistenceVersion = msg.ReadULongLong();
+	const u32 persistenceCRC = msg.ReadULong();
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	//-------------------------------------------------------------------------
 	// Entitlement state.
 	//-------------------------------------------------------------------------
-	const u64 entitlementsCRC = static_cast<u64>(buf->ReadLongLong());
+	const u64 entitlementsCRC = static_cast<u64>(msg.ReadLongLong());
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	if (entitlementsCRC != g_hostEntitlements->dataCRC)
 	{
-		Server_RejectDesyncConnectPacket(this, adr);
-		return;
+		Server_RejectDesyncConnectPacket(this, from);
+		return false;
 	}
 
 	u64 entitlements = 0;
-	buf->ReadBits(&entitlements, 64);
+	msg.ReadBits(&entitlements, 64);
 
 	const int expectedBalanceCount = g_hostEntitlements->balances.Count();
 
@@ -480,22 +479,22 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 	if (expectedBalanceCount < 0 ||
 		expectedBalanceCount > UINT8_MAX)
 	{
-		Server_RejectDesyncConnectPacket(this, adr);
-		return;
+		Server_RejectDesyncConnectPacket(this, from);
+		return false;
 	}
 
-	const unsigned int clientBalanceCount = buf->ReadUBitLong(8);
+	const unsigned int clientBalanceCount = msg.ReadUBitLong(8);
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	if (clientBalanceCount != static_cast<unsigned int>(expectedBalanceCount))
 	{
-		Server_RejectDesyncConnectPacket(this, adr);
-		return;
+		Server_RejectDesyncConnectPacket(this, from);
+		return false;
 	}
 
 	CUtlVector<u16> balances;
@@ -503,28 +502,28 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 
 	for (int i = 0; i < expectedBalanceCount; ++i)
 	{
-		balances[i] = static_cast<u16>(buf->ReadUBitLong(16));
+		balances[i] = msg.ReadWord();
 	}
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	//-------------------------------------------------------------------------
 	// Miscellaneous connection flags.
 	//-------------------------------------------------------------------------
-	const bool requestedSpectator = buf->ReadOneBit() != 0;
-	const bool lowViolence = buf->ReadOneBit() != 0;
-	const bool trial = buf->ReadOneBit() != 0;
-	const bool forceEAAccess = buf->ReadOneBit() != 0;
-	const bool hasOriginToken = buf->ReadOneBit() != 0;
+	const bool requestedSpectator = msg.ReadOneBit() != 0;
+	const bool lowViolence = msg.ReadOneBit() != 0;
+	const bool trial = msg.ReadOneBit() != 0;
+	const bool forceEAAccess = msg.ReadOneBit() != 0;
+	const bool hasOriginToken = msg.ReadOneBit() != 0;
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	//-------------------------------------------------------------------------
@@ -535,22 +534,22 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 
 	if (hasOriginToken)
 	{
-		if (!buf->ReadString(originToken, sizeof(originToken), false))
+		if (!msg.ReadString(originToken, sizeof(originToken), false))
 		{
-			Server_RejectTruncConnectPacket(this, adr);
-			return;
+			Server_RejectTruncConnectPacket(this, from);
+			return false;
 		}
 	}
 
 	//-------------------------------------------------------------------------
 	// Read/write synchronization marker.
 	//-------------------------------------------------------------------------
-	const u32 sentinel = static_cast<u32>(buf->ReadLong());
+	const u32 sentinel = msg.ReadULong();
 
-	if (buf->IsOverflowed() || sentinel != CONNECTIONLESS_SENTINEL)
+	if (msg.IsOverflowed() || sentinel != CONNECTIONLESS_SENTINEL)
 	{
-		RejectConnection(m_Socket, adr, "Read/write desync in C2S_CONNECT message\n");
-		return;
+		RejectConnection(m_Socket, &from, "Read/write desync in C2S_CONNECT message\n");
+		return false;
 	}
 
 	//-------------------------------------------------------------------------
@@ -559,13 +558,13 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 
 	// note(kawe): this can be at most 255. If you ever increase it, you need
 	// to check for sizes before EnsureCapacity() !!!
-	const u8 userInfoCount = static_cast<u8>(buf->ReadByte());
+	const u8 userInfoCount = msg.ReadByte();
 	// I will come after you if you don't.
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	NET_SetConVar::Vec_t userInfo;
@@ -574,43 +573,49 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 	for (unsigned int i = 0; i < userInfoCount; ++i)
 	{
 		NET_SetConVar::Cvar_s entry = {};
-		const unsigned int nameIndex = buf->ReadUBitLong(6);
+		const unsigned int nameIndex = msg.ReadUBitLong(6);
 
-		if (buf->IsOverflowed())
+		if (msg.IsOverflowed())
 		{
-			Server_RejectTruncConnectPacket(this, adr);
-			return;
+			Server_RejectTruncConnectPacket(this, from);
+			return false;
 		}
 
 		if (nameIndex)
 		{
-			strncpy(entry.name, s_userInfoConVarNames[nameIndex], sizeof(entry.name));
+			strncpy(entry.name, g_userInfoConVarNames[nameIndex], sizeof(entry.name));
 			entry.name[sizeof(entry.name) - 1] = '\0';
 		}
 		else
 		{
-			if (!buf->ReadString(entry.name, sizeof(entry.name), false))
+			if (!msg.ReadString(entry.name, sizeof(entry.name), false))
 			{
-				Server_RejectTruncConnectPacket(this, adr);
-				return;
+				Server_RejectTruncConnectPacket(this, from);
+				return false;
 			}
 		}
 
-		if (!buf->ReadString(entry.value, sizeof(entry.value), false))
+		if (!msg.ReadString(entry.value, sizeof(entry.value), false))
 		{
-			Server_RejectTruncConnectPacket(this, adr);
-			return;
+			Server_RejectTruncConnectPacket(this, from);
+			return false;
 		}
 
 		userInfo.AddToTail(entry);
 	}
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
+	//-------------------------------------------------------------------------
+	// Origin token connections require the generic userinfo block to contain
+	// nucleus_id and nucleus_pid values matching the token-side identity.
+	//
+	// In this protocol revision the recovered expected values are both zero.
+	//-------------------------------------------------------------------------
 	if (hasOriginToken)
 	{
 		bool foundNucleusId = false;
@@ -646,21 +651,21 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 		if (invalidNucleusCvars || !foundNucleusId || !foundNucleusPid)
 		{
 			//SendStats("originToken.connectReject.invalidNucleusCvars:1|c\n");
-			RejectConnection(m_Socket, adr,	"Origin token: invalid_nucleus_cvars\n");
+			RejectConnection(m_Socket, &from, "Origin token: invalid_nucleus_cvars\n");
 
-			return;
+			return false;
 		}
 
 		if (balances.Count() > 0)
 		{
-			memset(balances.Base(),	0, static_cast<size_t>(balances.Count()) * sizeof(u16));
+			memset(balances.Base(),	0, balances.Count() * sizeof(u16));
 		}
 	}
 
-	if (buf->IsOverflowed())
+	if (msg.IsOverflowed())
 	{
-		Server_RejectTruncConnectPacket(this, adr);
-		return;
+		Server_RejectTruncConnectPacket(this, from);
+		return false;
 	}
 
 	//-------------------------------------------------------------------------
@@ -668,7 +673,7 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 	//-------------------------------------------------------------------------
 	user_creds_s creds = {};
 
-	creds.netAdr = *adr;
+	creds.netAdr = from;
 	creds.protocolVer = protocolVersion;
 	creds.challenge = challenge;
 	creds.reservation = reservation;
@@ -700,7 +705,10 @@ void CServer::ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr)
 	if (!ConnectClient(this, &creds))
 	{
 		//SendStats("dedi.connect.fail.total:1|c\n");
+		return false;
 	}
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -761,15 +769,15 @@ int CServer::GetOrCreateChallenge(const netpacket_t* const packet, const Nucleus
 //-----------------------------------------------------------------------------
 // Purpose: processes a C2S challenge request and sends the challenge response
 //-----------------------------------------------------------------------------
-void CServer::ProcessC2S_Challenge(const int source, netpacket_t* const packet, bf_read* const buf, const bool encrypt)
+bool CServer::ProcessChallenge(netpacket_t* const packet, bf_read& msg)
 {
 	Assert(packet);
-	Assert(buf);
+	Assert(msg);
 
 	char commandName[16] = {};
-	buf->ReadString(commandName, sizeof(commandName));
+	msg.ReadString(commandName, sizeof(commandName));
 
-	const NucleusID_t nucleusId = static_cast<NucleusID_t>(buf->ReadLongLong());
+	const NucleusID_t nucleusId = static_cast<NucleusID_t>(msg.ReadULongLong());
 	const int challenge = GetOrCreateChallenge(packet, nucleusId);
 
 	ALIGN4 u8 challengeBuffer[512];
@@ -778,7 +786,7 @@ void CServer::ProcessC2S_Challenge(const int source, netpacket_t* const packet, 
 	challengeMsg.WriteLong(CONNECTIONLESS_HEADER);
 	challengeMsg.WriteByte(S2C_CHALLENGE);
 	challengeMsg.WriteLong(challenge);
-	challengeMsg.WriteLongLong(nucleusId);
+	challengeMsg.WriteULongLong(nucleusId);
 	challengeMsg.WriteString(commandName);
 
 	if (strcmp(commandName, "connect") == 0)
@@ -787,14 +795,69 @@ void CServer::ProcessC2S_Challenge(const int source, netpacket_t* const packet, 
 	Assert(!challengeMsg.IsOverflowed());
 	v_NET_SendPacket(
 		nullptr,
-		source,
+		packet->source,
 		packet->from,
 		challengeMsg.GetData(),
 		static_cast<unsigned int>(challengeMsg.GetNumBytesWritten()),
 		nullptr,
 		false,
 		nullptr,
-		encrypt);
+		packet->source != NS_RESERVED);
+
+	return true;
+}
+
+bool CServer::ProcessDataBlockAck(const netadr_t& from, bf_read& msg)
+{
+	const u16 blockSeqNr = msg.ReadWord();
+	const u16 cancelSeqNr = msg.ReadWord();
+
+	CClient* const cl = GetClientByAdr(from);
+
+	if (!cl)
+		return false;
+
+	if (!cl->IsConnected())
+		return false;
+
+	NetDataBlockSender* const sender = cl->GetDataBlockSender();
+
+	if (!sender->IsTransfering())
+		return false;
+
+	Assert(sender->GetFragmentCount() > 0);
+	Assert(sender->GetFragmentCount() <= MAX_DATABLOCK_FRAGMENTS);
+
+	NetDataBlockSender::FragAck_s ackMsg{};
+
+	ackMsg.blockSeqNr = blockSeqNr;
+	ackMsg.cancelSeqNr = cancelSeqNr;
+
+	// Zero here means no fragment bitmap follows.
+	const bool hasFragmentAcks = msg.ReadOneBit() != 0;
+
+	if (hasFragmentAcks)
+	{
+		const int numFrags = sender->GetFragmentCount();
+
+		for (int fragId = 0; fragId < numFrags; ++fragId)
+		{
+			if (!msg.ReadOneBit())
+				continue;
+
+			ackMsg.ackedFragments[fragId >> 6] |= 1ull << (fragId & 63);
+		}
+	}
+
+	CNetChan* const chan = cl->GetNetChan();
+
+	if (!chan)
+		return false;
+
+	chan->SetLastReceivedTime(*g_pNetTime);
+	sender->ProcessFragmentAcks(ackMsg);
+
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -808,7 +871,7 @@ bool CServer::ProcessConnectionlessPacketGuts(netpacket_t* const packet)
 	// will make that function receive the original unprocessed message.
 	// [ this differs from client-side connectionless packet processing ]
 	bf_read msg = packet->message;
-	const char id = static_cast<char>(msg.ReadByte());
+	const u8 id = msg.ReadByte();
 
 	if (!IsActive() || !v_Host_ShouldRun())
 	{
@@ -826,17 +889,15 @@ bool CServer::ProcessConnectionlessPacketGuts(netpacket_t* const packet)
 	{
 	case C2S_CONNECT:
 	{
-		ProcessC2S_Connect(&msg, &packet->from);
-		break;
+		return ProcessConnect(packet->from, msg);
 	}
 
 	case C2S_CHALLENGE:
 	{
-		ProcessC2S_Challenge(packet->source, packet, &msg, packet->source != NS_RESERVED);
-		break;
+		return ProcessChallenge(packet, msg);
 	}
 
-	case S2C_CHALLENGE:
+	case S2C_CHALLENGE: // todo(kawe): why is this a thing?
 	{
 		msg.ReadLong();
 		msg.ReadLongLong();
@@ -852,55 +913,7 @@ bool CServer::ProcessConnectionlessPacketGuts(netpacket_t* const packet)
 
 	case C2S_DATABLOCK_ACK:
 	{
-		const u16 blockSeqNr = static_cast<u16>(msg.ReadWord());
-		const u16 cancelSeqNr = static_cast<u16>(msg.ReadWord());
-
-		CClient* const cl = GetClientByAdr(&packet->from);
-
-		if (!cl)
-			break;
-
-		if (!cl->IsConnected())
-			break;
-
-		NetDataBlockSender* const sender = cl->GetDataBlockSender();
-
-		if (!sender->IsTransfering())
-			break;
-
-		Assert(sender->GetFragmentCount() > 0);
-		Assert(sender->GetFragmentCount() <= MAX_DATABLOCK_FRAGMENTS);
-
-		NetDataBlockSender::FragAck_s ackMsg{};
-
-		ackMsg.blockSeqNr = blockSeqNr;
-		ackMsg.cancelSeqNr = cancelSeqNr;
-
-		// Zero here means no fragment bitmap follows.
-		const bool hasFragmentAcks = msg.ReadOneBit() != 0;
-
-		if (hasFragmentAcks)
-		{
-			const int numFrags = sender->GetFragmentCount();
-
-			for (int fragId = 0; fragId < numFrags; ++fragId)
-			{
-				if (!msg.ReadOneBit())
-					continue;
-
-				ackMsg.ackedFragments[fragId >> 6] |= 1ull << (fragId & 63);
-			}
-		}
-
-		CNetChan* const chan = cl->GetNetChan();
-
-		if (!chan)
-			break;
-
-		chan->SetLastReceivedTime(*g_pNetTime);
-		sender->ProcessFragmentAcks(ackMsg);
-
-		break;
+		return ProcessDataBlockAck(packet->from, msg);
 	}
 
 	default:

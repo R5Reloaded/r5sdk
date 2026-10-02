@@ -52,7 +52,7 @@ public:
 	inline CClient* GetClient(const int nIndex) { Assert(nIndex >= NULL && nIndex < MAX_PLAYERS); return &m_Clients[nIndex]; }
 	inline CClientExtended* GetClientExtended(const int nIndex) { Assert(nIndex >= NULL && nIndex < MAX_PLAYERS); return &sm_ClientsExtended[nIndex]; }
 
-	CClient* GetClientByAdr(const netadr_t* const netAdr);
+	CClient* GetClientByAdr(const netadr_t& netAdr);
 	inline int GetSocket() const { return m_Socket; }
 
 	inline float GetTime(void) const { return m_nTickCount * m_flTickInterval; }
@@ -72,10 +72,12 @@ public:
 
 	static bool SpawnServer(CServer* pServer, const char* pszMapName, const char* pszMapGroupName);
 
-	void ProcessC2S_Connect(bf_read* const buf, netadr_t* const adr);
+	bool ProcessConnect(const netadr_t& from, bf_read& msg);
 
 	int GetOrCreateChallenge(const netpacket_t* const packet, const NucleusID_t nucleusId);
-	void ProcessC2S_Challenge(const int source, netpacket_t* const packet, bf_read* const buf, const bool encrypt);
+	bool ProcessChallenge(netpacket_t* const packet, bf_read& msg);
+
+	bool ProcessDataBlockAck(const netadr_t& from, bf_read& msg);
 
 	bool ProcessConnectionlessPacketGuts(netpacket_t* const packet);
 	static bool _ProcessConnectionlessPacket(CServer* const thisptr, netpacket_t* const packet);
