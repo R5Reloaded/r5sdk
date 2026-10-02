@@ -307,71 +307,212 @@ bool CClientState::_ProcessCreateStringTable(CClientState* thisptr, SVC_CreateSt
         return false;
     }
 
-    container->AllowCreation(true);
-    const ssize_t startbit = msg->m_DataIn.GetNumBitsRead();
+	// security_audit(kawe): this whole function has been rewritten from here as
+	// the original code was incorrect. The new Valve code was better, but still
+	// incorrect as it still allows for unsensibly large heap memory allocations
+	// controlled over the wire (it only fixed a padding overflow issue).
+	// 
+	// Anyways, the rewrite now checks if the packet is not malformed in anyway;
+	// 
+	// MAX_STRINGTABLE_ENTRIES holds the maximum the engine uses at the moment,
+	// this way we can ensure next to no CPU resources can be burned remotely.
+	// (this can only change if a string table ends up needing more, which needs
+	// a binary patch anyways. So at that point we recompile this library with
+	// a new pow2-sized maximum.
+	// 
+	// MAX_STRINGTABLE_PAYLOAD is the absolute max size the uncompressed and the
+	// compressed sting table payload can be (this is what all the senders are
+	// currently enforcing, and this is very unlikely to ever change as well).
 
-    CNetworkStringTable* const table = (CNetworkStringTable*)container->CreateStringTable(false, msg->m_szTableName,
-        msg->m_nMaxEntries, msg->m_nUserDataSize, msg->m_nUserDataSizeBits, msg->m_nDictFlags);
+	if (msg->m_nMaxEntries <= 0 || msg->m_nMaxEntries > MAX_STRINGTABLE_ENTRIES)
+	{
+		Assert(0);
+		Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid max entries %d (max %d).\n",
+			__FUNC__, msg->m_szTableName, msg->m_nMaxEntries, MAX_STRINGTABLE_ENTRIES);
 
-    table->SetTick(cl->GetServerTickCount());
-    CClientState__HookClientStringTable(cl, msg->m_szTableName);
+		return false;
+	}
+
+	// CNetworkU64Table does not require a pow2 window!
+	if (!(msg->m_nDictFlags & NSF_USE_U64_TABLE) && !IsPowerOfTwo(msg->m_nMaxEntries))
+	{
+		Assert(0);
+		Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid max entries %d (must be a power of two).\n",
+			__FUNC__, msg->m_szTableName, msg->m_nMaxEntries);
+
+		return false;
+	}
+
+	if (msg->m_nNumEntries < 0 || msg->m_nNumEntries > msg->m_nMaxEntries)
+	{
+		Assert(0);
+		Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid entry count %d (max %d).\n",
+			__FUNC__, msg->m_szTableName, msg->m_nNumEntries, msg->m_nMaxEntries);
+
+		return false;
+	}
+
+	if (msg->m_nLength < 0 || msg->m_nLength > MAX_STRINGTABLE_PAYLOAD * 8)
+	{
+		Assert(0);
+		Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid payload size %d bits (max %d bytes).\n",
+			__FUNC__, msg->m_szTableName, msg->m_nLength, MAX_STRINGTABLE_PAYLOAD);
+
+		return false;
+	}
+
+	const ssize_t startbit = msg->m_DataIn.GetNumBitsRead();
+
+	uint8_t* uncompressedBuffer = nullptr;
+	size_t uncompressedSize = 0;
 
     if (msg->m_bDataCompressed)
     {
-        // TODO[ AMOS ]: check sizes before proceeding to decode
-        // the string tables
-        unsigned int msgUncompressedSize = msg->m_DataIn.ReadLong();
-        unsigned int msgCompressedSize = msg->m_DataIn.ReadLong();
+        unsigned int msgUncompressedSize = msg->m_DataIn.ReadULong();
+        unsigned int msgCompressedSize = msg->m_DataIn.ReadULong();
 
-        size_t uncompressedSize = msgUncompressedSize;
-        size_t compressedSize = msgCompressedSize;
+		if (msg->m_DataIn.IsOverflowed())
+		{
+			Assert(0);
+			Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid compressed payload header.\n",
+				__FUNC__, msg->m_szTableName);
 
-        bool bSuccess = false;
+			return false;
+		}
 
-        // TODO[ AMOS ]: this could do better. The engine does UINT_MAX-3
-        // which doesn't look very great. Clamp to more reasonable values
-        // than UINT_MAX-3 or UINT_MAX/2? The largest string tables sent
-        // are settings layout string tables which are roughly 256KiB
-        // compressed with LZSS. perhaps clamp this to something like 16MiB?
-        if (msg->m_DataIn.TotalBytesAvailable() > 0 &&
-            msgCompressedSize <= (unsigned int)msg->m_DataIn.TotalBytesAvailable() &&
-            msgCompressedSize < UINT_MAX / 2 && msgUncompressedSize < UINT_MAX / 2)
-        {
-            // allocate buffer for uncompressed data, align to 4 bytes boundary
-            uint8_t* const uncompressedBuffer = new uint8_t[PAD_NUMBER(msgUncompressedSize, 4)];
-            uint8_t* const compressedBuffer = new uint8_t[PAD_NUMBER(msgCompressedSize, 4)];
+		if (msgCompressedSize > MAX_STRINGTABLE_PAYLOAD)
+		{
+			Assert(0);
+			Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid compressed payload size %u bytes (max %d bytes).\n",
+				__FUNC__, msg->m_szTableName, msgCompressedSize, MAX_STRINGTABLE_PAYLOAD);
 
-            msg->m_DataIn.ReadBytes(compressedBuffer, msgCompressedSize);
+			return false;
+		}
 
-            // uncompress data
-            bSuccess = NET_BufferToBufferDecompress(compressedBuffer, compressedSize, uncompressedBuffer, &uncompressedSize);
-            bSuccess &= (uncompressedSize == msgUncompressedSize);
+		if (msgUncompressedSize > MAX_STRINGTABLE_PAYLOAD)
+		{
+			Assert(0);
+			Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid uncompressed payload size %u bytes (max %d bytes).\n",
+				__FUNC__, msg->m_szTableName, msgUncompressedSize, MAX_STRINGTABLE_PAYLOAD);
 
-            if (bSuccess)
-            {
-                bf_read data(uncompressedBuffer, (int)uncompressedSize);
-                table->ParseUpdate(data, msg->m_nNumEntries);
-            }
+			return false;
+		}
 
-            delete[] uncompressedBuffer;
-            delete[] compressedBuffer;
-        }
+		if (msgCompressedSize > (unsigned int)msg->m_DataIn.GetNumBytesLeft())
+		{
+			Assert(0);
+			Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid compressed payload size %u bytes (%zd bytes remaining).\n",
+				__FUNC__, msg->m_szTableName, msgCompressedSize, msg->m_DataIn.GetNumBytesLeft());
 
-        if (!bSuccess)
-        {
-            Assert(false);
-            DevWarning(eDLL_T::CLIENT, "%s: Received malformed string table message!\n", __FUNCTION__);
-        }
+			return false;
+		}
+
+		uncompressedSize = msgUncompressedSize;
+        const size_t compressedSize = msgCompressedSize;
+
+        // allocate buffer for uncompressed data, align to 4 bytes boundary
+        uncompressedBuffer = new uint8_t[PAD_NUMBER(msgUncompressedSize, 4)];
+        uint8_t* const compressedBuffer = new uint8_t[PAD_NUMBER(msgCompressedSize, 4)];
+
+        if (!msg->m_DataIn.ReadBytes(compressedBuffer, msgCompressedSize))
+		{
+			delete[] uncompressedBuffer;
+			delete[] compressedBuffer;
+
+			Assert(0);
+			Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" failed to read %u bytes of compressed payload.\n",
+				__FUNC__, msg->m_szTableName, msgCompressedSize);
+
+			return false;
+		}
+
+        // uncompress data
+		const bool bSuccess = NET_BufferToBufferDecompress(compressedBuffer, compressedSize, uncompressedBuffer, &uncompressedSize);
+		delete[] compressedBuffer;
+
+		if (!bSuccess)
+		{
+			delete[] uncompressedBuffer;
+
+			Assert(0);
+			Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" failed to decompress payload (compressed %u bytes, expected %u bytes uncompressed).\n",
+				__FUNC__, msg->m_szTableName, msgCompressedSize, msgUncompressedSize);
+
+			return false;
+		}
+
+		if (uncompressedSize != msgUncompressedSize)
+		{
+			delete[] uncompressedBuffer;
+
+			Assert(0);
+			Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid decompressed size %zu bytes (expected %zu bytes).\n",
+				__FUNC__, msg->m_szTableName, uncompressedSize, (size_t)msgUncompressedSize);
+
+			return false;
+		}
     }
-    else
-    {
-        table->ParseUpdate(msg->m_DataIn, msg->m_nNumEntries);
-    }
 
-    container->AllowCreation(false);
+	container->AllowCreation(true);
+
+	CNetworkStringTable* const table = (CNetworkStringTable*)container->CreateStringTable(false, msg->m_szTableName,
+		msg->m_nMaxEntries, msg->m_nUserDataSize, msg->m_nUserDataSizeBits, msg->m_nDictFlags);
+
+	if (!table)
+	{
+		container->AllowCreation(false);
+		delete[] uncompressedBuffer;
+
+		Assert(0);
+		Error(eDLL_T::CLIENT, 0, "%s: Failed to create string table \"%s\".\n",
+			__FUNC__, msg->m_szTableName);
+
+		return false;
+	}
+
+	table->SetTick(cl->GetServerTickCount());
+	CClientState__HookClientStringTable(cl, msg->m_szTableName);
+
+	bool overflowDuringParse;
+
+	if (msg->m_bDataCompressed)
+	{
+		bf_read data(uncompressedBuffer, (int)uncompressedSize);
+		table->ParseUpdate(data, msg->m_nNumEntries);
+
+		overflowDuringParse = data.IsOverflowed();
+		delete[] uncompressedBuffer;
+	}
+	else
+	{
+		table->ParseUpdate(msg->m_DataIn, msg->m_nNumEntries);
+		overflowDuringParse = msg->m_DataIn.IsOverflowed();
+	}
+
+	container->AllowCreation(false);
+
+	if (overflowDuringParse)
+	{
+		Assert(0);
+		Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" overflowed while parsing payload.\n",
+			__FUNC__, msg->m_szTableName);
+
+		return false;
+	}
+
     const ssize_t endbit = msg->m_DataIn.GetNumBitsRead();
+	const ssize_t readBits = (endbit - startbit);
 
-    return (endbit - startbit) == msg->m_nLength;
+	if (readBits != msg->m_nLength)
+	{
+		Assert(0);
+		Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid payload length (read %zi bits, expected %zi bits).\n",
+			__FUNC__, msg->m_szTableName, readBits, (ssize_t)msg->m_nLength);
+
+		return false;
+	}
+
+	return true;
 }
 
 //------------------------------------------------------------------------------
