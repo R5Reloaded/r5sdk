@@ -28,7 +28,7 @@ inline void*(*v_NET_Init)(bool bDeveloper);
 inline void(*v_NET_Config)(void);
 
 inline void(*v_NET_SetKey)(netkey_t* pKey, const char* szHash);
-inline CNetChan* (*v_NET_CreateNetChannel)(int socket, netadr_t* adr, const char* name, INetChannelHandler* handler, char bForceNewChannel);
+inline CNetChan* (*v_NET_CreateNetChannel)(int socket, const netadr_t* adr, const char* name, INetChannelHandler* handler, char bForceNewChannel);
 
 inline int(*v_NET_GetPacket)(int iSocket, uint8_t* pScratch, bool bEncrypted);
 inline int(*v_NET_SendPacket)(CNetChan* pChan, int iSocket, const netadr_t& toAdr, const uint8_t* pData, unsigned int nLen, void* unused0, bool bCompress, void* unused1, bool bEncrypt);
