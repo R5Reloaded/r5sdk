@@ -583,6 +583,14 @@ bool CServer::ProcessConnect(const netadr_t& from, bf_read& msg)
 
 		if (nameIndex)
 		{
+			// security_audit(kawe): the original indexed the fixed userinfo
+			// name table without validating the networked index.
+			if (nameIndex >= V_ARRAYSIZE(g_userInfoConVarNames))
+			{
+				Server_RejectDesyncConnectPacket(this, from);
+				return false;
+			}
+
 			strncpy(entry.name, g_userInfoConVarNames[nameIndex], sizeof(entry.name));
 			entry.name[sizeof(entry.name) - 1] = '\0';
 		}
