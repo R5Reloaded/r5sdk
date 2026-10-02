@@ -736,25 +736,33 @@ int CServer::GetOrCreateChallenge(const netpacket_t* const packet, const Nucleus
 	const netadr_t& address = packet->from;
 	const int challengeCount =	m_ConnectionChallenges.Count();
 
-	int oldestChallengeIndex = 0;
+	// security_audit(kawe): always make sure we delete the oldest 
+	// entry instead of just entry #0!
+	int oldestChallengeIndex = -1;
 	float oldestChallengeTime = FLT_MAX;
+
+	int oldestGlobalIndex = 0;
+	float oldestGlobalTime = FLT_MAX;
 
 	for (int i = 0; i < challengeCount; ++i)
 	{
 		ServerChallenge_s& entry = m_ConnectionChallenges[i];
 
+		if (entry.lastRequestTime < oldestGlobalTime)
+		{
+			oldestGlobalTime = entry.lastRequestTime;
+			oldestGlobalIndex = i;
+		}
+
 		if (entry.nucleusId != nucleusId)
 			continue;
 
-		const bool addressMatches = address == entry.address;
-
-		if (addressMatches)
+		if (address == entry.address)
 		{
 			entry.lastRequestTime = static_cast<float>(*g_pNetTime);
 			return static_cast<int>(entry.challenge);
 		}
 
-		// Only consider challenges for this nucleus ID.
 		if (entry.lastRequestTime < oldestChallengeTime)
 		{
 			oldestChallengeTime = entry.lastRequestTime;
@@ -763,7 +771,13 @@ int CServer::GetOrCreateChallenge(const netpacket_t* const packet, const Nucleus
 	}
 
 	if (challengeCount >= MAX_SERVER_CONNECT_CHALLENGES)
-		m_ConnectionChallenges.FastRemove(oldestChallengeIndex);
+	{
+		const int removeIndex = oldestChallengeIndex >= 0
+			? oldestChallengeIndex
+			: oldestGlobalIndex;
+
+		m_ConnectionChallenges.FastRemove(removeIndex);
+	}
 
 	const int newIndex = m_ConnectionChallenges.AddToTail();
 	ServerChallenge_s& newEntry = m_ConnectionChallenges[newIndex];
