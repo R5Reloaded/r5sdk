@@ -1,4 +1,5 @@
 #pragma once
+#include "common/netmessages.h"
 #include "engine/gl_model_private.h"
 
 inline void(*v_Host_RunFrame)(void* unused, float time);
@@ -55,6 +56,13 @@ extern CCommonHostState* g_pCommonHostState;
 
 #define HOST_TIME_TO_TICKS( dt )		( (int)( 0.5f + (float)(dt) / g_pCommonHostState->interval_per_tick ) )
 #define HOST_TICKS_TO_TIME( dt )		( g_pCommonHostState->interval_per_tick * (float)(dt) )
+
+int Host_CountVariablesWithFlags(const int flags, const bool nonDefault);
+const char* Host_CleanupConVarStringValue(const char* const inValue);
+void Host_BuildUserInfoUpdateMessage(const int splitScreenSlot,
+									 NET_SetConVar::Vec_t* const cvars,
+									 const bool nonDefault,
+									 const bool platformSystem);
 
 ///////////////////////////////////////////////////////////////////////////////
 class VHost : public IDetour
