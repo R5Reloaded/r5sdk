@@ -92,14 +92,3 @@ add_sources( SOURCE_GROUP "Source"
 )
 
 end_sources()
-
-add_module( "lib" "stryder" "vpc" ${FOLDER_CONTEXT} TRUE TRUE )
-
-start_sources()
-
-add_sources( SOURCE_GROUP "Source"
-   "stryder/stryder.cpp"
-   "stryder/stryder.h"
-)
-
-end_sources()

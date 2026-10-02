@@ -32,6 +32,7 @@
 #include "filesystem/basefilesystem.h"
 #include "filesystem/filesystem.h"
 #include "datacache/mdlcache.h"
+#include "networksystem/stryder.h"
 #include "ebisusdk/EbisuSDK.h"
 #ifndef DEDICATED
 #include "codecs/bink/bink_impl.h"
@@ -76,7 +77,7 @@
 #include "rtech/pak/pakparse.h"
 #include "rtech/pak/pakstate.h"
 #include "rtech/pak/pakstream.h"
-#include "rtech/stryder/stryder.h"
+#include "rtech/pak/paktools.h"
 #include "rtech/playlists/playlists.h"
 #ifndef DEDICATED
 #include "rtech/rui/rui.h"

@@ -10,6 +10,8 @@ add_sources( SOURCE_GROUP "Private"
     "hostmanager.h"
     "listmanager.cpp"
     "listmanager.h"
+    "stryder.cpp"
+    "stryder.h"
     "pylon.cpp"
     "pylon.h"
 )

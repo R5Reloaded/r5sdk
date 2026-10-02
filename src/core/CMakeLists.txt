@@ -67,7 +67,6 @@ target_link_libraries( ${PROJECT_NAME} PRIVATE
     "rson"
     "rtech_game"
     "playlists"
-    "stryder"
 
     "liblzham"
     "libzstd"
