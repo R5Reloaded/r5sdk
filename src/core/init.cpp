@@ -32,7 +32,10 @@
 #include "filesystem/basefilesystem.h"
 #include "filesystem/filesystem.h"
 #include "datacache/mdlcache.h"
+#include "networksystem/persistence.h"
 #include "networksystem/stryder.h"
+#include "networksystem/datacenters.h"
+#include "networksystem/matchmaking.h"
 #include "ebisusdk/EbisuSDK.h"
 #ifndef DEDICATED
 #include "codecs/bink/bink_impl.h"
@@ -62,7 +65,6 @@
 #endif // !DEDICATED
 #ifndef CLIENT_DLL
 #include "engine/server/server.h"
-#include "engine/server/persistence.h"
 #include "engine/server/vengineserver_impl.h"
 #include "engine/server/datablock_sender.h"
 #endif // !CLIENT_DLL
@@ -126,6 +128,7 @@
 #include "engine/gl_rsurf.h"
 #include "engine/keys.h"
 #endif // !DEDICATED
+#include "engine/shared/entitlements.h"
 #include "vscript/languages/squirrel_re/include/squirrel.h"
 #include "vscript/languages/squirrel_re/include/sqvm.h"
 #include "vscript/languages/squirrel_re/include/sqstdaux.h"
@@ -553,6 +556,8 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	// DataCache
 	REGISTER(VMDLCache);
 
+	REGISTER(VPersistence);
+
 	// Ebisu
 	REGISTER(VEbisuSDK);
 
@@ -605,7 +610,6 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 
 	// Server
 	REGISTER(VServer); // REGISTER SERVER ONLY!
-	REGISTER(VPersistence); // REGISTER SERVER ONLY!
 	REGISTER(HVEngineServer); // REGISTER SERVER ONLY!
 	REGISTER(VServerDataBlockSender); // REGISTER SERVER ONLY!
 
@@ -631,6 +635,9 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(V_PakStream);
 
 	REGISTER(VStryder);
+	REGISTER(VDatacenters);
+	REGISTER(VMatchmaking);
+
 	REGISTER(VPlaylists);
 
 #ifndef DEDICATED
@@ -660,6 +667,8 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(VNetworkStringTableContainer);
 
 	REGISTER(VLocalize);
+
+	REGISTER(VEntitlements);
 
 #ifndef DEDICATED
 	REGISTER(HVideoMode_Common);
