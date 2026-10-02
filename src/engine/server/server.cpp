@@ -656,6 +656,10 @@ bool CServer::ProcessConnect(const netadr_t& from, bf_read& msg)
 			return false;
 		}
 
+		// security_audit(kawe): the original uses an uninitialized balance vector
+		// for the Origin token SVC_DLCNotifyOwnership path, so zero it out here.
+		entitlements = 0;
+
 		if (balances.Count() > 0)
 		{
 			memset(balances.Base(),	0, balances.Count() * sizeof(u16));

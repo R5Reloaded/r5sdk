@@ -21,6 +21,51 @@ struct connectparams_t
 	bool asSpectator_MAYBE;
 };
 
+struct RemoteMatchInfo_s // todo: dump an r2 packet to reverse more of it?
+{
+	char		serverAddress[128];		// 0x000
+
+	uint32_t	field_080;				// 0x080
+	bool		field_084;				// 0x084
+	uint8_t		pad_085[3];
+
+	uint32_t	field_088;				// 0x088
+	int32_t		field_08C;				// 0x08C
+	int64_t		field_090;				// 0x090
+
+	char		field_098[128];			// 0x098
+	char		datacenter[64];			// 0x118
+	char		gamemode[32];			// 0x158
+	char		field_178[32];			// 0x178
+	char		playlist[32];			// 0x198
+	char		map[32];			// 0x1B8
+
+	uint16_t	field_1D8;				// 0x1D8
+	uint16_t	pad_1DA;
+
+	uint32_t	field_1DC;				// 0x1DC
+	uint32_t	maxClients;				// 0x1E0
+	uint32_t	numClients;				// 0x1E4
+
+	uint32_t	field_1E8;				// 0x1E8
+	uint32_t	field_1EC;				// 0x1EC
+	uint32_t	field_1F0;				// 0x1F0
+	uint32_t	field_1F4;				// 0x1F4
+
+	int32_t		field_1F8;				// 0x1F8
+	int32_t		field_1FC;				// 0x1FC
+	int32_t		field_200;				// 0x200
+	int32_t		field_204;				// 0x204
+
+	uint32_t	field_208;				// 0x208
+	uint32_t	field_20C;				// 0x20C
+	uint32_t	field_210;				// 0x210
+	uint32_t	field_214;				// 0x214
+
+	uint8_t		clientInfo[0xB400];	// 0x218
+	int32_t		teamScores[MAX_TEAMS];		// 0xB618
+};
+
 class CClientSnapshotManager : public IClientSnapshotManager
 {
 public:
@@ -42,6 +87,7 @@ public: // Hook statics.
 	static bool _ProcessCreateStringTable(CClientState* thisptr, SVC_CreateStringTable* msg);
 	static bool _ProcessUserMessage(CClientState* thisptr, SVC_UserMessage* msg);
 	static void VConnect(CClientState* thisptr, connectparams_t* connectParams);
+	static bool _ProcessConnectionlessPacket(CClientState* thisptr, netpacket_t* const packet);
 
 
 public:
@@ -71,6 +117,17 @@ public:
 	void RegisterNetMsgs(CNetChan* chan);
 
 	inline int GetServerCount() const { return m_nServerCount; }
+	inline ClientDataBlockReceiver* GetDataBlockReceiver() { return &m_DataBlockReceiver; }
+
+	i64 ProcessMatchInfoUpdate(const netadr_t& from, bf_read& msg);
+	bool ProcessDisconnect(const netadr_t& from, bf_read& msg);
+	void CreateConnectMessage(bf_write* const buf, const int challenge) const;
+	bool ProcessChallenge(const netadr_t& from, bf_read& msg);
+	bool ProcessConnectionAccept(const netadr_t& from, bf_read& msg);
+	bool ProcessConnectionReject(const netadr_t& from, bf_read& msg);
+	bool ProcessDataBlockFragment(const netadr_t& from, bf_read& msg);
+
+	bool ProcessConnectionlessPacketGuts(netpacket_t* const packet);
 
 protected:
 	FORCEINLINE CClientState* GetShiftedBasePointer(const u64 shiftAmount = 0x10)
@@ -93,9 +150,9 @@ public:
 	_DWORD m_nChallengeRetryLimit;
 	_BYTE encrypted_connection_MAYBE;
 	_BYTE gap79[3];
-	netadr_t addr;
+	netadr_t m_RemoteAddress;
 	bool m_bUnk_used_during_auth;
-	char m_bSendChallengeRequest;
+	bool m_bSendChallengeRequest;
 	_BYTE m_bDoNetParamsReconnect_MAYBE;
 	_BYTE field_97;
 	SIGNONSTATE m_nSignonState;
@@ -134,15 +191,15 @@ public:
 	float m_flTickTime;
 	float m_flOldTickTime;
 	_BYTE m_bSignonChallengeReceived;
-	_DWORD challenge;
-	netadr_t challengeAddr;
+	int m_challenge;
+	netadr_t m_challengeAddr;
 	bool m_bUseLocalSendTableFile;
 	_QWORD m_pServerClasses;
 	int m_nServerClasses;
 	int m_nServerClassBits;
 	CNetworkStringTableContainer* m_StringTableContainer;
 	char m_PersistenceData[98304];
-	_BYTE m_bPersistenceBaselineRecvd;
+	bool m_bPersistenceBaselineRecvd;
 	int m_nPersistenceBaselineEntries;
 	int field_18350;
 	bool m_bRestrictServerCommands;
@@ -194,9 +251,13 @@ public:
 	int dword18D60;
 	char gap18D64[4];
 	__int64 qword18D68;
-	char buffer_47128[47128];
-	char entitlements_bitfield[16];
-	__int64 maybe_some_ll_stuff;
+	char unk[16];
+	RemoteMatchInfo_s m_remoteMatchInfo;
+	u64 m_entitlementBits;
+	__int64 qword24588;
+	__int64 qword24590;
+	__int64 qword24598;
+	__int64 qword245A0;
 	__int64 qword245A8;
 	__int64 qword245B0;
 	__int64 qword245B8;
@@ -204,9 +265,6 @@ public:
 	__int64 qword245C8;
 	__int64 qword245D0;
 	__int64 qword245D8;
-	__int64 qword245E0;
-	__int64 qword245E8;
-	__int64 qword245F0;
 	int dword245F8;
 	char gap245FC[1024];
 	int dword249EC;
@@ -233,12 +291,17 @@ inline void(*CClientState__Connect)(CClientState* thisptr, connectparams_t* conn
 inline void(*CClientState__Disconnect)(CClientState* thisptr, const bool bShowMainMenu);
 inline bool(*CClientState__ConnectionStart)(CClientState* thisptr, CNetChan* chan);
 inline void(*CClientState__ConnectionClosing)(CClientState* thisptr, const char* szReason);
+inline bool(*CClientState__SetSignonState)(CClientState* thisptr, SIGNONSTATE signonState, int spawnCount, NET_SignonState* msg);
 inline bool(*CClientState__HookClientStringTable)(CClientState* thisptr, const char* tableName);
 
 inline bool(*CClientState__ProcessStringCmd)(CClientState* thisptr, NET_StringCmd* msg);
 inline bool(*CClientState__ProcessServerTick)(CClientState* thisptr, SVC_ServerTick* msg);
 inline bool(*CClientState__ProcessCreateStringTable)(CClientState* thisptr, SVC_CreateStringTable* msg);
 inline bool(*CClientState__ProcessUserMessage)(CClientState* thisptr, SVC_UserMessage* msg);
+
+inline bool (*CClientState__ProcessConnectionlessPacket)(CClientState* const client, netpacket_t* const packet);
+
+inline void(*CClientState__C2S_WriteConnectMsg)(CClientState* thisptr, bf_write* const buf, const int challenge);
 
 ///////////////////////////////////////////////////////////////////////////////
 class VClientState : public IDetour
@@ -250,11 +313,14 @@ class VClientState : public IDetour
 		LogFunAdr("CClientState::Disconnect", CClientState__Disconnect);
 		LogFunAdr("CClientState::ConnectionStart", CClientState__ConnectionStart);
 		LogFunAdr("CClientState::ConnectionClosing", CClientState__ConnectionClosing);
+		LogFunAdr("CClientState::SetSignonState", CClientState__SetSignonState);
 		LogFunAdr("CClientState::HookClientStringTable", CClientState__HookClientStringTable);
 		LogFunAdr("CClientState::ProcessStringCmd", CClientState__ProcessStringCmd);
 		LogFunAdr("CClientState::ProcessServerTick", CClientState__ProcessServerTick);
 		LogFunAdr("CClientState::ProcessCreateStringTable", CClientState__ProcessCreateStringTable);
 		LogFunAdr("CClientState::ProcessUserMessage", CClientState__ProcessUserMessage);
+		LogFunAdr("CClientState::ProcessConnectionlessPacket", CClientState__ProcessConnectionlessPacket);
+		LogFunAdr("CClientState::C2S_WriteConnectMsg", CClientState__C2S_WriteConnectMsg);
 		LogVarAdr("g_ClientState", g_pClientState);
 		LogVarAdr("g_ClientState_Shifted", g_pClientState_Shifted);
 	}
@@ -265,11 +331,14 @@ class VClientState : public IDetour
 		Module_FindPattern(g_GameDll, "40 56 57 41 54 41 55 41 57 48 83 EC 30 44 0F B6 FA").GetPtr(CClientState__Disconnect);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 41 56 41 57 48 83 EC ?? 48 8B 05 ?? ?? ?? ?? 48 8B F2").GetPtr(CClientState__ConnectionStart);
 		Module_FindPattern(g_GameDll, "40 53 48 83 EC 20 83 B9 ?? ?? ?? ?? ?? 48 8B DA 0F 8E ?? ?? ?? ??").GetPtr(CClientState__ConnectionClosing);
+		Module_FindPattern(g_GameDll, "44 89 44 24 ?? 55 53 41 54 41 55 41 57 48 8D AC 24").GetPtr(CClientState__SetSignonState);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 57 48 83 EC 20 48 8B D9 48 8B FA 48 8B 89 ?? ?? ?? ?? 48 85 C9 0F 84 ?? ?? ?? ??").GetPtr(CClientState__HookClientStringTable);
 		Module_FindPattern(g_GameDll, "40 53 48 81 EC ?? ?? ?? ?? 80 B9 ?? ?? ?? ?? ?? 48 8B DA").GetPtr(CClientState__ProcessStringCmd);
 		Module_FindPattern(g_GameDll, "40 57 48 83 EC 20 83 B9 ?? ?? ?? ?? ?? 48 8B F9 7C 66").GetPtr(CClientState__ProcessServerTick);
 		Module_FindPattern(g_GameDll, "48 89 4C 24 ?? 53 56 48 81 EC ?? ?? ?? ?? 83 B9 ?? ?? ?? ?? ??").GetPtr(CClientState__ProcessCreateStringTable);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 55 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 83 B9 ?? ?? ?? ?? ??").GetPtr(CClientState__ProcessUserMessage);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 44 8B 52").GetPtr(CClientState__ProcessConnectionlessPacket);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ? 56 57 41 56 48 83 EC ?? 48 8B FA").GetPtr(CClientState__C2S_WriteConnectMsg);
 	}
 	virtual void GetVar(void) const
 	{

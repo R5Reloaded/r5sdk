@@ -35,6 +35,8 @@ extern ConVar* hostname;
 extern ConVar* hostip;
 extern ConVar* hostport;
 
+extern ConVar* serverFilter_cvar;
+
 extern ConVar* host_hasIrreversibleShutdown;
 extern ConVar* host_timescale;
 
@@ -60,6 +62,7 @@ extern ConVar* language_cvar;
 extern ConVar* voice_noxplat;
 
 extern ConVar* platform_user_id;
+extern ConVar* nucleus_id;
 
 #ifndef DEDICATED
 extern ConVar* name_cvar;
@@ -128,6 +131,7 @@ extern ConVar* pvs_frustumCullOnly;
 
 extern ConVar* origin_disconnectWhenOffline;
 extern ConVar* discord_updatePresence;
+extern ConVar* force_EAAccess;
 
 extern ConVar* match_playlist;
 

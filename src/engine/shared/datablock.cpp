@@ -590,7 +590,6 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 	}
 
 	m_transferAckPending = true;
-	m_usesCompression = false; // todo(kawe): remove once local client OOB handler is rebuilt! (NextTransfer() resets it)
 
 	// Make sure the fragment belongs to the current block
 	if (blockSeqNr != m_blockSeqNr)

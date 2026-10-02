@@ -48,6 +48,8 @@ ConVar* hostname                           = nullptr;
 ConVar* hostip                             = nullptr;
 ConVar* hostport                           = nullptr;
 
+ConVar* serverFilter_cvar                  = nullptr;
+
 ConVar* host_hasIrreversibleShutdown       = nullptr;
 ConVar* host_timescale                     = nullptr;
 
@@ -72,6 +74,7 @@ ConVar* language_cvar                      = nullptr;
 ConVar* voice_noxplat                      = nullptr;
 
 ConVar* platform_user_id                   = nullptr;
+ConVar* nucleus_id                         = nullptr;
 
 #ifndef DEDICATED
 ConVar* name_cvar                          = nullptr;
@@ -139,7 +142,8 @@ ConVar* pvs_start_early                    = nullptr;
 ConVar* pvs_frustumCullOnly                = nullptr;
 
 ConVar* origin_disconnectWhenOffline       = nullptr;
-ConVar* discord_updatePresence = nullptr;
+ConVar* discord_updatePresence             = nullptr;
+ConVar* force_EAAccess                     = nullptr;
 
 ConVar* match_playlist                     = nullptr;
 
@@ -215,6 +219,7 @@ void ConVar_InitShipped(void)
 	language_cvar                    = g_pCVar->FindVar("language");
 	voice_noxplat                    = g_pCVar->FindVar("voice_noxplat");
 	platform_user_id                 = g_pCVar->FindVar("platform_user_id");
+	nucleus_id                       = g_pCVar->FindVar("nucleus_id");
 #ifndef DEDICATED
 	name_cvar                        = g_pCVar->FindVar("name");
 	cl_updaterate_mp                 = g_pCVar->FindVar("cl_updaterate_mp");
@@ -251,6 +256,7 @@ void ConVar_InitShipped(void)
 #ifndef DEDICATED
 	origin_disconnectWhenOffline     = g_pCVar->FindVar("origin_disconnectWhenOffline");
 	discord_updatePresence           = g_pCVar->FindVar("discord_updatePresence");
+	force_EAAccess                   = g_pCVar->FindVar("force_EAAccess");
 	match_playlist                   = g_pCVar->FindVar("match_playlist");
 
 	gamepad_custom_enabled           = g_pCVar->FindVar("gamepad_custom_enabled");
@@ -283,6 +289,7 @@ void ConVar_InitShipped(void)
 	hostname                         = g_pCVar->FindVar("hostname");
 	hostip                           = g_pCVar->FindVar("hostip");
 	hostport                         = g_pCVar->FindVar("hostport");
+	serverFilter_cvar                = g_pCVar->FindVar("serverFilter");
 	host_hasIrreversibleShutdown     = g_pCVar->FindVar("host_hasIrreversibleShutdown");
 	host_timescale                   = g_pCVar->FindVar("host_timescale");
 
