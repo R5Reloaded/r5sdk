@@ -121,11 +121,6 @@ void CPlayer::SetTotalExtraClientCmdTimeAttempted(float flAttemptedTime)
 //			droppedPackets - 
 //			paused - 
 //------------------------------------------------------------------------------
-// TODO: this code is experimental and has reported problems from players with
-// high latency, needs to be debugged or a different approach needs to be taken!
-// Defaulted to OFF for now
-static ConVar sv_unlag_clamp("sv_unlag_clamp", "1", FCVAR_RELEASE, "Clamp the difference between player's time base and received command time to sv_maxunlag.");
-
 void CPlayer::ProcessUserCmds(CUserCmd* cmds, int numCmds, int totalCmds,
 	int droppedPackets, bool paused)
 {
@@ -150,22 +145,11 @@ void CPlayer::ProcessUserCmds(CUserCmd* cmds, int numCmds, int totalCmds,
 		if (lastCommandNumber == MAX_QUEUED_COMMANDS_PROCESS)
 			return;
 
-		// TODO: why are grenades not clamped to sv_maxunlag ???
-		// TODO: the command_time is set from the client itself in CInput::CreateMove
-		// to gpGlobals->curtime in the ucmd packet, perhaps just calculate it from
-		// the server based on ucmd ticks ???
-		// 
-		// Possible solutions that need to be explored and worked out further:
-		// 
-		// cmd->command_time = TICKS_TO_TIME(cmd->command_number + cmd->tick_count) // seems to be the closest, but also still manipulatable from the client.
-		// cmd->command_time = TICKS_TO_TIME(client->GetDeltaTick() + cmd->command_number) // delta tick is not necessarily the same as actual ucmd tick, and will be -1 on baseline request.
-		// cmd->command_time = TICKS_TO_TIME(m_lastUCmdSimulationRemainderTime) + m_totalExtraClientCmdTimeAttempted; // player timebase; also up to 100ms difference between orig sent value.
-		// 
-		// ... reverse more ticks and floats in CClient since there seem to be a
-		// bunch still in the padded bytes, possibly one of them is what we could
-		// and should actually use to get the remote client time since ucmd was sent.
-		if (sv_unlag_clamp.GetBool())
-			cmd->command_time = Min(Max(cmd->command_time, Max(timeBase - maxUnlag, 0.0f)), timeBase + maxUnlag);
+		// The UserCmd command_time is un-clamped in the internal lag compensation code,
+		// meaning they can decide when exactly a grenade is going to explode by winding
+		// back or forth command_time. Clamp it here in the range of +- sv_maxunlag to
+		// nerf the exploit.
+		cmd->command_time = Clamp(cmd->command_time, Max(timeBase - maxUnlag, 0.0f), timeBase + maxUnlag);
 
 		CUserCmd* queuedCmd = &m_Commands[lastCommandNumber];
 		queuedCmd->Copy(cmd);
