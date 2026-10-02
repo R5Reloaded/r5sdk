@@ -56,6 +56,13 @@ public:
 	virtual const void*		GetStringUserData( int stringNumber, int* length ) = 0;
 };
 
+enum ENetworkStringtableFlags
+{
+	NSF_NONE               = 0,
+	NSF_DICTIONARY_ENABLED = (1<<0), // Uses pre-calculated per map dictionaries to reduce bandwidth
+	NSF_USE_U64_TABLE      = (1<<1)  // Uses a uint64-backed network table instead of a string table
+};
+
 class INetworkStringTableContainer
 {
 public:
