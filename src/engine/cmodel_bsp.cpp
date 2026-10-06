@@ -28,8 +28,8 @@
 #include "filesystem/filesystem.h"
 #include "pluginsystem/modsystem.h"
 #ifndef DEDICATED
+#include "networksystem/party.h"
 #include "client/clientstate.h"
-#include "client/community_party.h"
 #endif // !DEDICATED
 
 CUtlVector<CUtlString> g_InstalledMaps;

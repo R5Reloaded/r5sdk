@@ -158,8 +158,6 @@ add_sources( SOURCE_GROUP "Client" # Client only.
     "client/vengineclient_impl.h"
     "client/datablock_receiver.cpp"
     "client/datablock_receiver.h"
-    "client/community_party.cpp"
-    "client/community_party.h"
 )
 
 add_sources( SOURCE_GROUP "GameUI"

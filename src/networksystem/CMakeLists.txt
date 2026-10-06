@@ -18,6 +18,8 @@ add_sources( SOURCE_GROUP "Services"
     "stryder.cpp"
     "datacenters.cpp"
     "matchmaking.cpp"
+    "party.cpp"
+    "party.h"
 )
 
 add_sources( SOURCE_GROUP "Public"

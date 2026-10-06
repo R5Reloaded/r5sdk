@@ -4,7 +4,7 @@
 //
 //=============================================================================//
 #include "rtech/playlists/playlists.h"
-#include "community_party.h"
+#include "party.h"
 
 //-----------------------------------------------------------------------------
 // Purpose: returns the target playlist the party is looking for

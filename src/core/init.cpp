@@ -32,12 +32,13 @@
 #include "filesystem/basefilesystem.h"
 #include "filesystem/filesystem.h"
 #include "datacache/mdlcache.h"
+#include "ebisusdk/EbisuSDK.h"
 #include "networksystem/persistence.h"
 #include "networksystem/stryder.h"
 #include "networksystem/datacenters.h"
 #include "networksystem/matchmaking.h"
-#include "ebisusdk/EbisuSDK.h"
 #ifndef DEDICATED
+#include "networksystem/party.h"
 #include "codecs/bink/bink_impl.h"
 #include "codecs/miles/miles_impl.h"
 #include "codecs/miles/miles_shim.h"
@@ -87,7 +88,6 @@
 #include "engine/client/cl_main.h"
 #include "engine/client/cl_rcon.h"
 #include "engine/client/cl_splitscreen.h"
-#include "engine/client/community_party.h"
 #endif // !DEDICATED
 #include "engine/client/client.h"
 #ifndef DEDICATED
