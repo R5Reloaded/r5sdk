@@ -3,8 +3,9 @@
 
 struct PartySearch_s
 {
-	int status;
-	char playlists[7][64];
+	int state;
+	char status[64];
+	char options[6][64];
 };
 
 extern const char* Party_GetTargetPlaylist();
