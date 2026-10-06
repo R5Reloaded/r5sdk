@@ -479,7 +479,7 @@ private:
 class SVC_PlaylistOverrides : public CNetMessage
 {
 private:
-	int			m_nMsgType;
+	IServerMessageHandler* m_pMessageHandler;
 	int			m_nLength;	// data length in bits
 	bf_read		m_DataIn;
 	bf_write	m_DataOut;
