@@ -1,5 +1,9 @@
 #include "tier1/netadr.h"
+#include "common/netmessages.h"
+#include "engine/cmodel_bsp.h"
+#include "engine/client/clientstate.h"
 #include "matchmaking.h"
+#include "party.h"
 
 MatchmakingSearchState_s* Matchmaking_GetActiveSearch()
 {
@@ -29,4 +33,43 @@ void Matchmaking_AbortAllSearches()
 	}
 
 	v_Matchmaking_UpdateChatroomState();
+}
+
+static bool Matchmaking_CanPrecache()
+{
+	return match_precachemap->GetBool() && (g_pClientState->m_nSignonState < SIGNONSTATE::SIGNONSTATE_CONNECTED ||
+		(g_pClientState->m_nSignonState == SIGNONSTATE::SIGNONSTATE_FULL && g_pClientState->m_bInMpLobbyMenu));
+}
+
+static void Matchmaking_UpdateStatusFromBuffer(SVC_MatchmakingStatus* const msg)
+{
+	bf_read* const buffer = &msg->m_DataIn;
+	const u8 state = buffer->ReadByte();
+
+	g_partySearch->state = state;
+	V_strncpy(g_partySearch->status, g_matchmakingStatusNames[state], sizeof(g_partySearch->status));
+
+	for (int i = 0; i < V_ARRAYSIZE(g_partySearch->options); ++i)
+		buffer->ReadString(g_partySearch->options[i], sizeof(g_partySearch->options[i]));
+
+	if (Matchmaking_CanPrecache())
+	{
+		const char* const targetMap = v_Party_GetTargetMap();
+		Assert(targetMap);
+
+		if (*targetMap)
+		{
+			char path[MAX_OSPATH];
+			V_snprintf(path, sizeof(path), "vpk/client_%s.bsp", targetMap);
+
+			Mod_PrecacheLevelAssets(path, targetMap, true);
+		}
+	}
+
+	v_Party_UpdatePartySearchStatus(g_partySearch);
+}
+
+void VMatchmaking::Detour(const bool bAttach) const
+{
+	DetourSetup(&v_Matchmaking_UpdateStatusFromBuffer, &Matchmaking_UpdateStatusFromBuffer, bAttach);
 }

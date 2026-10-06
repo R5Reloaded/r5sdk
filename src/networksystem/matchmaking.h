@@ -30,9 +30,21 @@ struct MatchmakingSearchState_s
 MatchmakingSearchState_s* Matchmaking_GetActiveSearch();
 void Matchmaking_AbortAllSearches();
 
+inline const char* const g_matchmakingStatusNames[] =
+{
+	"",
+	"#MATCH_SEARCHING",
+	"#MATCHMAKING_PARTYCHANGED",
+	"#MATCHMAKING_QUEUED",
+	"#MATCHMAKING_ALLOCATING_SERVER",
+	"#MATCHMAKING_MATCH_CONNECTING",
+	"#MATCHMAKING_BANNED"
+};
+
 inline bool (*v_Matchmaking_RemoveRejectedServer)(netadr_t* const adr);
 inline void (*v_Matchmaking_AbortSearchHandle)(const int handle);
 inline bool (*v_Matchmaking_UpdateChatroomState)();
+inline void (*v_Matchmaking_UpdateStatusFromBuffer)(SVC_MatchmakingStatus* const msg);
 
 // Size = MAX_MATCHMAKING_SEARCHES
 inline MatchmakingSearchState_s* g_matchmakingSearches;
@@ -45,12 +57,14 @@ class VMatchmaking : public IDetour
 		LogFunAdr("Matchmaking_RemoveRejectedServer", v_Matchmaking_RemoveRejectedServer);
 		LogFunAdr("Matchmaking_AbortSearchHandle", v_Matchmaking_AbortSearchHandle);
 		LogFunAdr("Matchmaking_UpdateChatroomState", v_Matchmaking_UpdateChatroomState);
+		LogFunAdr("Matchmaking_UpdateStatusFromBuffer", v_Matchmaking_UpdateStatusFromBuffer);
 	}
 	virtual void GetFun(void) const
 	{
 		Module_FindPattern(g_GameDll, "40 53 48 83 EC ? 4C 8B C1 33 DB").GetPtr(v_Matchmaking_RemoveRejectedServer);
 		Module_FindPattern(g_GameDll, "0F B7 C1 3D ? ? ? ? 77 ? 8B D0 4C 8D 05 ? ? ? ? 48 69 C0 ? ? ? ? 42 39 0C 00 75 ? 48 C1 E2 ? 48 8D 05 ? ? ? ? 48 03 D0 74 ? 48 8B 0A").GetPtr(v_Matchmaking_AbortSearchHandle);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ? 57 48 81 EC ? ? ? ? 32 DB").GetPtr(v_Matchmaking_UpdateChatroomState);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ? 48 89 6C 24 ? 56 48 81 EC ? ? ? ? 44 8B 41").GetPtr(v_Matchmaking_UpdateStatusFromBuffer);
 	}
 	virtual void GetVar(void) const
 	{
@@ -58,7 +72,7 @@ class VMatchmaking : public IDetour
 			.FindPatternSelf("48 8D", CMemory::Direction::DOWN, 40).ResolveRelativeAddressSelf(3, 7).RCast<MatchmakingSearchState_s*>();
 	}
 	virtual void GetCon(void) const {}
-	virtual void Detour(const bool bAttach) const {};
+	virtual void Detour(const bool bAttach) const;
 };
 ///////////////////////////////////////////////////////////////////////////////
 

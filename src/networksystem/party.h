@@ -12,6 +12,7 @@ extern const char* Party_GetTargetPlaylist();
 
 /* ==== PARTY ================================================================================================================================================== */
 inline const char* (*v_Party_GetTargetMap)();
+inline const char* (*v_Party_UpdatePartySearchStatus)(PartySearch_s* const party);
 
 inline PartySearch_s* g_partySearch;
 inline const char* g_localTargetPartyPlaylist; // size = MAX_PLAYLIST_NAME
@@ -22,10 +23,12 @@ class VCommunityParty : public IDetour
 	virtual void GetAdr(void) const
 	{
 		LogFunAdr("Party_GetTargetMap", v_Party_GetTargetMap);
+		LogFunAdr("Party_UpdatePartySearchStatus", v_Party_UpdatePartySearchStatus);
 	}
 	virtual void GetFun(void) const
 	{
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ? 57 48 83 EC ? 83 3D ? ? ? ? ? 48 8D 3D").GetPtr(v_Party_GetTargetMap);
+		Module_FindPattern(g_GameDll, "48 8B C4 48 89 70 ? 55 48 8B EC 48 81 EC").GetPtr(v_Party_UpdatePartySearchStatus);
 	}
 	virtual void GetVar(void) const
 	{
