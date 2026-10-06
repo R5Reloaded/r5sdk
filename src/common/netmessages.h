@@ -485,6 +485,14 @@ private:
 	bf_write	m_DataOut;
 };
 
+struct SVC_MatchmakingStatus : public CNetMessage
+{
+	IServerMessageHandler* m_pMessageHandler;
+	int         m_nLength;  // data length in bits
+	bf_read     m_DataIn;
+	bf_write    m_DataOut;
+};
+
 class SVC_SetClassVar : public CNetMessage
 {
 public:
