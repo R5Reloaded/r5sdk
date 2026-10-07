@@ -46,6 +46,14 @@ static void Matchmaking_UpdateStatusFromBuffer(SVC_MatchmakingStatus* const msg)
 	bf_read* const buffer = &msg->m_DataIn;
 	const u8 state = buffer->ReadByte();
 
+	// security_audit(kawe): my fuzzer catched this on svc_MatchmakingStatus,
+	// originally no bounds check here !!!
+	if (state >= V_ARRAYSIZE(g_matchmakingStatusNames))
+	{
+		Warning(eDLL_T::ENGINE, __FUNC_PFX__"state %hhu is out of range !!!\n", state);
+		return;
+	}
+
 	g_partySearch->state = state;
 	V_strncpy(g_partySearch->status, g_matchmakingStatusNames[state], sizeof(g_partySearch->status));
 
