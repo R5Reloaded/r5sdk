@@ -8,6 +8,20 @@
 #include "public/const.h"
 #include "engine/host.h"
 #include "engine/client/cl_ents_parse.h"
+#include "clientstate.h"
+
+static void CL_ProcessSnapshot_WT(SnapshotData_Async* const asyncSnap)
+{
+	v_CL_ProcessSnapshot_WT(asyncSnap);
+
+	CNetChan* const chan = g_pClientState->GetNetChannel();
+	Assert(chan);
+
+	const nettick_t& netTick = asyncSnap->record.tick_update;
+
+	chan->SetRemoteFramerate(netTick.m_flHostFrameTime, netTick.m_flHostFrameTimeStdDeviation);
+	chan->SetRemoteCPUStatistics(netTick.m_nServerCPU);
+}
 
 bool CL_CopyNewEntity(CEntityReadInfo* const u, unsigned int* const iClass, const int iSerialNum, bool* const pbError)
 {
@@ -42,4 +56,11 @@ bool CL_CopyExistingEntity(CEntityReadInfo* const u, unsigned int* const iClass,
 	}
 
 	return v_CL_CopyExistingEntity(u, iClass, pbError);
+}
+
+void V_CL_Ents_Parse::Detour(const bool bAttach) const
+{
+	DetourSetup(&v_CL_ProcessSnapshot_WT, &CL_ProcessSnapshot_WT, bAttach);
+	DetourSetup(&v_CL_CopyNewEntity, &CL_CopyNewEntity, bAttach);
+	DetourSetup(&v_CL_CopyExistingEntity, &CL_CopyExistingEntity, bAttach);
 }

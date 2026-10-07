@@ -71,7 +71,7 @@ class CClientSnapshotManager : public IClientSnapshotManager
 public:
 	virtual ~CClientSnapshotManager(void){};
 
-	void* m_Frames;
+	SnapshotFrame* m_Frames;
 	CUtlMemoryPool m_ClientFramePool;
 };
 
@@ -108,6 +108,7 @@ public:
 	void SetClientTickCount(int tick);
 
 	float GetFrameTime(void) const;
+	inline CNetChan* GetNetChannel() const { return m_NetChannel; }
 
 	bool Authenticate(connectparams_t* connectParams, char* const reasonBuf, const size_t reasonBufLen) const;
 
@@ -210,9 +211,9 @@ public:
 	char error_message[512];
 	_BYTE gap18CA1[3];
 	_DWORD last_usercmd_time_from_server_maybe;
-	CFrameSnapshot* m_PrevFrameSnapshot;
-	_QWORD qword18CB0;
-	CFrameSnapshot* m_CurrFrameSnapshot;
+	SnapshotFrame* m_PrevFrameSnapshot;
+	SnapshotFrame* qword18CB0;
+	SnapshotFrame* m_CurrFrameSnapshot;
 	_BYTE gap18CC0[8];
 	char m_bClockCorrectionEnabled;
 	char m_b_unknown;

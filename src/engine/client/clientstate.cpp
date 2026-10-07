@@ -212,32 +212,10 @@ void CClientState::VConnectionClosing(CClientState* thisptr, const char* szReaso
 
 //------------------------------------------------------------------------------
 // Purpose: called when a SVC_ServerTick messages comes in.
-// This function has an additional check for the command tick against '-1',
-// if it is '-1', we process statistics only. This is required as the game
-// no longer can process server ticks every frame unlike previous games.
-// Without this, the server CPU and frame time don't get updated to the client.
 //------------------------------------------------------------------------------
 bool CClientState::VProcessServerTick(CClientState* thisptr, SVC_ServerTick* msg)
 {
-    if (msg->m_NetTick.m_nCommandTick != -1)
-    {
-        // Updates statistics and updates clockdrift.
-        return CClientState__ProcessServerTick(thisptr, msg);
-    }
-    else // Statistics only.
-    {
-        CClientState* const thisptr_ADJ = thisptr->GetShiftedBasePointer();
-
-        if (thisptr_ADJ->IsConnected())
-        {
-            CNetChan* const pChan = thisptr_ADJ->m_NetChannel;
-
-            pChan->SetRemoteFramerate(msg->m_NetTick.m_flHostFrameTime, msg->m_NetTick.m_flHostFrameTimeStdDeviation);
-            pChan->SetRemoteCPUStatistics(msg->m_NetTick.m_nServerCPU);
-        }
-
-        return true;
-    }
+	return CClientState__ProcessServerTick(thisptr, msg);
 }
 
 //------------------------------------------------------------------------------
