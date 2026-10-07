@@ -122,14 +122,21 @@ add_sources( SOURCE_GROUP "Server"
 )
 endif()
 
+if( NOT ${PROJECT_NAME} STREQUAL "engine_ds" )
 add_sources( SOURCE_GROUP "Client"
     "client/cdll_engine_int.cpp"
     "client/cdll_engine_int.h"
     "client/cl_ents_parse.cpp"
     "client/cl_ents_parse.h"
+)
+endif()
+
+if( NOT ${PROJECT_NAME} STREQUAL "engine_cl" )
+add_sources( SOURCE_GROUP "Client"
     "client/client.cpp"
     "client/client.h"
 )
+endif()
 
 add_sources( SOURCE_GROUP "Shared"
     "shared/base_rcon.cpp"
