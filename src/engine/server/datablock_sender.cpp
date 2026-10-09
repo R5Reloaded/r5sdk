@@ -23,13 +23,16 @@ void ServerDataBlockSender::SendFragmentGuts(ServerDataBlockSender* const sender
 	const CClient* const cl = sender->GetClient();
 
 	if (!cl)
+	{
+		Assert(0, __FUNC_PFX__"Null client handle!");
 		return;
+	}
 
 	const CNetChan* const chan = cl->m_NetChannel;
 
 	if (!chan)
 	{
-		Assert(0, __FUNC_PFX__"Called without a valid net channel!");
+		Assert(0, __FUNC_PFX__"Null net channel!");
 		return;
 	}
 
