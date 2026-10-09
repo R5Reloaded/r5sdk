@@ -70,6 +70,8 @@ void ClientDataBlockReceiver::SendFragmentAcksGuts(ClientDataBlockReceiver* cons
 		buf.GetData(),
 		buf.GetNumBytesWritten(),
 		NULL, false, NULL, true);
+
+	receiver->m_transferAckPending = false;
 }
 
 //-----------------------------------------------------------------------------

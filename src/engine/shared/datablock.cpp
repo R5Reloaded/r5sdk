@@ -714,8 +714,6 @@ bool NetDataBlockReceiver::ProcessFragment(const double currTime, const unsigned
 		return true; // Not complete yet.
 
 	SendFragmentAcks();
-
-	m_transferAckPending = false;
 	m_transferFinished = true;
 
 	const Header_s* const pHeader = reinterpret_cast<Header_s*>(m_scratchBuffer);
