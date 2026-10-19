@@ -1553,6 +1553,10 @@ static PVOID detour_alloc_region_from_hi(PBYTE pbLo, PBYTE pbHi)
             }
             pbTry -= DETOUR_REGION_SIZE;
         }
+        else if (mbi.State == MEM_FREE) {
+            // AllocationBase is undefined for free memory regions.
+            pbTry -= DETOUR_REGION_SIZE;
+        }
         else {
             pbTry = detour_alloc_round_down_to_region((PBYTE)mbi.AllocationBase
                                                       - DETOUR_REGION_SIZE);
