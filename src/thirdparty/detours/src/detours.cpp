@@ -145,17 +145,55 @@ static void detour_init_memory()
             peb->OSMinorVersion > 1 ||
             detours_aslr_enabled()) {
 #if defined(DETOURS_64BIT)
-            /* 1GB after Ntdll.dll */
-            PLDR_DATA_TABLE_ENTRY NtdllLdrEntry = CONTAINING_RECORD(NtCurrentPeb()->Ldr->InInitializationOrderModuleList.Flink,
-                _LDR_DATA_TABLE_ENTRY, InInitializationOrderLinks);
+            /* 1GB after Ntdll.dll
+            * NOTE: do not get the handle to ntdll from the first entry in the 
+            * initialization order module list, as decoy modules can be injected
+            * causing that assumption to fail! */
+            HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
+            ULONG cbNtdll = 0;
 
-            s_ulSystemRegionLowUpperBound = (ULONG_PTR)NtdllLdrEntry->DllBase + NtdllLdrEntry->SizeOfImage - 1;
-            s_ulSystemRegionLowLowerBound = s_ulSystemRegionLowUpperBound - 0x40000000/*1GB*/ - 1;
+            if (hNtdll != NULL) {
+                PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)hNtdll;
 
-            if (s_ulSystemRegionLowLowerBound < SYSTEM_RESERVED_REGION_LOWEST) {
-                s_ulSystemRegionHighLowerBound = s_ulSystemRegionLowLowerBound + SYSTEM_RESERVED_REGION_SIZE;
+                if (pDosHeader->e_magic == IMAGE_DOS_SIGNATURE &&
+                    pDosHeader->e_lfanew > 0 &&
+                    pDosHeader->e_lfanew < 0x1000) {
+                    PIMAGE_NT_HEADERS pNtHeader = (PIMAGE_NT_HEADERS)((PBYTE)hNtdll + pDosHeader->e_lfanew);
+
+                    if (pNtHeader->Signature == IMAGE_NT_SIGNATURE &&
+                        pNtHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
+                        cbNtdll = pNtHeader->OptionalHeader.SizeOfImage;
+                    }
+                }
+            }
+
+            if (cbNtdll != 0 &&
+                (ULONG_PTR)hNtdll >= SYSTEM_RESERVED_REGION_LOWEST &&
+                (ULONG_PTR)hNtdll <= SYSTEM_RESERVED_REGION_HIGHEST &&
+                cbNtdll <= SYSTEM_RESERVED_REGION_HIGHEST - (ULONG_PTR)hNtdll + 1) {
+                s_ulSystemRegionLowUpperBound = (ULONG_PTR)hNtdll + cbNtdll - 1;
+                s_ulSystemRegionLowLowerBound = s_ulSystemRegionLowUpperBound - 0x40000000/*1GB*/ - 1;
+
+                if (s_ulSystemRegionLowLowerBound < SYSTEM_RESERVED_REGION_LOWEST) {
+                    s_ulSystemRegionHighLowerBound = s_ulSystemRegionLowLowerBound + SYSTEM_RESERVED_REGION_SIZE;
+                    s_ulSystemRegionLowLowerBound = SYSTEM_RESERVED_REGION_LOWEST;
+                }
+            }
+            else {
+                s_ulSystemRegionLowUpperBound = SYSTEM_RESERVED_REGION_HIGHEST;
                 s_ulSystemRegionLowLowerBound = SYSTEM_RESERVED_REGION_LOWEST;
             }
+
+            DETOUR_TRACE(("System region configuration:\n"
+                          "  Low:        %p .. %p\n"
+                          "  High:       %p .. %p\n"
+                          "  Ntdll:      %p (%lu bytes)\n",
+                          (PVOID)s_ulSystemRegionLowLowerBound,
+                          (PVOID)s_ulSystemRegionLowUpperBound,
+                          (PVOID)s_ulSystemRegionHighLowerBound,
+                          (PVOID)SYSTEM_RESERVED_REGION_HIGHEST,
+                          hNtdll,
+                          cbNtdll));
 #else
             s_ulSystemRegionLowUpperBound = SYSTEM_RESERVED_REGION_HIGHEST;
             s_ulSystemRegionLowLowerBound = SYSTEM_RESERVED_REGION_LOWEST;
