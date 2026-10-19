@@ -194,6 +194,15 @@ static DetourMemoryAutoInit s_detourMemoryAutoInit;
 
 inline BOOL should_skip_sytem_range_size(PBYTE pbTry)
 {
+#if defined(DETOURS_64BIT)
+    // Don't exclude addresses outside the system DLL range on NT6+.
+    if (NtCurrentPeb()->OSMajorVersion >= 6 &&
+        ((ULONG_PTR)pbTry < SYSTEM_RESERVED_REGION_LOWEST ||
+         (ULONG_PTR)pbTry > SYSTEM_RESERVED_REGION_HIGHEST)) {
+        return FALSE;
+    }
+#endif
+
     return
         ((ULONG_PTR)pbTry >= s_ulSystemRegionLowLowerBound && (ULONG_PTR)pbTry <= s_ulSystemRegionLowUpperBound)
 #if defined(DETOURS_64BIT)
