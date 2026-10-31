@@ -6,6 +6,8 @@ start_sources()
 add_sources( SOURCE_GROUP "Private"
     "MatSystemSurface.cpp"
     "MatSystemSurface.h"
+    "Cursor.cpp"
+    "Cursor.h"
 )
 
 end_sources()

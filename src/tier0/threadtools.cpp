@@ -34,7 +34,7 @@ CThreadMutex::~CThreadMutex()
 int CThreadFastMutex::Lock(void)
 {
 	const DWORD threadId = GetCurrentThreadId();
-	LONG result = ThreadInterlockedCompareExchange((volatile LONG*)&m_lAddend, 0, 1);
+	LONG result = ThreadInterlockedCompareExchange((volatile LONG*)&m_lAddend, 1, 0);
 
 	if (result)
 	{
@@ -57,22 +57,22 @@ int CThreadFastMutex::Lock(void)
 				} while (delay);
 			}
 
-			result = ThreadInterlockedCompareExchange((volatile LONG*)&m_lAddend, 0, 1);
+			result = ThreadInterlockedCompareExchange((volatile LONG*)&m_lAddend, 1, 0);
 
 			if (!result)
 				break;
 
 			if (++cycle > 5)
 			{
-				if (_InterlockedIncrement((volatile LONG*)&m_lAddend) != 1)
+				if (ThreadInterlockedIncrement( (volatile int32*)&m_lAddend ) != 1 )
 				{
 					if (!m_hSemaphore)
 					{
 						HANDLE hSemaphore = CreateSemaphoreA(
 							NULL, INIT_SEM_COUNT, MAX_SEM_COUNT, NULL);
 
-						if (ThreadInterlockedCompareExchange64(
-							(volatile LONG64*)&m_hSemaphore, NULL, (LONG64)hSemaphore))
+						if ( !ThreadInterlockedAssignIf64(
+							(volatile int64*)&m_hSemaphore, (int64)hSemaphore, NULL))
 							CloseHandle(hSemaphore);
 					}
 					WaitForSingleObject(m_hSemaphore, INFINITE);
@@ -99,7 +99,8 @@ int CThreadFastMutex::Unlock()
 	if (!result)
 	{
 		m_nOwnerID = 0;
-		result = _InterlockedExchangeAdd((volatile LONG*)&m_lAddend, 0xFFFFFFFF);
+        
+		result = ThreadInterlockedExchangeAdd( (volatile int32*)&m_lAddend, 0xFFFFFFFF );
 
 		if (result != 1)
 		{
@@ -107,7 +108,7 @@ int CThreadFastMutex::Unlock()
 			{
 				const HANDLE SemaphoreA = CreateSemaphoreA(NULL, INIT_SEM_COUNT, MAX_SEM_COUNT, NULL);
 
-				if (ThreadInterlockedAssignIf64((volatile LONG64*)&m_hSemaphore, NULL, (LONG64)SemaphoreA))
+				if (!ThreadInterlockedAssignIf64((volatile int64*)&m_hSemaphore, (int64)SemaphoreA, NULL))
 					CloseHandle(SemaphoreA);
 			}
 

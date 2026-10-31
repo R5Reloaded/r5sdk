@@ -7,6 +7,7 @@
 #define IMGUI_SYSTEM_H
 #include "imgui/misc/imgui_snapshot.h"
 #include "imgui_surface.h"
+#include "inputsystem/iinputstacksystem.h"
 
 // Max number of fonts to be loaded and merged.
 #define IMGUI_SYSTEM_MAX_FONTS 16
@@ -45,6 +46,8 @@ public:
 	// inlines:
 	inline bool IsEnabled() const { return m_enabled; };
 	inline bool IsInitialized() const { return m_initialized; };
+	inline InputContextHandle_t GetInputContext() const { return m_hImguiInputCtx; };
+	inline void					SetInputContext( InputContextHandle_t hCtx ) { m_hImguiInputCtx = hCtx; };
 
 	// when explicitly disabled, surfaces such as the console could query
 	// whether to run code that isn't directly tied to rendering, i.e. to
@@ -65,6 +68,7 @@ private:
 	// is ran in thread separate from the main thread, therefore it needs a
 	// lock to control access as main calls SampleFrame().
 	mutable CThreadMutex m_inputEventQueueMutex;
+	InputContextHandle_t m_hImguiInputCtx;
 
 	bool m_enabled;
 	bool m_initialized;

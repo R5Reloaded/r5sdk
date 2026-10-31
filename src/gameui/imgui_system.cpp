@@ -13,6 +13,7 @@
 #include "inputsystem/inputsystem.h"
 #include "imgui_system.h"
 #include "imgui/misc/ImGuiNotify.hpp"
+#include "inputsystem/inputstacksystem.h"
 
 //-----------------------------------------------------------------------------
 // Constructors/Destructors.
@@ -26,6 +27,7 @@ CImguiSystem::CImguiSystem()
 	, m_wantsMouseDuringLastClick(true)
 	, m_hasNewFrame(false)
 	, m_repeatFrame(false)
+	, m_hImguiInputCtx(INPUT_CONTEXT_HANDLE_INVALID)
 {
 }
 
@@ -83,6 +85,8 @@ bool CImguiSystem::Init()
 		return false;
 	}
 
+    m_hImguiInputCtx = g_pInputStackSystem->PushInputContext();
+
 	m_initialized = true;
 	m_hasNewFrame = false;
 
@@ -108,9 +112,11 @@ void CImguiSystem::Shutdown()
 	m_snapshotData.Clear();
 	ImGui::DestroyContext();
 
+    g_pInputStackSystem->PopInputContext( m_hImguiInputCtx );
+
 	m_initialized = false;
 	m_hasNewFrame = false;
-
+    
 	m_surfaceList.Purge();
 }
 
@@ -378,8 +384,12 @@ void CImguiSystem::SampleFrame()
 		DevMsg(eDLL_T::ENGINE, "%s: input focus to imgui system has been %s\n",
 			__FUNCTION__, shouldHaveInputFocus ? "enabled" : "disabled");
 	}
+	
+    const bool bSurfaceActive = IsSurfaceActive();
+    g_pInputStackSystem->SetCursorVisible( m_hImguiInputCtx, bSurfaceActive );
+	g_pInputStackSystem->EnableInputContext( m_hImguiInputCtx, bSurfaceActive );
 
-	ImGuiSystem_RenderNotifications();
+    ImGuiSystem_RenderNotifications();
 
 	ImGui::EndFrame();
 	ImGui::Render();

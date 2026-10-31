@@ -135,7 +135,7 @@ public:
 	virtual void GetCursorPosition( const int* const pX, const int* const pY ) = 0;
 
 	/// Mouse capture.
-	virtual void EnableMouseCapture( const PlatWindow_t hWnd ) = 0;
+	virtual void EnableMouseCapture( ) = 0;
 	virtual void DisableMouseCapture( ) = 0;
 
 	// Mouse/Joystick cursor visibility, tell inputsystem when we hide stuff rather than querying the OS which is expensive on OSX.
