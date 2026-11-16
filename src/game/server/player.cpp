@@ -60,11 +60,12 @@ QAngle* CPlayer::EyeAngles(QAngle* pAngles)
 //------------------------------------------------------------------------------
 inline void CPlayer::SetTimeBase(float flTimeBase)
 {
-	const float fRemainderTime = Max((float)TIME_TO_TICKS(flTimeBase), 0.0f);
-	SetLastUCmdSimulationRemainderTime(fRemainderTime);
+	const int nTicks = Max((int)(flTimeBase / TICK_INTERVAL), 0);
+	SetLastUCmdSimulationTicks(nTicks);
 
-	const float flAttemptedTime = Max(flTimeBase - (m_lastUCmdSimulationRemainderTime * TICK_INTERVAL), 0.0f);
-	SetTotalExtraClientCmdTimeAttempted(flAttemptedTime);
+	const float flRemainderTime = Max(flTimeBase - TICKS_TO_TIME(nTicks), 0.0f);
+	SetLastUCmdSimulationRemainderTime(flRemainderTime);
+	SetTotalExtraClientCmdTimeAttempted(flRemainderTime);
 }
 
 //------------------------------------------------------------------------------
@@ -73,6 +74,25 @@ inline void CPlayer::SetTimeBase(float flTimeBase)
 float CPlayer::GetTimeBase() const
 {
 	return TICKS_TO_TIME(m_lastUCmdSimulationTicks) + m_lastUCmdSimulationRemainderTime;
+}
+
+//------------------------------------------------------------------------------
+// Purpose: sets the last user cmd simulation ticks
+// Input  : nTicks - 
+//------------------------------------------------------------------------------
+void CPlayer::SetLastUCmdSimulationTicks(int nTicks)
+{
+	if (m_lastUCmdSimulationTicks != nTicks)
+	{
+		const edict_t nEdict = NetworkProp()->GetEdict();
+
+		if (nEdict != FL_EDICT_INVALID)
+		{
+			_InterlockedOr16((SHORT*)gpGlobals->m_pEdicts + nEdict + 32, 0x200u);
+		}
+
+		m_lastUCmdSimulationTicks = nTicks;
+	}
 }
 
 //------------------------------------------------------------------------------

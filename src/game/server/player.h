@@ -187,6 +187,7 @@ public:
 	void SetTimeBase(float flTimeBase);
 	float GetTimeBase() const;
 
+	void SetLastUCmdSimulationTicks(int nTicks);
 	void SetLastUCmdSimulationRemainderTime(float fRemainderTime);
 	void SetTotalExtraClientCmdTimeAttempted(float flAttemptedTime);
 
