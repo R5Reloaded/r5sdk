@@ -51,7 +51,7 @@ void ClientDataBlockReceiver::AcknowledgeTransmission()
 	}
 
 	// send the data block ack packet
-	v_NET_SendPacket(NULL,
+    NET_SendPacket(NULL,
 		chan->GetSocket(),
 		chan->GetRemoteAddress(),
 		buf.GetData(),

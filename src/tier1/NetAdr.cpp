@@ -32,6 +32,25 @@ bool CNetAdr::CompareAdr(const CNetAdr& other) const
 }
 
 //////////////////////////////////////////////////////////////////////
+// Checks if the set address is a local host addres.
+//////////////////////////////////////////////////////////////////////
+bool CNetAdr::IsLocalhost() const
+{
+    constexpr IN6_ADDR localhost_v6 = IN6ADDR_LOOPBACK_INIT; //::1
+    constexpr IN6_ADDR localhost_v4 = { {
+            0x0, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0x0, 0x0,
+            0x0, 0x0, 0xff, 0xff,
+            0x7f, 0x0, 0x0, 0x1
+    } }; //::ffff:127.0.0.1
+
+    if (memcmp(&adr, &localhost_v6, sizeof(IN6_ADDR)) == 0 || memcmp(&adr, &localhost_v4, sizeof(IN6_ADDR)) == 0)
+        return true;
+
+    return false;
+}
+
+//////////////////////////////////////////////////////////////////////
 // Convert address to string.
 //////////////////////////////////////////////////////////////////////
 const char* CNetAdr::ToString(const bool bOnlyBase) const

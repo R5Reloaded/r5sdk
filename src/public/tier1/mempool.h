@@ -117,7 +117,7 @@ public:
 	// Frees everything
 	void		Clear() { AUTO_LOCK(m_mutex); return CUtlMemoryPool::Clear(); }
 private:
-	CThreadFastMutex m_mutex; // @TODO: Rework to use tslist (toml 7/6/2007)
+	CThreadMutex m_mutex; // @TODO: Rework to use tslist (toml 7/6/2007)
 };
 
 
