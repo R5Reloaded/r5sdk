@@ -373,6 +373,7 @@ public:
 		}
 
 		memset(&netsplit, 0, sizeof(netsplit));
+		netsplit.currentSequence = -1;
 		lastactivetime = 0.0f;
 	}
 
