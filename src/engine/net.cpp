@@ -459,6 +459,16 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 		return false;
 	}
 
+	if (packetNumber < 0 || packetNumber >= packetCount)
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s with invalid packet number (number %i/ count %i)\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount);
+		return false;
+	}
+
 	if (splitSize < static_cast<int>(MIN_SPLIT_SIZE) || splitSize > static_cast<int>(MAX_SPLIT_SIZE))
 	{
 		DevMsg(eDLL_T::ENGINE,
@@ -502,9 +512,12 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 		return false;
 	}
 
+	const int offset = packetNumber * splitSize;
+	const int totalSize = offset + fragmentSize;
+
 	// Last packet in sequence? set size
 	if (packetNumber == (packetCount-1))
-		split.totalSize = packetNumber * splitSize + fragmentSize;
+		split.totalSize = totalSize;
 
 	if (net_showsplits->GetInt() && net_showsplits->GetInt() != 3)
 	{
@@ -516,11 +529,23 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 			packet->from.ToString());
 	}
 
+	if (totalSize > static_cast<int>(sizeof(split.buffer)))
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s exceeds split buffer size (number %i/ count %i) where total size %i exceeds buffer size %zu\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount,
+			totalSize,
+			sizeof(split.buffer));
+		return false;
+	}
+
 	--split.splitCount;
 	entry->splitflags[packetNumber] = sequenceNumber;
 
 	// Copy the incoming data to the appropriate place in the buffer
-	memcpy(split.buffer + packetNumber * splitSize, packet->pData + sizeof(SPLITPACKET), static_cast<size_t>(fragmentSize));
+	memcpy(split.buffer + offset, packet->pData + sizeof(SPLITPACKET), static_cast<size_t>(fragmentSize));
 
 	// Have we received all of the pieces to the packet?
 	if (split.splitCount > 0)
