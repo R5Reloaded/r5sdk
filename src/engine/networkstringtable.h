@@ -31,20 +31,6 @@
 class CNetworkStringTable : public INetworkStringTable
 {
 public:
-	// Updating/Writing
-	virtual bool			WriteStringTable(bf_write& buf) = 0;
-	virtual bool			ReadStringTable(bf_read& buf) = 0;
-
-	virtual void			ParseUpdate(bf_read& buf, int numStrings) = 0;
-
-	virtual pfnStringChanged GetCallback(void) = 0;
-
-	virtual int				WriteUpdate(CClient* const client, bf_write& buf, int tickAck) = 0;
-	virtual bool			WriteBaselines(SVC_CreateStringTable& msg, char* msgBuffer, int msgBufferSize) = 0;
-
-	virtual void			PurgeAllClientSide(void) = 0;
-	virtual void			EnableRollback(bool bState) = 0;
-
 	// TODO[ AMOS ]: there are a few more entries below in the vftable that
 	// need to be mapped out, most of them set/get bit fields;
 	// see [ r5apex_ds + 0x1329888 ]
@@ -59,7 +45,7 @@ public:
 private:
 	TABLEID         m_id;
 	bool            m_bLocked; // Might be wrong!
-	char*           m_pszTableName;
+	char* m_pszTableName;
 	int             m_nMaxEntries;
 	int             m_nEntryBits;
 	int             m_nTickCount;
