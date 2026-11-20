@@ -137,6 +137,7 @@
 #include "vscript/vscript.h"
 #include "game/shared/r1/weapon_parse.h"
 #include "game/shared/r1/weapon_bolt.h"
+#include "game/shared/r1/clientside_pickups.h"
 #include "game/shared/util_shared.h"
 #include "game/shared/usercmd.h"
 #include "game/shared/animation.h"
@@ -717,6 +718,9 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 
 	// In shared code, but weapon bolt is SERVER only.
 	REGISTER(V_Weapon_Bolt);
+
+	// In shared code, but mostly CLIENT only.
+	REGISTER(V_ClientSidePickups);
 
 	// Game/server
 	REGISTER(VAI_Network);

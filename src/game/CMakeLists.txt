@@ -54,6 +54,11 @@ add_sources( SOURCE_GROUP "Weapon"
     "shared/r1/smartammo.h"
 )
 
+add_sources( SOURCE_GROUP "Pickups"
+    "shared/r1/clientside_pickups.cpp"
+    "shared/r1/clientside_pickups.h"
+)
+
 add_sources( SOURCE_GROUP "Network"
     "shared/playernet_vars.h"
     "shared/usermessages.h"
