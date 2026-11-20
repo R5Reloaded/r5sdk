@@ -233,6 +233,17 @@ public:
 	char m_szTableNameBuffer[256];
 };
 
+class SVC_UpdateStringTable : public CNetMessage
+{
+public:
+	int m_nTableId;
+	int m_nChangedEntries;
+	int m_nLength;
+	char _padding[4];
+	bf_read m_DataIn;
+	bf_write m_DataOut;
+};
+
 class SVC_Print : public CNetMessage
 {
 public:
