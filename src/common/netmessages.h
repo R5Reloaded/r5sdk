@@ -84,7 +84,6 @@ inline void* g_pCLC_SetPlaylistVarOverride_VFTable = nullptr;
 //-------------------------------------------------------------------------
 inline bool(*Base_CmdKeyValues_ReadFromBuffer)(Base_CmdKeyValues* thisptr, bf_read* buffer);
 inline bool(*Base_CmdKeyValues_WriteToBuffer)(Base_CmdKeyValues* thisptr, bf_write* buffer);
-inline void* g_pBase_CmdKeyValues_VFTable = nullptr;
 
 //-------------------------------------------------------------------------
 // Enumeration of the INetMessage class
@@ -742,18 +741,18 @@ class V_NetMessages : public IDetour
 		LogConAdr("SVC_PlaylistOverrides::`vftable'", g_pSVC_PlaylistOverrides_VFTable);
 		LogConAdr("CLC_ClientTick::`vftable'", g_pCLC_ClientTick_VFTable);
 		LogConAdr("CLC_SetPlaylistVarOverride::`vftable'", g_pCLC_SetPlaylistVarOverride_VFTable);
-		LogConAdr("Base_CmdKeyValues::`vftable'", g_pBase_CmdKeyValues_VFTable);
 		//LogFunAdr("MM_Heartbeat::ToString", MM_Heartbeat__ToString);
 	}
 	virtual void GetFun(void) const
 	{
-		//MM_Heartbeat__ToString = Module_FindPattern(g_GameDll, "48 83 EC 38 E8 ?? ?? ?? ?? 3B 05 ?? ?? ?? ??");
-		// 48 83 EC 38 E8 ? ? ? ? 3B 05 ? ? ? ?
+		Module_FindPattern(g_GameDll, "40 55 41 56 41 57 48 81 EC ? ? ? ? 48 8D 6C 24 ? 48 89 9D ? ? ? ? 45 33 FF").GetPtr(Base_CmdKeyValues_ReadFromBuffer);
+		Module_FindPattern(g_GameDll, "40 57 48 81 EC ? ? ? ? 48 8B 49").GetPtr(Base_CmdKeyValues_WriteToBuffer);
 	}
 	virtual void GetVar(void) const { }
 	virtual void GetCon(void) const
 	{
 		// We get the actual address of the vftable here, not the class instance.
+		g_pNET_SetConVar_VFTable = g_GameDll.GetVirtualMethodTable(".?AVNET_SetConVar@@");
 		g_pSVC_Print_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_Print@@");
 		g_pSVC_UserMessage_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_UserMessage@@");
 		g_pSVC_ServerTick_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_ServerTick@@");
@@ -762,7 +761,6 @@ class V_NetMessages : public IDetour
 		g_pSVC_PlaylistOverrides_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_PlaylistOverrides@@");
 		g_pCLC_ClientTick_VFTable = g_GameDll.GetVirtualMethodTable(".?AVCLC_ClientTick@@");
 		g_pCLC_SetPlaylistVarOverride_VFTable = g_GameDll.GetVirtualMethodTable(".?AVCLC_SetPlaylistVarOverride@@");
-		g_pBase_CmdKeyValues_VFTable = g_GameDll.GetVirtualMethodTable(".?AVBase_CmdKeyValues@@");
 	}
 	virtual void Detour(const bool bAttach) const;
 };
