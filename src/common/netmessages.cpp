@@ -274,8 +274,6 @@ void V_NetMessages::Detour(const bool bAttach) const
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_Print_VFTable, (LPVOID&)hk_SVCPrint_Process, NetMessageVtbl::Process, (LPVOID*)&SVC_Print_Process);
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_UserMessage_VFTable, (LPVOID&)hk_SVCUserMessage_Process, NetMessageVtbl::Process, (LPVOID*)&SVC_UserMessage_Process);
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_Playlists_VFTable, (LPVOID&)hk_SVCPlaylists_ReadFromBuffer, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&SVC_Playlists_ReadFromBuffer);
-		CMemory::HookVirtualMethod((uintptr_t)g_pBase_CmdKeyValues_VFTable, (LPVOID*)&Base_CmdKeyValues::ReadFromBufferImpl, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&Base_CmdKeyValues_ReadFromBuffer);
-		CMemory::HookVirtualMethod((uintptr_t)g_pBase_CmdKeyValues_VFTable, (LPVOID*)&Base_CmdKeyValues::WriteToBufferImpl, NetMessageVtbl::WriteToBuffer, (LPVOID*)&Base_CmdKeyValues_WriteToBuffer);
 		CMemory::HookVirtualMethod((uintptr_t)g_pCLC_SetPlaylistVarOverride_VFTable, (LPVOID*)&CLC_SetPlaylistVarOverride::ReadFromBufferImpl, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&CLC_SetPlaylistVarOverride_ReadFromBuffer);
 		CMemory::HookVirtualMethod((uintptr_t)g_pCLC_SetPlaylistVarOverride_VFTable, (LPVOID*)&CLC_SetPlaylistVarOverride::WriteToBufferImpl, NetMessageVtbl::WriteToBuffer, (LPVOID*)&CLC_SetPlaylistVarOverride_WriteToBuffer);
 	}
@@ -285,9 +283,10 @@ void V_NetMessages::Detour(const bool bAttach) const
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_Print_VFTable, (LPVOID)SVC_Print_Process, NetMessageVtbl::Process, (LPVOID*)&hkRestore);
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_UserMessage_VFTable, (LPVOID)SVC_UserMessage_Process, NetMessageVtbl::Process, (LPVOID*)&hkRestore);
 		CMemory::HookVirtualMethod((uintptr_t)g_pSVC_Playlists_VFTable, (LPVOID)SVC_Playlists_ReadFromBuffer, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&hkRestore);
-		CMemory::HookVirtualMethod((uintptr_t)g_pBase_CmdKeyValues_VFTable, (LPVOID)Base_CmdKeyValues_ReadFromBuffer, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&hkRestore);
-		CMemory::HookVirtualMethod((uintptr_t)g_pBase_CmdKeyValues_VFTable, (LPVOID)Base_CmdKeyValues_WriteToBuffer, NetMessageVtbl::WriteToBuffer, (LPVOID*)&hkRestore);
 		CMemory::HookVirtualMethod((uintptr_t)g_pCLC_SetPlaylistVarOverride_VFTable, (LPVOID)CLC_SetPlaylistVarOverride_ReadFromBuffer, NetMessageVtbl::ReadFromBuffer, (LPVOID*)&hkRestore);
 		CMemory::HookVirtualMethod((uintptr_t)g_pCLC_SetPlaylistVarOverride_VFTable, (LPVOID)CLC_SetPlaylistVarOverride_WriteToBuffer, NetMessageVtbl::WriteToBuffer, (LPVOID*)&hkRestore);
 	}
+
+	DetourSetup(&Base_CmdKeyValues_ReadFromBuffer, &Base_CmdKeyValues::ReadFromBufferImpl, bAttach);
+	DetourSetup(&Base_CmdKeyValues_WriteToBuffer, &Base_CmdKeyValues::WriteToBufferImpl, bAttach);
 }
