@@ -326,15 +326,13 @@ bool NET_IsLocalHost(const CNetAdr& netAdr)
 	return v_NET_IsLocalHost(&netAdr);
 }
 
-#define NET_MAX_SPLITPACKET_MESSAGE (NET_MAX_MESSAGE + 16)
-
 typedef struct
 {
 	int		currentSequence;
 	int		splitCount;
 	int		totalSize;
 	int		nExpectedSplitSize;
-	char	buffer[NET_MAX_SPLITPACKET_MESSAGE];	// This has to be big enough to hold the largest message
+	char	buffer[NET_MAX_MESSAGE];	// This has to be big enough to hold the largest message
 } LONGPACKET;
 
 // Use this to pick apart the network stream, must be packed
