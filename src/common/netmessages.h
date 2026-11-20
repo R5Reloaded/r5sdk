@@ -35,6 +35,13 @@ class Base_CmdKeyValues;
 //inline CMemory MM_Heartbeat__ToString; // server HeartBeat? (baseserver.cpp).
 
 //-------------------------------------------------------------------------
+// NET_SetConVar
+//-------------------------------------------------------------------------
+inline bool(*NET_SetConVar_ReadFromBuffer)(CLC_SetPlaylistVarOverride* thisptr, bf_read* buffer);
+inline bool(*NET_SetConVar_WriteToBuffer)(CLC_SetPlaylistVarOverride* thisptr, bf_write* buffer);
+inline void* g_pNET_SetConVar_VFTable = nullptr;
+
+//-------------------------------------------------------------------------
 // SVC_Print
 //-------------------------------------------------------------------------
 inline bool(*SVC_Print_Process)(SVC_Print* thisptr);
@@ -672,6 +679,8 @@ struct NET_StringCmd : public CNetMessage
 class NET_SetConVar : public CNetMessage
 {
 public:
+	static bool WriteToBufferImpl(NET_SetConVar* thisptr, bf_write* buffer);
+	static bool ReadFromBufferImpl(NET_SetConVar* thisptr, bf_read* buffer);
 
 	struct Cvar_s
 	{
@@ -733,6 +742,7 @@ class V_NetMessages : public IDetour
 {
 	virtual void GetAdr(void) const
 	{
+		LogConAdr("NET_SetConVar::`vftable'", g_pNET_SetConVar_VFTable);
 		LogConAdr("SVC_Print::`vftable'", g_pSVC_Print_VFTable);
 		LogConAdr("SVC_UserMessage::`vftable'", g_pSVC_UserMessage_VFTable);
 		LogConAdr("SVC_ServerTick::`vftable'", g_pSVC_ServerTick_VFTable);
