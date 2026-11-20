@@ -536,6 +536,57 @@ bool CClientState::_ProcessCreateStringTable(CClientState* thisptr, SVC_CreateSt
 	return true;
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: apply a string table update
+// Input  : *msg -
+// Output : true on success, false otherwise
+//-----------------------------------------------------------------------------
+bool CClientState::_ProcessUpdateStringTable(CClientState* thisptr, SVC_UpdateStringTable* msg)
+{
+	CClientState* const cl = thisptr->GetShiftedBasePointer();
+
+	if (!cl->IsConnected())
+		return false;
+
+	CNetworkStringTableContainer* const container = cl->m_StringTableContainer;
+
+	// Must have a string table container at this point!
+	if (!container)
+	{
+		Assert(0);
+
+		COM_ExplainDisconnection(true, "String table container missing.\n");
+		v_Host_Disconnect(true);
+
+		return false;
+	}
+
+	INetworkStringTable* const table = container->GetTable(msg->m_nTableId);
+
+	if (!table)
+		return false;
+
+	// security_audit(kawe): my fuzzer catched the client spending an abnormal
+	// amount of CPU time here. Added new guard, just like CreateStringTable().
+	if (msg->m_nChangedEntries <= 0 || msg->m_nChangedEntries > MAX_STRINGTABLE_ENTRIES)
+	{
+		Assert(0);
+		Error(eDLL_T::CLIENT, 0, "%s: String table \"%s\" has invalid changed entries %d (max %d).\n",
+			__FUNC__, table->GetTableName(), msg->m_nChangedEntries, MAX_STRINGTABLE_ENTRIES);
+
+		return false;
+	}
+
+	const ssize_t startBit = msg->m_DataIn.GetNumBitsRead();
+	table->ParseUpdate(msg->m_DataIn, msg->m_nChangedEntries);
+
+	if (msg->m_DataIn.IsOverflowed())
+		return false;
+
+	const ssize_t bitsRead = msg->m_DataIn.GetNumBitsRead() - startBit;
+	return bitsRead == msg->m_nLength;
+}
+
 //------------------------------------------------------------------------------
 // Purpose: processes user message data
 // Input  : *thisptr - 
@@ -1251,6 +1302,7 @@ void VClientState::Detour(const bool bAttach) const
     DetourSetup(&CClientState__ProcessStringCmd, &CClientState::_ProcessStringCmd, bAttach);
     DetourSetup(&CClientState__ProcessServerTick, &CClientState::VProcessServerTick, bAttach);
     DetourSetup(&CClientState__ProcessCreateStringTable, &CClientState::_ProcessCreateStringTable, bAttach);
+	DetourSetup(&CClientState__ProcessUpdateStringTable, &CClientState::_ProcessUpdateStringTable, bAttach);
     DetourSetup(&CClientState__ProcessUserMessage, &CClientState::_ProcessUserMessage, bAttach);
     DetourSetup(&CClientState__ProcessConnectionlessPacket, &CClientState::_ProcessConnectionlessPacket, bAttach);
     DetourSetup(&CClientState__Connect, &CClientState::VConnect, bAttach);

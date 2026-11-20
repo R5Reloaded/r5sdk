@@ -85,6 +85,7 @@ public: // Hook statics.
 	static bool _ProcessStringCmd(CClientState* thisptr, NET_StringCmd* msg);
 	static bool VProcessServerTick(CClientState* thisptr, SVC_ServerTick* msg);
 	static bool _ProcessCreateStringTable(CClientState* thisptr, SVC_CreateStringTable* msg);
+	static bool _ProcessUpdateStringTable(CClientState* thisptr, SVC_UpdateStringTable* msg);
 	static bool _ProcessUserMessage(CClientState* thisptr, SVC_UserMessage* msg);
 	static void VConnect(CClientState* thisptr, connectparams_t* connectParams);
 	static bool _ProcessConnectionlessPacket(CClientState* thisptr, netpacket_t* const packet);
@@ -298,6 +299,7 @@ inline bool(*CClientState__HookClientStringTable)(CClientState* thisptr, const c
 inline bool(*CClientState__ProcessStringCmd)(CClientState* thisptr, NET_StringCmd* msg);
 inline bool(*CClientState__ProcessServerTick)(CClientState* thisptr, SVC_ServerTick* msg);
 inline bool(*CClientState__ProcessCreateStringTable)(CClientState* thisptr, SVC_CreateStringTable* msg);
+inline bool(*CClientState__ProcessUpdateStringTable)(CClientState* thisptr, SVC_UpdateStringTable* msg);
 inline bool(*CClientState__ProcessUserMessage)(CClientState* thisptr, SVC_UserMessage* msg);
 
 inline bool (*CClientState__ProcessConnectionlessPacket)(CClientState* const client, netpacket_t* const packet);
@@ -321,6 +323,7 @@ class VClientState : public IDetour
 		LogFunAdr("CClientState::ProcessStringCmd", CClientState__ProcessStringCmd);
 		LogFunAdr("CClientState::ProcessServerTick", CClientState__ProcessServerTick);
 		LogFunAdr("CClientState::ProcessCreateStringTable", CClientState__ProcessCreateStringTable);
+		LogFunAdr("CClientState::ProcessUpdateStringTable", CClientState__ProcessUpdateStringTable);
 		LogFunAdr("CClientState::ProcessUserMessage", CClientState__ProcessUserMessage);
 		LogFunAdr("CClientState::ProcessConnectionlessPacket", CClientState__ProcessConnectionlessPacket);
 		LogFunAdr("CClientState::C2S_WriteConnectMsg", CClientState__C2S_WriteConnectMsg);
@@ -339,6 +342,7 @@ class VClientState : public IDetour
 		Module_FindPattern(g_GameDll, "40 53 48 81 EC ?? ?? ?? ?? 80 B9 ?? ?? ?? ?? ?? 48 8B DA").GetPtr(CClientState__ProcessStringCmd);
 		Module_FindPattern(g_GameDll, "40 57 48 83 EC 20 83 B9 ?? ?? ?? ?? ?? 48 8B F9 7C 66").GetPtr(CClientState__ProcessServerTick);
 		Module_FindPattern(g_GameDll, "48 89 4C 24 ?? 53 56 48 81 EC ?? ?? ?? ?? 83 B9 ?? ?? ?? ?? ??").GetPtr(CClientState__ProcessCreateStringTable);
+		Module_FindPattern(g_GameDll, "40 53 48 83 EC ?? 83 B9 ?? ?? ?? ?? ?? 48 8B DA 4C 8B C1").GetPtr(CClientState__ProcessUpdateStringTable);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 55 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 83 B9 ?? ?? ?? ?? ??").GetPtr(CClientState__ProcessUserMessage);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 55 56 57 41 54 41 55 41 56 41 57 48 8D AC 24 ?? ?? ?? ?? 48 81 EC ?? ?? ?? ?? 44 8B 52").GetPtr(CClientState__ProcessConnectionlessPacket);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ? 56 57 41 56 48 83 EC ?? 48 8B FA").GetPtr(CClientState__C2S_WriteConnectMsg);
