@@ -29,6 +29,7 @@
 #include "networksystem/persistence.h"
 #include "networksystem/datacenters.h"
 #include "networksystem/matchmaking.h"
+#include "networksystem/party.h"
 #include "clientstate.h"
 #include "common/callback.h"
 #include "cdll_engine_int.h"
@@ -257,6 +258,48 @@ bool CClientState::_ProcessStringCmd(CClientState* thisptr, NET_StringCmd* msg)
     }
 
     return true;
+}
+
+static bool ClientState_CanPrecache()
+{
+	return match_precachemap->GetBool() && (g_pClientState->m_nSignonState < SIGNONSTATE::SIGNONSTATE_CONNECTED ||
+		(g_pClientState->m_nSignonState == SIGNONSTATE::SIGNONSTATE_FULL && g_pClientState->m_bInMpLobbyMenu));
+}
+
+static void ClientState_UpdateStatusFromBuffer(SVC_MatchmakingStatus* const msg)
+{
+	bf_read* const buffer = &msg->m_DataIn;
+	const u8 state = buffer->ReadByte();
+
+	// security_audit(kawe): my fuzzer catched this on svc_MatchmakingStatus,
+	// originally no bounds check here !!!
+	if (state >= V_ARRAYSIZE(g_matchmakingStatusNames))
+	{
+		DevWarning(eDLL_T::ENGINE, __FUNC_PFX__"state %hhu is out of range !!!\n", state);
+		return;
+	}
+
+	g_partySearch->state = state;
+	V_strncpy(g_partySearch->status, g_matchmakingStatusNames[state], sizeof(g_partySearch->status));
+
+	for (int i = 0; i < V_ARRAYSIZE(g_partySearch->options); ++i)
+		buffer->ReadString(g_partySearch->options[i], sizeof(g_partySearch->options[i]));
+
+	if (ClientState_CanPrecache())
+	{
+		const char* const targetMap = v_Party_GetTargetMap();
+		Assert(targetMap);
+
+		if (*targetMap)
+		{
+			char path[MAX_OSPATH];
+			V_snprintf(path, sizeof(path), "vpk/client_%s.bsp", targetMap);
+
+			Mod_PrecacheLevelAssets(path, targetMap, true);
+		}
+	}
+
+	v_Party_UpdatePartySearchStatus(g_partySearch);
 }
 
 //------------------------------------------------------------------------------
@@ -1211,6 +1254,7 @@ void VClientState::Detour(const bool bAttach) const
     DetourSetup(&CClientState__ProcessUserMessage, &CClientState::_ProcessUserMessage, bAttach);
     DetourSetup(&CClientState__ProcessConnectionlessPacket, &CClientState::_ProcessConnectionlessPacket, bAttach);
     DetourSetup(&CClientState__Connect, &CClientState::VConnect, bAttach);
+	DetourSetup(&v_ClientState_UpdateStatusFromBuffer, &ClientState_UpdateStatusFromBuffer, bAttach);
 }
 
 /////////////////////////////////////////////////////////////////////////////////

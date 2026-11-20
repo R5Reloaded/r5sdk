@@ -304,6 +304,8 @@ inline bool (*CClientState__ProcessConnectionlessPacket)(CClientState* const cli
 
 inline void(*CClientState__C2S_WriteConnectMsg)(CClientState* thisptr, bf_write* const buf, const int challenge);
 
+inline void (*v_ClientState_UpdateStatusFromBuffer)(SVC_MatchmakingStatus* const msg);
+
 ///////////////////////////////////////////////////////////////////////////////
 class VClientState : public IDetour
 {
