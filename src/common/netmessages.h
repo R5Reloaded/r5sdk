@@ -691,7 +691,7 @@ struct NET_SignonState : public CNetMessage
 	char m_szMapName[MAX_MAP_NAME];
 	char m_szGameMode[MAX_GAMEMODE_NAME];
 	u64 m_playlistCRC; // Set to value in global at 0x166EEDFB0
-	char m_szPlaylist[MAX_PLAYLIST_NAME];
+	char m_szPlaylist[32];
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////
