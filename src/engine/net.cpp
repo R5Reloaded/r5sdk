@@ -429,7 +429,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 {
 	if (packet->size < static_cast<int>(sizeof(SPLITPACKET)))
 	{
-		DevMsg(eDLL_T::ENGINE, "Invalid split packet length %i\n", packet->size);
+		DevWarning(eDLL_T::ENGINE, "Invalid split packet length %i\n", packet->size);
 		return false;
 	}
 
@@ -445,7 +445,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 
 	if (packetCount == 0)
 	{
-		DevMsg(eDLL_T::ENGINE,
+		DevWarning(eDLL_T::ENGINE,
 			__FUNC_PFX__"Invalid split packet number %i of %i from %s\n",
 			packetNumber + 1,
 			packetCount,
@@ -455,7 +455,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 
 	if (packetNumber < 0 || packetNumber >= packetCount)
 	{
-		DevMsg(eDLL_T::ENGINE,
+		DevWarning(eDLL_T::ENGINE,
 			__FUNC_PFX__"Split packet from %s with invalid packet number (number %i/ count %i)\n",
 			packet->from.ToString(),
 			packetNumber,
@@ -465,7 +465,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 
 	if (splitSize < static_cast<int>(MIN_SPLIT_SIZE) || splitSize > static_cast<int>(MAX_SPLIT_SIZE))
 	{
-		DevMsg(eDLL_T::ENGINE,
+		DevWarning(eDLL_T::ENGINE,
 			__FUNC_PFX__"Split packet from %s with invalid split size (number %i/ count %i) where size %i is out of valid range [%zu - %zu]\n",
 			packet->from.ToString(),
 			packetNumber,
@@ -479,7 +479,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 	if (fragmentSize <= 0 || fragmentSize > splitSize ||
 		(packetNumber != packetCount - 1 && fragmentSize != splitSize))
 	{
-		DevMsg(eDLL_T::ENGINE,
+		DevWarning(eDLL_T::ENGINE,
 			__FUNC_PFX__"Invalid split fragment size %i (number %i/ count %i, expected %i) from %s\n",
 			fragmentSize,
 			packetNumber,
@@ -495,7 +495,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 
 	if (totalSize > NET_MAX_MESSAGE || minimumTotalSize > NET_MAX_MESSAGE)
 	{
-		DevMsg(eDLL_T::ENGINE,
+		DevWarning(eDLL_T::ENGINE,
 			__FUNC_PFX__"Split packet from %s exceeds split buffer size (number %i/ count %i) where total size %i exceeds buffer size %zu\n",
 			packet->from.ToString(),
 			packetNumber,
@@ -514,7 +514,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 
 	if (entry->splitflags[packetNumber] == sequenceNumber)
 	{
-		DevMsg(eDLL_T::ENGINE,
+		DevWarning(eDLL_T::ENGINE,
 			__FUNC_PFX__"Ignoring duplicated split packet %i of %i (%i bytes) from %s\n",
 			packetNumber + 1,
 			packetCount,
@@ -533,7 +533,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 	}
 	else if (split.nExpectedSplitSize != splitSize)
 	{
-		DevMsg(eDLL_T::ENGINE,
+		DevWarning(eDLL_T::ENGINE,
 			__FUNC_PFX__"Split packet from %s with inconsistent split size (number %i/ count %i) where size %i not equal to initial size of %i\n",
 			packet->from.ToString(),
 			packetNumber,
@@ -554,7 +554,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 
 		if (packetCount != split.splitCount + receivedCount)
 		{
-			DevMsg(eDLL_T::ENGINE,
+			DevWarning(eDLL_T::ENGINE,
 				__FUNC_PFX__"Split packet from %s with inconsistent packet count (number %i/ count %i) where initial count was %i\n",
 				packet->from.ToString(),
 				packetNumber,
@@ -592,7 +592,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 
 	if (split.totalSize <= 0 || split.totalSize > NET_MAX_MESSAGE)
 	{
-		DevMsg(eDLL_T::ENGINE,
+		DevWarning(eDLL_T::ENGINE,
 			__FUNC_PFX__"Split packet too large! %i bytes from %s\n",
 			split.totalSize,
 			packet->from.ToString());
