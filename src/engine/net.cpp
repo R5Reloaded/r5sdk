@@ -326,6 +326,224 @@ bool NET_IsLocalHost(const CNetAdr& netAdr)
 	return v_NET_IsLocalHost(&netAdr);
 }
 
+#define NET_MAX_SPLITPACKET_MESSAGE (NET_MAX_MESSAGE + 16)
+
+typedef struct
+{
+	int		currentSequence;
+	int		splitCount;
+	int		totalSize;
+	int		nExpectedSplitSize;
+	char	buffer[NET_MAX_SPLITPACKET_MESSAGE];	// This has to be big enough to hold the largest message
+} LONGPACKET;
+
+// Use this to pick apart the network stream, must be packed
+#pragma pack(1)
+typedef struct
+{
+	int		netID;
+	int		sequenceNumber;
+	int		packetID : 16;
+	int		nSplitSize : 16;
+} SPLITPACKET;
+#pragma pack()
+
+#define MIN_USER_MAXROUTABLE_SIZE	576  // ( X.25 Networks )
+#define MAX_USER_MAXROUTABLE_SIZE	MAX_ROUTABLE_PAYLOAD
+
+#define MIN_SPLIT_SIZE	(MIN_USER_MAXROUTABLE_SIZE - sizeof( SPLITPACKET ))
+#define MAX_SPLIT_SIZE	(MAX_USER_MAXROUTABLE_SIZE - sizeof( SPLITPACKET ))
+
+// Calculate MAX_SPLITPACKET_SPLITS according to the smallest split size
+#define MAX_SPLITPACKET_SPLITS ( NET_MAX_MESSAGE / MIN_SPLIT_SIZE )
+#define SPLIT_PACKET_STALE_TIME		2.0f
+#define SPLIT_PACKET_TRACKING_MAX 256  // most number of outstanding split packets to allow
+
+class CSplitPacketEntry
+{
+public:
+	CSplitPacketEntry()
+	{
+		from.Clear();
+
+		int i;
+		for (i = 0; i < MAX_SPLITPACKET_SPLITS; i++)
+		{
+			splitflags[i] = -1;
+		}
+
+		memset(&netsplit, 0, sizeof(netsplit));
+		lastactivetime = 0.0f;
+	}
+
+public:
+	netadr_t		from;
+	int				splitflags[MAX_SPLITPACKET_SPLITS];
+	LONGPACKET		netsplit;
+	// host_time the last time any entry was received for this entry
+	float			lastactivetime;
+};
+
+typedef CUtlVector< CSplitPacketEntry > vecSplitPacketEntries_t;
+static CUtlVector< vecSplitPacketEntries_t > *net_splitpackets;
+
+static CUtlVector< vecSplitPacketEntries_t >& SplitPacketVec()
+{
+	return *net_splitpackets;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+// Input  : *from - 
+// Output : CSplitPacketEntry
+//-----------------------------------------------------------------------------
+static CSplitPacketEntry* NET_FindOrCreateSplitPacketEntry(const unsigned int sock, netadr_t* from)
+{
+	vecSplitPacketEntries_t& splitPacketEntries = SplitPacketVec()[sock];
+	const int count = splitPacketEntries.Count();
+
+	for (int i = 0; i < count; ++i)
+	{
+		CSplitPacketEntry* const entry = &splitPacketEntries[i];
+		Assert(entry);
+
+		if (from->CompareAdr(entry->from))
+			return entry;
+	}
+
+	const int index = splitPacketEntries.AddToTail();
+	CSplitPacketEntry* const entry = &splitPacketEntries[index];
+
+	Assert(entry);
+	entry->from = *from;
+
+	return entry;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: reassembles a fragmented network packet
+// Input  : sock - 
+//          *packet - 
+// Output : true on success, false otherwise
+//-----------------------------------------------------------------------------
+static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
+{
+	if (packet->size < static_cast<int>(sizeof(SPLITPACKET)))
+	{
+		DevMsg(eDLL_T::ENGINE, "Invalid split packet length %i\n", packet->size);
+		return false;
+	}
+
+	CSplitPacketEntry* const entry = NET_FindOrCreateSplitPacketEntry(static_cast<unsigned int>(sock), &packet->from);
+	entry->lastactivetime = static_cast<float>(*g_pNetTime);
+	LONGPACKET& split = entry->netsplit;
+
+	// pHeader is network endian correct
+	const SPLITPACKET* const pHeader = reinterpret_cast<const SPLITPACKET*>(packet->pData);
+
+	const int sequenceNumber = LittleLong(pHeader->sequenceNumber);
+	const unsigned short packetID = static_cast<unsigned short>(LittleShort(static_cast<short>(pHeader->packetID)));
+	const int packetNumber = packetID >> 8; 	// High byte is packet number
+	const int packetCount = packetID & 0xFF; 	// Low byte is number of total packets
+	const int splitSize = LittleShort(static_cast<short>(pHeader->nSplitSize));
+	const int fragmentSize = packet->size - static_cast<int>(sizeof(SPLITPACKET));
+
+	if (packetCount == 0)
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Invalid split packet number %i of %i from %s\n",
+			packetNumber + 1,
+			packetCount,
+			packet->from.ToString());
+		return false;
+	}
+
+	if (splitSize < static_cast<int>(MIN_SPLIT_SIZE) || splitSize > static_cast<int>(MAX_SPLIT_SIZE))
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s with invalid split size (number %i/ count %i) where size %i is out of valid range [%zu - %zu]\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount,
+			splitSize,
+			static_cast<size_t>(MIN_SPLIT_SIZE),
+			static_cast<size_t>(MAX_SPLIT_SIZE));
+		return false;
+	}
+
+	// First packet in split series?
+	if (split.currentSequence == -1 || sequenceNumber != split.currentSequence)
+	{
+		split.currentSequence = sequenceNumber;
+		split.splitCount = packetCount;
+		split.nExpectedSplitSize = splitSize;
+	}
+	else if (split.nExpectedSplitSize != splitSize)
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s with inconsistent split size (number %i/ count %i) where size %i not equal to initial size of %i\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount,
+			splitSize,
+			split.nExpectedSplitSize);
+		return false;
+	}
+
+	if (entry->splitflags[packetNumber] == sequenceNumber)
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Ignoring duplicated split packet %i of %i (%i bytes) from %s\n",
+			packetNumber + 1,
+			packetCount,
+			fragmentSize,
+			packet->from.ToString());
+		return false;
+	}
+
+	// Last packet in sequence? set size
+	if (packetNumber == (packetCount-1))
+		split.totalSize = packetNumber * splitSize + fragmentSize;
+
+	if (net_showsplits->GetInt() && net_showsplits->GetInt() != 3)
+	{
+		Msg(eDLL_T::ENGINE,
+			"<-- [%u] Split packet %4i/%4i seq %5i size %4i mtu %4i from %s\n",
+			static_cast<unsigned int>(sock), packetNumber + 1, packetCount,
+			sequenceNumber, fragmentSize,
+			splitSize + static_cast<int>(sizeof(SPLITPACKET)),
+			packet->from.ToString());
+	}
+
+	--split.splitCount;
+	entry->splitflags[packetNumber] = sequenceNumber;
+
+	// Copy the incoming data to the appropriate place in the buffer
+	memcpy(split.buffer + packetNumber * splitSize, packet->pData + sizeof(SPLITPACKET), static_cast<size_t>(fragmentSize));
+
+	// Have we received all of the pieces to the packet?
+	if (split.splitCount > 0)
+		return false;
+
+	split.currentSequence = -1;	// Clear packet
+
+	if (split.totalSize > NET_MAX_MESSAGE)
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet too large! %i bytes from %s\n",
+			split.totalSize,
+			packet->from.ToString());
+		return false;
+	}
+
+	// The packet data buffer must be large enough for the reconstructed message.
+	memcpy(packet->pData, split.buffer, static_cast<size_t>(split.totalSize));
+	packet->size = split.totalSize;
+	packet->wiresize = split.totalSize;
+
+	return true;
+}
+
 #endif // !_TOOLS
 
 //-----------------------------------------------------------------------------
@@ -441,6 +659,13 @@ void VNet::Detour(const bool bAttach) const
 	DetourSetup(&v_NET_BufferToBufferCompress, &NET_BufferToBufferCompress, bAttach);
 	DetourSetup(&v_NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP, &NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP, bAttach);
 	DetourSetup(&v_NET_PrintFunc, &NET_PrintFunc, bAttach);
+
+	DetourSetup(&v_NET_GetLongPacket, &NET_GetLongPacket, bAttach);
+}
+
+void _NET_Internal_InitStaticVars()
+{
+	net_splitpackets = CMemory(v_NET_GetLongPacket).FindPatternSelf("4C 03").ResolveRelativeAddressSelf(3, 7).RCast<CUtlVector< vecSplitPacketEntries_t > *>();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

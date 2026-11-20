@@ -171,6 +171,7 @@ extern ConVar* net_compressDataBlock;
 extern ConVar* net_showmsg;
 extern ConVar* net_blockmsg;
 extern ConVar* net_showpeaks;
+extern ConVar* net_showsplits;
 
 extern ConVar ssl_verify_peer;
 extern ConVar curl_timeout;

@@ -188,6 +188,7 @@ ConVar* net_compressDataBlock              = nullptr;
 ConVar* net_showmsg                        = nullptr;
 ConVar* net_blockmsg                       = nullptr;
 ConVar* net_showpeaks                      = nullptr;
+ConVar* net_showsplits                     = nullptr;
 //-----------------------------------------------------------------------------
 // RUI                                                                        |
 #ifndef DEDICATED
@@ -316,6 +317,7 @@ void ConVar_InitShipped(void)
 	net_showmsg = g_pCVar->FindVar("net_showmsg");
 	net_blockmsg = g_pCVar->FindVar("net_blockmsg");
 	net_showpeaks = g_pCVar->FindVar("net_showpeaks");
+	net_showsplits = g_pCVar->FindVar("net_showsplits");
 #ifndef CLIENT_DLL
 	sv_stats = g_pCVar->FindVar("sv_stats");
 
