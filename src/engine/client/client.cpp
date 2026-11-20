@@ -65,8 +65,6 @@ CClientExtended* CClient::GetClientExtended(void) const
 }
 #endif // !CLIENT_DLL
 
-ConVar sv_onlineAuthEnable("sv_onlineAuthEnable", "1", FCVAR_RELEASE, "Enables the server-side online authentication system");
-
 static ConVar sv_onlineAuthValidateExpiry("sv_onlineAuthValidateExpiry", "1", FCVAR_RELEASE, "Validate the online authentication token 'expiry' claim");
 static ConVar sv_onlineAuthValidateIssuedAt("sv_onlineAuthValidateIssuedAt", "1", FCVAR_RELEASE, "Validate the online authentication token 'issued at' claim");
 
@@ -209,7 +207,7 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 
 			char newId[256];
 			const int idLen = snprintf(newId, sizeof(newId), "%llu-%s-%s",
-				(NucleusID_t)this->m_DataBlock.userData,
+				m_nOobNucleusID,
 				playerName,
 				hostIP.ToString());
 
@@ -254,7 +252,7 @@ bool CClient::Authenticate(const char* const playerName, char* const reasonBuf, 
 // Output : true if connection was successful, false otherwise
 //---------------------------------------------------------------------------------
 bool CClient::Connect(const char* szName, CNetChan* pNetChan, bool bFakePlayer,
-	CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize)
+	NET_SetConVar::Vec_t* conVars, char* szMessage, int nMessageSize)
 {
 #ifndef CLIENT_DLL
 	GetClientExtended()->Reset(); // Reset extended data.
@@ -280,7 +278,7 @@ bool CClient::Connect(const char* szName, CNetChan* pNetChan, bool bFakePlayer,
 				const char* const netAdr = pNetChan ? pNetChan->GetAddress() : "<unknown>";
 
 				Warning(eDLL_T::SERVER, "Client '%s' ('%llu') failed online authentication! [%s]\n",
-					netAdr, (NucleusID_t)m_DataBlock.userData, authFailReason);
+					netAdr, m_nOobNucleusID, authFailReason);
 			}
 
 			return false;
@@ -305,7 +303,7 @@ bool CClient::Connect(const char* szName, CNetChan* pNetChan, bool bFakePlayer,
 // Output : true if connection was successful, false otherwise
 //---------------------------------------------------------------------------------
 bool CClient::VConnect(CClient* pClient, const char* szName, CNetChan* pNetChan, bool bFakePlayer,
-	CUtlVector<NET_SetConVar::cvar_t>* conVars, char* szMessage, int nMessageSize)
+	NET_SetConVar::Vec_t* conVars, char* szMessage, int nMessageSize)
 {
 	return pClient->Connect(szName, pNetChan, bFakePlayer, conVars, szMessage, nMessageSize);
 }
@@ -441,7 +439,7 @@ void CClient::WriteDataBlock(CClient* pClient, bf_write& buf)
 		}
 
 		const bool isMultiplayer = gpGlobals->gameMode < GameMode_t::PVE_MODE;
-		pClient->m_DataBlock.sender.WriteDataBlock(buf.GetData(), buf.GetNumBytesWritten(), isMultiplayer, buf.GetDebugName());
+		pClient->m_DataBlockSender.WriteDataBlock(buf.GetData(), buf.GetNumBytesWritten(), isMultiplayer, buf.GetDebugName());
 	}
 	else
 	{
@@ -550,7 +548,7 @@ bool CClient::VProcessSetConVar(CClient* pClient, NET_SetConVar* pMsg)
 	// reads and inserts up to 255 entries in the vector (reads a byte for size).
 	FOR_EACH_VEC(pMsg->m_ConVars, i)
 	{
-		const NET_SetConVar::cvar_t& entry = pMsg->m_ConVars[i];
+		const NET_SetConVar::Cvar_s& entry = pMsg->m_ConVars[i];
 		const char* const name = entry.name;
 		const char* const value = entry.value;
 

@@ -276,6 +276,19 @@ bool SV_CanBroadcastVoice()
 	return true;
 }
 
+static inline bool SV_IsPlatPC(const int platform)
+{
+	return platform == PLAT_PC || platform == PLAT_PC_ORIGIN || platform == PLAT_PC_STEAM;
+}
+
+static inline bool SV_ShouldBlockCrossPlatformVoice(const int lhs, const int rhs)
+{
+	if (lhs == rhs || !voice_noxplat->GetBool())
+		return false;
+
+	return !(SV_IsPlatPC(lhs) && SV_IsPlatPC(rhs));
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: relays voice data to other clients
 //-----------------------------------------------------------------------------
@@ -309,11 +322,8 @@ void SV_BroadcastVoiceData(CClient* const cl, const int nBytes, char* const data
 		if (pClient->GetTeamNum() != cl->GetTeamNum() && !sv_alltalk->GetBool())
 			continue;
 
-		//if (voice_noxplat->GetBool() && cl->GetXPlatID() != pClient->GetXPlatID())
-		//{
-		//	if ((cl->GetXPlatID() -1) > 1 || (pClient->GetXPlatID() -1) > 1)
-		//		continue;
-		//}
+		if (SV_ShouldBlockCrossPlatformVoice(cl->GetXPlatID(), pClient->GetXPlatID()))
+			continue;
 
 		CNetChan* const pNetChan = pClient->GetNetChan();
 
@@ -370,13 +380,8 @@ void SV_BroadcastDurangoVoiceData(CClient* const cl, const int nBytes, char* con
 			continue;
 		}
 
-		// NOTE: xplat code checks disabled; CClient::GetXPlatID() seems to be
-		// an enumeration of platforms, but the enum hasn't been reversed yet.
-		//if (voice_noxplat->GetBool() && cl->GetXPlatID() != pClient->GetXPlatID())
-		//{
-		//	if ((cl->GetXPlatID() - 1) > 1 || (pClient->GetXPlatID() - 1) > 1)
-		//		continue;
-		//}
+		if (SV_ShouldBlockCrossPlatformVoice(cl->GetXPlatID(), pClient->GetXPlatID()))
+			continue;
 
 		CNetChan* const pNetChan = pClient->GetNetChan();
 

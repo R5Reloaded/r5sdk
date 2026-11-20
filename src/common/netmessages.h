@@ -8,6 +8,7 @@
 #pragma once
 #include "tier1/bitbuf.h"
 #include "common/qlimits.h"
+#include "common/protocol.h"
 #include "public/inetchannel.h"
 #include "public/inetmessage.h"
 #include "public/inetmsghandler.h"
@@ -23,6 +24,7 @@
 class CNetChan;
 class SVC_Print;
 class SVC_UserMessage;
+class SVC_Playlists;
 class SVC_PlaylistOverrides;
 class CLC_SetPlaylistVarOverride;
 class Base_CmdKeyValues;
@@ -31,6 +33,13 @@ class Base_CmdKeyValues;
 // MM_HEARTBEAT
 //-------------------------------------------------------------------------
 //inline CMemory MM_Heartbeat__ToString; // server HeartBeat? (baseserver.cpp).
+
+//-------------------------------------------------------------------------
+// NET_SetConVar
+//-------------------------------------------------------------------------
+inline bool(*NET_SetConVar_ReadFromBuffer)(CLC_SetPlaylistVarOverride* thisptr, bf_read* buffer);
+inline bool(*NET_SetConVar_WriteToBuffer)(CLC_SetPlaylistVarOverride* thisptr, bf_write* buffer);
+inline void* g_pNET_SetConVar_VFTable = nullptr;
 
 //-------------------------------------------------------------------------
 // SVC_Print
@@ -55,6 +64,12 @@ inline void* g_pSVC_ServerTick_VFTable = nullptr;
 inline void* g_pSVC_VoiceData_VFTable = nullptr;
 
 //-------------------------------------------------------------------------
+// SVC_Playlists
+//-------------------------------------------------------------------------
+inline bool(*SVC_Playlists_ReadFromBuffer)(SVC_Playlists* thisptr, bf_read* buffer);
+inline void* g_pSVC_Playlists_VFTable = nullptr;
+
+//-------------------------------------------------------------------------
 // SVC_PlaylistOverrides
 //-------------------------------------------------------------------------
 inline void* g_pSVC_PlaylistOverrides_VFTable = nullptr;
@@ -76,7 +91,6 @@ inline void* g_pCLC_SetPlaylistVarOverride_VFTable = nullptr;
 //-------------------------------------------------------------------------
 inline bool(*Base_CmdKeyValues_ReadFromBuffer)(Base_CmdKeyValues* thisptr, bf_read* buffer);
 inline bool(*Base_CmdKeyValues_WriteToBuffer)(Base_CmdKeyValues* thisptr, bf_write* buffer);
-inline void* g_pBase_CmdKeyValues_VFTable = nullptr;
 
 //-------------------------------------------------------------------------
 // Enumeration of the INetMessage class
@@ -217,6 +231,17 @@ public:
 	bf_write m_DataOut;
 	char m_bDataCompressed;
 	char m_szTableNameBuffer[256];
+};
+
+class SVC_UpdateStringTable : public CNetMessage
+{
+public:
+	int m_nTableId;
+	int m_nChangedEntries;
+	int m_nLength;
+	char _padding[4];
+	bf_read m_DataIn;
+	bf_write m_DataOut;
 };
 
 class SVC_Print : public CNetMessage
@@ -452,13 +477,37 @@ public:
 	void* m_DataOut;
 };
 
+class SVC_Playlists : public CNetMessage
+{
+public:
+	bool ReadFromBufferImpl(bf_read* const buf);
+	enum
+	{
+		MAX_SCRATCH_SIZE = 500 * 1024
+	};
+private:
+	IServerMessageHandler* m_pMessageHandler;
+	bool m_isCompressed;
+	char m_scratchBuffer[MAX_SCRATCH_SIZE];
+	int m_dataSize;
+	int m_dataSizeUncompressed;
+};
+
 class SVC_PlaylistOverrides : public CNetMessage
 {
 private:
-	int			m_nMsgType;
+	IServerMessageHandler* m_pMessageHandler;
 	int			m_nLength;	// data length in bits
 	bf_read		m_DataIn;
 	bf_write	m_DataOut;
+};
+
+struct SVC_MatchmakingStatus : public CNetMessage
+{
+	IServerMessageHandler* m_pMessageHandler;
+	int         m_nLength;  // data length in bits
+	bf_read     m_DataIn;
+	bf_write    m_DataOut;
 };
 
 class SVC_SetClassVar : public CNetMessage
@@ -632,7 +681,7 @@ private:
 // Shared messages:
 ///////////////////////////////////////////////////////////////////////////////////////
 
-struct NET_StringCmd : CNetMessage
+struct NET_StringCmd : public CNetMessage
 {
 	const char* cmd;
 	char buffer[1024];
@@ -641,14 +690,27 @@ struct NET_StringCmd : CNetMessage
 class NET_SetConVar : public CNetMessage
 {
 public:
+	static bool WriteToBufferImpl(NET_SetConVar* thisptr, bf_write* buffer);
+	static bool ReadFromBufferImpl(NET_SetConVar* thisptr, bf_read* buffer);
 
-	typedef struct cvar_s
+	struct Cvar_s
 	{
 		char	name[MAX_OSPATH];
 		char	value[MAX_OSPATH];
-	} cvar_t;
+	};
 
-	CUtlVector<cvar_t> m_ConVars;
+	typedef CUtlVector<Cvar_s> Vec_t;
+	Vec_t m_ConVars;
+};
+
+struct NET_SignonState : public CNetMessage
+{
+	SIGNONSTATE m_nSignonState;
+	int m_nSpawnCount;
+	char m_szMapName[MAX_MAP_NAME];
+	char m_szGameMode[MAX_GAMEMODE_NAME];
+	u64 m_playlistCRC; // Set to value in global at 0x166EEDFB0
+	char m_szPlaylist[32];
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -691,33 +753,35 @@ class V_NetMessages : public IDetour
 {
 	virtual void GetAdr(void) const
 	{
+		LogConAdr("NET_SetConVar::`vftable'", g_pNET_SetConVar_VFTable);
 		LogConAdr("SVC_Print::`vftable'", g_pSVC_Print_VFTable);
 		LogConAdr("SVC_UserMessage::`vftable'", g_pSVC_UserMessage_VFTable);
 		LogConAdr("SVC_ServerTick::`vftable'", g_pSVC_ServerTick_VFTable);
 		LogConAdr("SVC_VoiceData::`vftable'", g_pSVC_VoiceData_VFTable);
+		LogConAdr("SVC_Playlists::`vftable'", g_pSVC_Playlists_VFTable);
 		LogConAdr("SVC_PlaylistOverrides::`vftable'", g_pSVC_PlaylistOverrides_VFTable);
 		LogConAdr("CLC_ClientTick::`vftable'", g_pCLC_ClientTick_VFTable);
 		LogConAdr("CLC_SetPlaylistVarOverride::`vftable'", g_pCLC_SetPlaylistVarOverride_VFTable);
-		LogConAdr("Base_CmdKeyValues::`vftable'", g_pBase_CmdKeyValues_VFTable);
 		//LogFunAdr("MM_Heartbeat::ToString", MM_Heartbeat__ToString);
 	}
 	virtual void GetFun(void) const
 	{
-		//MM_Heartbeat__ToString = Module_FindPattern(g_GameDll, "48 83 EC 38 E8 ?? ?? ?? ?? 3B 05 ?? ?? ?? ??");
-		// 48 83 EC 38 E8 ? ? ? ? 3B 05 ? ? ? ?
+		Module_FindPattern(g_GameDll, "40 55 41 56 41 57 48 81 EC ? ? ? ? 48 8D 6C 24 ? 48 89 9D ? ? ? ? 45 33 FF").GetPtr(Base_CmdKeyValues_ReadFromBuffer);
+		Module_FindPattern(g_GameDll, "40 57 48 81 EC ? ? ? ? 48 8B 49").GetPtr(Base_CmdKeyValues_WriteToBuffer);
 	}
 	virtual void GetVar(void) const { }
 	virtual void GetCon(void) const
 	{
 		// We get the actual address of the vftable here, not the class instance.
+		g_pNET_SetConVar_VFTable = g_GameDll.GetVirtualMethodTable(".?AVNET_SetConVar@@");
 		g_pSVC_Print_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_Print@@");
 		g_pSVC_UserMessage_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_UserMessage@@");
 		g_pSVC_ServerTick_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_ServerTick@@");
 		g_pSVC_VoiceData_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_VoiceData@@");
+		g_pSVC_Playlists_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_Playlists@@");
 		g_pSVC_PlaylistOverrides_VFTable = g_GameDll.GetVirtualMethodTable(".?AVSVC_PlaylistOverrides@@");
 		g_pCLC_ClientTick_VFTable = g_GameDll.GetVirtualMethodTable(".?AVCLC_ClientTick@@");
 		g_pCLC_SetPlaylistVarOverride_VFTable = g_GameDll.GetVirtualMethodTable(".?AVCLC_SetPlaylistVarOverride@@");
-		g_pBase_CmdKeyValues_VFTable = g_GameDll.GetVirtualMethodTable(".?AVBase_CmdKeyValues@@");
 	}
 	virtual void Detour(const bool bAttach) const;
 };

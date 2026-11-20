@@ -26,7 +26,7 @@ struct GfxCbufItem_s
 // with the data in the executable.
 struct GfxCbufCollection_s
 {
-	CThreadMutexRW mutex;
+	CThreadRWLock mutex;
 	RHashMap<GfxCbufItem_s, CBUF_MAX_ITEMS_OLD> insertMap;
 	int insertBuckets[CBUF_BUCKET_SIZE_OLD];
 	GfxCbufItem_s insertItems[CBUF_MAX_ITEMS_OLD];

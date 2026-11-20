@@ -17,9 +17,23 @@
 #include "public/inetchannel.h"
 
 #define NET_FRAMES_BACKUP 128
-#define NET_UNRELIABLE_STREAM_MINSIZE 256
 #define NET_CHANNELNAME_MAXLEN 32
 #define NET_FRAMES_MASK   (NET_FRAMES_BACKUP-1)
+#define NET_DEFAULT_RATE 256000
+
+#define NET_UNRELIABLE_STREAM_MINSIZE 256
+
+#define NET_RELIABLE_HEADER_MAGIC			0xABCDEF01
+
+#define NET_RELIABLE_FRAGMENT_SERIAL_BITS	10
+#define NET_RELIABLE_FRAGMENT_SERIAL_COUNT	(1 << NET_RELIABLE_FRAGMENT_SERIAL_BITS)
+#define NET_RELIABLE_FRAGMENT_SERIAL_MASK	(NET_RELIABLE_FRAGMENT_SERIAL_COUNT - 1)
+
+#define NET_MAX_RELIABLE_FRAGMENT_SIZE		560 // todo: why 560 specifically?
+#define NET_RELIABLE_FRAGMENT_SIZE_BITS		10
+
+#define NET_RELIABLE_TRANSFER_SIZE_BITS		19
+#define NET_RELIABLE_UNCOMPRESSED_SIZE_BITS	22
 
 //-----------------------------------------------------------------------------
 // Purpose: forward declarations
@@ -54,9 +68,9 @@ typedef struct netflow_s
 	float avglatency;
 	float latency;
 	float maxlatency;
-	int64_t totalpackets;
-	int64_t totalbytes;
-	int64_t totalupdates;
+	uint64_t totalpackets;
+	uint64_t totalbytes;
+	uint64_t totalupdates;
 	int currentindex;
 	netframe_header_t frame_headers[NET_FRAMES_BACKUP];
 	netframe_t frames[NET_FRAMES_BACKUP];
@@ -67,14 +81,13 @@ typedef struct netflow_s
 struct dataFragments_t
 {
 	char* buffer;
-	int64_t blockSize;
+	uint64_t size;
 	bool isCompressed;
-	uint8_t gap11[7];
-	int64_t uncompressedSize;
+	uint64_t uncompressedSize;
 	bool firstFragment;
 	bool lastFragment;
-	bool isOutbound;
-	int transferID;
+	bool isSent;
+	int sendSeqNr;
 	int transferSize;
 	int currentOffset;
 };
@@ -93,6 +106,8 @@ inline bool(*CNetChan__CanPacket)(const CNetChan* pChan);
 inline void(*CNetChan__FlowNewPacket)(CNetChan* pChan, int flow, int outSeqNr, int inSeqNr, int nChoked, int nDropped, int nSize);
 inline int(*CNetChan__SendDatagram)(CNetChan* pChan, bf_write* pMsg);
 inline bool(*CNetChan__ProcessMessages)(CNetChan* pChan, bf_read* pMsg);
+inline bool(*CNetChan__SendSubChannelData)(CNetChan* pChan, bf_write* pMsg);
+inline bool(*CNetChan__ReadSubChannelData)(CNetChan* pChan, bf_read* pMsg);
 
 //-----------------------------------------------------------------------------
 class CNetChan
@@ -110,16 +125,16 @@ public:
 	inline int         GetDataRate(void)                 const { return m_Rate; }
 	inline int         GetBufferSize(void)               const { return NET_FRAMES_BACKUP; }
 
-	float        GetResendRate() const;
+	float        GetTotalNetworkLoss() const;
 
-	inline float GetLatency(int flow)        const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].latency; }
-	inline float GetAvgChoke(int flow)       const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgchoke; }
-	inline float GetAvgLatency(int flow)     const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avglatency; }
-	inline float GetAvgLoss(int flow)        const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgloss; }
-	inline float GetAvgPackets(int flow)     const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgpacketspersec; }
-	inline float GetAvgData(int flow)        const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgbytespersec; }
-	inline int64_t GetTotalData(int flow)    const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].totalbytes; }
-	inline int64_t GetTotalPackets(int flow) const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].totalpackets; }
+	inline float GetLatency(int flow)         const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].latency; }
+	inline float GetAvgChoke(int flow)        const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgchoke; }
+	inline float GetAvgLatency(int flow)      const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avglatency; }
+	inline float GetAvgLoss(int flow)         const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgloss; }
+	inline float GetAvgPackets(int flow)      const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgpacketspersec; }
+	inline float GetAvgData(int flow)         const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].avgbytespersec; }
+	inline uint64_t GetTotalData(int flow)    const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].totalbytes; }
+	inline uint64_t GetTotalPackets(int flow) const { Assert(flow >= 0 && flow < SDK_ARRAYSIZE(m_DataFlow)); return m_DataFlow[flow].totalpackets; }
 
 	int         GetSequenceNr(int flow) const;
 	double      GetTimeConnected(void) const;
@@ -134,6 +149,10 @@ public:
 	int         GetNumBitsWritten(const bool bReliable);
 	int         GetNumBitsLeft(const bool bReliable);
 	inline bool IsOverflowed(void)                const { return m_StreamReliable.IsOverflowed(); }
+
+	inline double GetLastReceivedTime()               const { return last_received; }
+	inline void   SetLastReceivedTime(const double newTime) { last_received = newTime; }
+	void          SetDataRate(const int rate);
 
 	bool HasPendingReliableData(void);
 
@@ -150,7 +169,11 @@ public:
 	void FreeReceiveList();
 	bool ProcessMessages(bf_read* pMsg);
 
+	bool SendSubChannelData(bf_write& buf);
 	bool ReadSubChannelData(bf_read& buf);
+
+	static bool _SendSubChannelData(CNetChan* pChan, bf_write* buf);
+	static bool _ReadSubChannelData(CNetChan* pChan, bf_read* buf);
 
 	static void _Shutdown(CNetChan* pChan, const char* szReason, uint8_t bBadRep, bool bRemoveNow);
 	static bool _ProcessMessages(CNetChan* pChan, bf_read* pMsg);
@@ -175,7 +198,7 @@ public:
 
 private:
 	int                 m_nLastRecvFlags;
-	RTL_SRWLOCK         m_Lock;
+	CThreadRWLockUnaligned m_Lock;
 	bf_write            m_StreamReliable;
 	CUtlMemory<byte>    m_ReliableDataBuffer;
 	bf_write            m_StreamUnreliable;
@@ -186,7 +209,7 @@ private:
 	int                 m_MaxReliablePayloadSize;
 	double              last_received;
 	double              connect_time;
-	uint32_t            m_Rate;
+	int                 m_Rate;
 	int                 padding_maybe;
 	double              m_fClearTime;
 	CUtlVector<dataFragments_t*> m_WaitingList;
@@ -259,6 +282,8 @@ class VNetChan : public IDetour
 		LogFunAdr("CNetChan::FlowNewPacket", CNetChan__FlowNewPacket);
 		LogFunAdr("CNetChan::SendDatagram", CNetChan__SendDatagram);
 		LogFunAdr("CNetChan::ProcessMessages", CNetChan__ProcessMessages);
+		LogFunAdr("CNetChan::SendSubChannelData", CNetChan__SendSubChannelData);
+		LogFunAdr("CNetChan::ReadSubChannelData", CNetChan__ReadSubChannelData);
 	}
 	virtual void GetFun(void) const
 	{
@@ -268,6 +293,8 @@ class VNetChan : public IDetour
 		Module_FindPattern(g_GameDll, "44 89 4C 24 ?? 44 89 44 24 ?? 89 54 24 10 56").GetPtr(CNetChan__FlowNewPacket);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 55 56 57 41 56 41 57 48 83 EC 70").GetPtr(CNetChan__SendDatagram);
 		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 57 48 81 EC ?? ?? ?? ?? 48 8B FA").GetPtr(CNetChan__ProcessMessages);
+		Module_FindPattern(g_GameDll, "40 53 55 48 83 EC ?? 80 79").GetPtr(CNetChan__SendSubChannelData);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 41 54 41 55 41 56 41 57 48 81 EC ?? ?? ?? ?? C6 81").GetPtr(CNetChan__ReadSubChannelData);
 	}
 	virtual void GetVar(void) const { }
 	virtual void GetCon(void) const { }

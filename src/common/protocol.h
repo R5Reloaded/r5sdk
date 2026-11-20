@@ -16,9 +16,6 @@
 #define MAX_BACKUP_COMMANDS_PROCESS 64
 #define MAX_QUEUED_COMMANDS_PROCESS 432
 
-// The size of the snapshot scratch buffer, which also applies to data block packets
-#define SNAPSHOT_SCRATCH_BUFFER_SIZE 786432
-
 enum class SIGNONSTATE : int
 {
 	SIGNONSTATE_NONE         = 0, // no state yet; about to connect.

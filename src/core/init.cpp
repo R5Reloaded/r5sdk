@@ -8,7 +8,7 @@
 #include "core/logdef.h"
 #include "core/init.h"
 #include "tier0/jobthread.h"
-#include "tier0/threadtools.h"
+#include "tier0/threadtools_iface.h"
 #include "tier0/tslist.h"
 #include "tier0/memstd.h"
 #include "tier0/fasttimer.h"
@@ -33,7 +33,12 @@
 #include "filesystem/filesystem.h"
 #include "datacache/mdlcache.h"
 #include "ebisusdk/EbisuSDK.h"
+#include "networksystem/persistence.h"
+#include "networksystem/stryder.h"
+#include "networksystem/datacenters.h"
+#include "networksystem/matchmaking.h"
 #ifndef DEDICATED
+#include "networksystem/party.h"
 #include "codecs/bink/bink_impl.h"
 #include "codecs/miles/miles_impl.h"
 #include "codecs/miles/miles_shim.h"
@@ -61,7 +66,6 @@
 #endif // !DEDICATED
 #ifndef CLIENT_DLL
 #include "engine/server/server.h"
-#include "engine/server/persistence.h"
 #include "engine/server/vengineserver_impl.h"
 #include "engine/server/datablock_sender.h"
 #endif // !CLIENT_DLL
@@ -76,7 +80,7 @@
 #include "rtech/pak/pakparse.h"
 #include "rtech/pak/pakstate.h"
 #include "rtech/pak/pakstream.h"
-#include "rtech/stryder/stryder.h"
+#include "rtech/pak/paktools.h"
 #include "rtech/playlists/playlists.h"
 #ifndef DEDICATED
 #include "rtech/rui/rui.h"
@@ -84,7 +88,6 @@
 #include "engine/client/cl_main.h"
 #include "engine/client/cl_rcon.h"
 #include "engine/client/cl_splitscreen.h"
-#include "engine/client/community_party.h"
 #endif // !DEDICATED
 #include "engine/client/client.h"
 #ifndef DEDICATED
@@ -125,6 +128,7 @@
 #include "engine/gl_rsurf.h"
 #include "engine/keys.h"
 #endif // !DEDICATED
+#include "engine/shared/entitlements.h"
 #include "vscript/languages/squirrel_re/include/squirrel.h"
 #include "vscript/languages/squirrel_re/include/sqvm.h"
 #include "vscript/languages/squirrel_re/include/sqstdaux.h"
@@ -133,6 +137,7 @@
 #include "vscript/vscript.h"
 #include "game/shared/r1/weapon_parse.h"
 #include "game/shared/r1/weapon_bolt.h"
+#include "game/shared/r1/clientside_pickups.h"
 #include "game/shared/util_shared.h"
 #include "game/shared/usercmd.h"
 #include "game/shared/animation.h"
@@ -552,6 +557,8 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	// DataCache
 	REGISTER(VMDLCache);
 
+	REGISTER(VPersistence);
+
 	// Ebisu
 	REGISTER(VEbisuSDK);
 
@@ -604,14 +611,13 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 
 	// Server
 	REGISTER(VServer); // REGISTER SERVER ONLY!
-	REGISTER(VPersistence); // REGISTER SERVER ONLY!
 	REGISTER(HVEngineServer); // REGISTER SERVER ONLY!
 	REGISTER(VServerDataBlockSender); // REGISTER SERVER ONLY!
 
-#endif // !CLIENT_DLL
-
 	// Engine/client
 	REGISTER(VClient);
+#endif // !CLIENT_DLL
+
 #ifndef DEDICATED
 	REGISTER(VClientState);
 	REGISTER(VCL_Main);
@@ -630,6 +636,9 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(V_PakStream);
 
 	REGISTER(VStryder);
+	REGISTER(VDatacenters);
+	REGISTER(VMatchmaking);
+
 	REGISTER(VPlaylists);
 
 #ifndef DEDICATED
@@ -659,6 +668,8 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(VNetworkStringTableContainer);
 
 	REGISTER(VLocalize);
+
+	REGISTER(VEntitlements);
 
 #ifndef DEDICATED
 	REGISTER(HVideoMode_Common);
@@ -707,6 +718,9 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 
 	// In shared code, but weapon bolt is SERVER only.
 	REGISTER(V_Weapon_Bolt);
+
+	// In shared code, but mostly CLIENT only.
+	REGISTER(V_ClientSidePickups);
 
 	// Game/server
 	REGISTER(VAI_Network);

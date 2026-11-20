@@ -28,10 +28,14 @@ extern ConVar* staticProp_gather_size_weight;
 extern ConVar* model_defaultFadeDistScale;
 extern ConVar* model_defaultFadeDistMin;
 
+extern ConVar* rate_cvar;
+
 extern ConVar* ip_cvar;
 extern ConVar* hostname;
 extern ConVar* hostip;
 extern ConVar* hostport;
+
+extern ConVar* serverFilter_cvar;
 
 extern ConVar* host_hasIrreversibleShutdown;
 extern ConVar* host_timescale;
@@ -58,10 +62,21 @@ extern ConVar* language_cvar;
 extern ConVar* voice_noxplat;
 
 extern ConVar* platform_user_id;
+extern ConVar* nucleus_id;
 
 #ifndef DEDICATED
 extern ConVar* name_cvar;
 #endif // !DEDICATED
+
+extern ConVar* match_myDatacenter;
+extern ConVar* match_myRankedDatacenter;
+extern ConVar* match_myBestDatacenter;
+extern ConVar* match_pingWaveInterval;
+extern ConVar* match_precachemap;
+
+extern ConVar* ping_qos_units;
+extern ConVar* ping_usePacketLoss;
+extern ConVar* ping_minSentForChoice;
 
 //-------------------------------------------------------------------------
 // SERVER                                                                 |
@@ -90,6 +105,7 @@ extern ConVar* sv_alltalk;
 extern ConVar sv_onlineAuthEnable;
 
 extern ConVar* sv_clampPlayerFrameTime;
+extern ConVar* sv_allowSpectatorClients;
 
 extern ConVar* playerframetimekick_margin;
 extern ConVar* playerframetimekick_decayrate;
@@ -109,12 +125,14 @@ extern ConVar* bhit_enable;
 // CLIENT                                                                 |
 #ifndef DEDICATED
 extern ConVar* cl_threaded_bone_setup;
+extern ConVar* cl_failremoteconnections;
 
 extern ConVar* pvs_start_early;
 extern ConVar* pvs_frustumCullOnly;
 
 extern ConVar* origin_disconnectWhenOffline;
 extern ConVar* discord_updatePresence;
+extern ConVar* force_EAAccess;
 
 extern ConVar* match_playlist;
 
@@ -136,14 +154,24 @@ extern ConVar* fs_showAllReads;
 //-------------------------------------------------------------------------
 // NETCHANNEL                                                             |
 extern ConVar* net_usesocketsforloopback;
+extern ConVar* net_showfragments;
 
 extern ConVar* net_data_block_enabled;
+extern ConVar* net_debugDataBlockSender;
+extern ConVar* net_debugDataBlockReceiver;
+extern ConVar* net_datablockPrintSummaries;
+extern ConVar* net_datablock_longSendTime;
+extern ConVar* net_datablock_minResendInterval;
 extern ConVar* net_datablock_networkLossForSlowSpeed;
+extern ConVar* net_datablock_resendRateForSlowSpeed;
+extern ConVar* net_datablock_slowRate;
+extern ConVar* net_datablock_fastRate;
 extern ConVar* net_compressDataBlock;
 
 extern ConVar* net_showmsg;
 extern ConVar* net_blockmsg;
 extern ConVar* net_showpeaks;
+extern ConVar* net_showsplits;
 
 extern ConVar ssl_verify_peer;
 extern ConVar curl_timeout;

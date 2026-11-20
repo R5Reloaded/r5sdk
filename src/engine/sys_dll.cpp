@@ -105,7 +105,7 @@ bool CModAppSystemGroup::StaticCreate(CModAppSystemGroup* pModAppSystemGroup)
 {
 #ifdef DEDICATED
 	pModAppSystemGroup->SetServerOnly();
-	*m_bIsDedicated = true;
+	g_pServer->SetDedicated(true);
 #endif // DEDICATED
 
 	EXPOSE_INTERFACE_FN((InstantiateInterfaceFn)EngineCVar, CCvar, CVAR_INTERFACE_VERSION);

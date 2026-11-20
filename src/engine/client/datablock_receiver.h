@@ -12,43 +12,44 @@ class CClientState;
 class ClientDataBlockReceiver : public NetDataBlockReceiver
 {
 public:
-	virtual void AcknowledgeTransmission() override;
+	virtual void SendFragmentAcks() override;
+	virtual void LogState() override;
 
-	bool ProcessDataBlock(const double startTime, const short transferId, const int transferSize,
-		const short counter, const short currentBlockId, const void* const blockBuffer, const int blockBufferBytes);
+protected:
+	friend class VClientDataBlockReceiver; // Statics needed for VFTable hook!
+	static void SendFragmentAcksGuts(ClientDataBlockReceiver* const receiver);
+	static void LogStateGuts(ClientDataBlockReceiver* const receiver);
+
+private:
+	inline CClientState* GetLocalClient() { Assert(m_pUserData); return reinterpret_cast<CClientState*>(m_pUserData); };
+	inline const CClientState* GetLocalClient() const { Assert(m_pUserData); return reinterpret_cast<const CClientState*>(m_pUserData); };
 };
 
-struct ClientDataBlockHeader_s
-{
-	char reserved[3]; // unused in retail
-	bool isCompressed;
-};
+inline void*(*ClientDataBlockReceiver__SendFragmentAcks)(ClientDataBlockReceiver* thisptr);
+inline bool (*NetDataBlockReceiver__ProcessFragment)(NetDataBlockReceiver* thisptr, const double startTime,
+	const unsigned short blockSeqNr, const int transferSize, const unsigned short cancelSeqNr,
+	const unsigned short fragId, const void* const fragData, const int fragSize);
 
-// virtual methods
-inline void*(*ClientDataBlockReceiver__AcknowledgeTransmission)(ClientDataBlockReceiver* thisptr);
-
-// non-virtual methods
-inline bool (*ClientDataBlockReceiver__ProcessDataBlock)(ClientDataBlockReceiver* thisptr, const double time,
-	const short transferId, const int transferSize, const short counter, const short currentBlockId,
-	const void* const blockBuffer, const int blockBufferBytes);
+inline void* g_pClientDataBlockReceiver_VFTable;
 
 ///////////////////////////////////////////////////////////////////////////////
 class VClientDataBlockReceiver : public IDetour
 {
 	virtual void GetAdr(void) const
 	{
-		LogFunAdr("ClientDataBlockReceiver::AcknowledgeTransmission", ClientDataBlockReceiver__AcknowledgeTransmission);
-		LogFunAdr("ClientDataBlockReceiver::ProcessDataBlock", ClientDataBlockReceiver__ProcessDataBlock);
+		LogFunAdr("NetDataBlockReceiver::ProcessFragment", NetDataBlockReceiver__ProcessFragment);
+		LogFunAdr("ClientDataBlockReceiver::SendFragmentAcks", ClientDataBlockReceiver__SendFragmentAcks);
 	}
 	virtual void GetFun(void) const
 	{
-		Module_FindPattern(g_GameDll, "40 53 48 81 EC ?? ?? ?? ?? 4C 8B 51 08").GetPtr(ClientDataBlockReceiver__AcknowledgeTransmission);
-
-		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 30 0F B7 44 24 ??")
-			.GetPtr(ClientDataBlockReceiver__ProcessDataBlock);
+		Module_FindPattern(g_GameDll, "48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 48 89 7C 24 ?? 41 56 48 83 EC 30 0F B7 44 24 ??").GetPtr(NetDataBlockReceiver__ProcessFragment);
+		Module_FindPattern(g_GameDll, "40 53 48 81 EC ?? ?? ?? ?? 4C 8B 51 08").GetPtr(ClientDataBlockReceiver__SendFragmentAcks);
 	}
 	virtual void GetVar(void) const { }
-	virtual void GetCon(void) const { }
+	virtual void GetCon(void) const
+	{
+		g_GameDll.GetVirtualMethodTable(".?AVClientDataBlockReceiver@@").GetPtr(g_pClientDataBlockReceiver_VFTable);
+	}
 	virtual void Detour(const bool bAttach) const;
 };
 ///////////////////////////////////////////////////////////////////////////////

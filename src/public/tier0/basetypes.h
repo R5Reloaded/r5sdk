@@ -140,6 +140,7 @@
 #define MAX_MAP_NAME_HOST 64 // Max host BSP file name len.
 #define MAX_MAP_NAME      64 // Max BSP file name len.
 #define MAX_PLAYLIST_NAME 64 // Max playlist name len.
+#define MAX_GAMEMODE_NAME 32 // Max gamemode name len.
 
 #define SDK_VERSION "VGameSDK020" // Increment this with every /breaking/ SDK change (i.e. security/backend changes breaking compatibility).
 #define SDK_ARRAYSIZE(arr) ((sizeof(arr) / sizeof(*arr))) // Name due to IMGUI implementation and NT implementation that we shouldn't share across everywhere.
@@ -159,6 +160,9 @@
 #ifndef MAX
 #define MAX( a, b ) ( ( ( a ) > ( b ) ) ? ( a ) : ( b ) )
 #endif
+
+#define __FUNC__ __FUNCTION__
+#define __FUNC_PFX__ __FUNC__ ": " // for printing function names
 
 #ifdef __cplusplus
 

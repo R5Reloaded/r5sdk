@@ -15,6 +15,7 @@
 #include "tier1/NetAdr.h"
 #include "tier2/socketcreator.h"
 #include "datacache/mdlcache.h"
+#include "networksystem/stryder.h"
 #ifndef CLIENT_DLL
 #include "engine/server/sv_rcon.h"
 #include "engine/server/server.h"
@@ -37,7 +38,6 @@
 #include "engine/server/server.h"
 #include "rtech/liveapi/liveapi.h"
 #endif // !CLIENT_DLL
-#include "rtech/stryder/stryder.h"
 #include "rtech/playlists/playlists.h"
 #ifndef DEDICATED
 #include "vgui/vgui_baseui_interface.h"

@@ -15,16 +15,12 @@ extern IVEngineServer* g_pEngineServerVFTable;
 inline bool(*CVEngineServer__PersistenceAvailable)(CVEngineServer* const thisptr, const int clientidx);
 
 ///////////////////////////////////////////////////////////////////////////////
-inline bool* m_bIsDedicated = nullptr;
-
-///////////////////////////////////////////////////////////////////////////////
 class HVEngineServer : public IDetour
 {
 	virtual void GetAdr(void) const
 	{
 		LogConAdr("CVEngineServer::`vftable'", g_pEngineServerVFTable);
 		LogFunAdr("CVEngineServer::PersistenceAvailable", CVEngineServer__PersistenceAvailable);
-		LogVarAdr("m_bIsDedicated", m_bIsDedicated); // !TODO: part of CServer!
 	}
 	virtual void GetFun(void) const
 	{
@@ -33,9 +29,7 @@ class HVEngineServer : public IDetour
 	virtual void GetVar(void) const
 	{
 		CMemory pEngineServerVFTable = g_GameDll.GetVirtualMethodTable(".?AVCVEngineServer@@", 0);
-
 		g_pEngineServerVFTable = pEngineServerVFTable.RCast<CVEngineServer*>();
-		m_bIsDedicated = pEngineServerVFTable.WalkVTableSelf(3).DerefSelf().ResolveRelativeAddress(0x3, 0x7).RCast<bool*>();
 	}
 	virtual void GetCon(void) const { }
 	virtual void Detour(const bool bAttach) const;

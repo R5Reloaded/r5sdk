@@ -30,7 +30,7 @@ void CL_MoveEx()
 		return;
 
 	const int commandTick = cl->m_CurrFrameSnapshot
-		? cl->m_CurrFrameSnapshot->m_TickUpdate.m_nCommandTick
+		? cl->m_CurrFrameSnapshot->snapTick.m_nCommandTick
 		: -1;
 
 	bool sendPacket = true;

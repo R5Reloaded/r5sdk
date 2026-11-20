@@ -33,7 +33,7 @@ public:
 	unsigned char*	CompressNoAlloc( unsigned char *pInput, int inputlen, unsigned char *pOutput, unsigned int *pOutputSize );
 	unsigned int	Uncompress( unsigned char *pInput, unsigned char *pOutput );
 	//unsigned int	Uncompress( unsigned char *pInput, CUtlBuffer &buf );
-	unsigned int	SafeUncompress( unsigned char *pInput, unsigned char *pOutput, unsigned int unBufSize );
+	unsigned int	SafeUncompress( unsigned char *pInput, unsigned int inBufSize, unsigned char *pOutput, unsigned int unBufSize );
 	bool			IsCompressed( unsigned char *pInput );
 	unsigned int	GetActualSize( unsigned char *pInput );
 

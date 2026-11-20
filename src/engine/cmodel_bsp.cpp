@@ -28,8 +28,8 @@
 #include "filesystem/filesystem.h"
 #include "pluginsystem/modsystem.h"
 #ifndef DEDICATED
+#include "networksystem/party.h"
 #include "client/clientstate.h"
-#include "client/community_party.h"
 #endif // !DEDICATED
 
 CUtlVector<CUtlString> g_InstalledMaps;
@@ -1180,7 +1180,7 @@ static void Mod_RunPakJobFrame()
 //                               always error when a VPK without a BSP level,
 //                               such as vpk/client_frontend.bsp, fails to load
 //-----------------------------------------------------------------------------
-static void Mod_PrecacheLevelAssets(const char* const fullLevelFileName, const char* const levelName, const bool allowVpkLoadFail)
+void Mod_PrecacheLevelAssets(const char* const fullLevelFileName, const char* const levelName, const bool allowVpkLoadFail)
 {
     if (levelName)
         Mod_HandleLevelChanged(levelName);
@@ -1192,7 +1192,7 @@ static void Mod_PrecacheLevelAssets(const char* const fullLevelFileName, const c
 // Purpose: loads the load screen pak for the given level
 // Input  : *levelName
 //-----------------------------------------------------------------------------
-static void Mod_LoadLoadscreenPakForLevel(const char* const levelName)
+void Mod_LoadLoadscreenPakForLevel(const char* const levelName)
 {
     // On the dedicated server, we should do nothing here since load screens
     // are not used and shipped on dedicated servers for good reasons! These

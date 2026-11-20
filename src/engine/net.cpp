@@ -10,7 +10,6 @@
 #include "tier1/cvar.h"
 #include "tier2/cryptutils.h"
 #include "mathlib/color.h"
-#include "net.h"
 #include "net_chan.h"
 #ifndef CLIENT_DLL
 #include "server/server.h"
@@ -120,6 +119,7 @@ bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint
 
 	if (!lzss.CompressNoAlloc(source, (uint32_t)sourceLen, dest, &compLen))
 	{
+		DevWarning(eDLL_T::ENGINE, "NET_BufferToBufferCompress: failed to compress data! ( input %p[%zu], output %p[%zu] )\n", source, sourceLen, dest, destLen);
 		memcpy(dest, source, sourceLen);
 
 		*destLen = sourceLen;
@@ -131,26 +131,54 @@ bool NET_BufferToBufferCompress(uint8_t* const dest, size_t* const destLen, uint
 }
 
 //-----------------------------------------------------------------------------
+static unsigned int NET_GetUncompressedSize(const void* compressed, const size_t compressedLen)
+{
+	if (compressedLen < sizeof(lzss_header_t))
+		return 0;
+
+	const lzss_header_t* const header = (const lzss_header_t*)compressed;
+
+	if (header->id != LZSS_ID)
+		return 0;
+
+	return LittleLong(header->actualSize);
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: decompresses the input buffer into the output buffer
 // Input  : *source - 
-//			&sourceLen - 
+//			sourceLen - 
 //			*dest - 
-//			destLen - 
+//			*destLen - 
 // Output : true on success, false otherwise
 //-----------------------------------------------------------------------------
-unsigned int NET_BufferToBufferDecompress(uint8_t* const source, size_t& sourceLen, uint8_t* const dest, const size_t destLen)
+bool NET_BufferToBufferDecompress(uint8_t* const source, const size_t sourceLen, uint8_t* const dest, size_t* const destLen)
 {
-	Assert(source);
-	Assert(sourceLen);
+	const unsigned int decompressedSize = NET_GetUncompressedSize(source, sourceLen);
 
-	CLZSS lzss;
-
-	if (lzss.IsCompressed(source))
+	if (!decompressedSize)
 	{
-		return lzss.SafeUncompress(source, dest, (unsigned int)destLen);
+		DevWarning(eDLL_T::ENGINE, "NET_BufferToBufferDecompress: failed to get decompress size from header!\n");
+		return false;
 	}
 
-	return 0;
+	if (decompressedSize > *destLen)
+	{
+		DevWarning(eDLL_T::ENGINE, "NET_BufferToBufferDecompress: improperly sized destination buffer! ( %u in, %u needed )\n", (unsigned int*)*destLen, decompressedSize);
+		return false;
+	}
+
+	CLZSS lzss;
+	const unsigned int actualSize = lzss.SafeUncompress(source, (unsigned int)sourceLen, dest, (unsigned int)*destLen);
+
+	if (actualSize != decompressedSize)
+	{
+		DevWarning(eDLL_T::ENGINE, "NET_BufferToBufferDecompress: improperly sized decompressed data! ( %u expected, %u actual )\n", decompressedSize, actualSize);
+		return false;
+	}
+
+	*destLen = actualSize;
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -161,9 +189,14 @@ unsigned int NET_BufferToBufferDecompress(uint8_t* const source, size_t& sourceL
 //			unBufSize - 
 // Output : total decompressed bytes
 //-----------------------------------------------------------------------------
-unsigned int NET_BufferToBufferDecompress_LZSS(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize)
+static unsigned int NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP(CLZSS* lzss, unsigned char* pInput, unsigned char* pOutput, unsigned int unBufSize)
 {
-	return lzss->SafeUncompress(pInput, pOutput, unBufSize);
+	// todo(kawe): this is now only used by NET_ReceiveDatagram() internally,
+	// and since we know the stack size (4096) I hardcoded it here. Remove
+	// this entirely once that function is rebuilt in the SDK. For now that
+	// function is now perfectly and secure after this input size patch, so
+	// no priority to rework that. REMOVE this hook in its full once rebuilt!
+	return lzss->SafeUncompress(pInput, 4096, pOutput, unBufSize);
 }
 
 //-----------------------------------------------------------------------------
@@ -284,13 +317,294 @@ bool NET_ReadMessageType(int* outType, bf_read* buffer)
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: checks whether the provided address is the local server.
+// Purpose: checks whether the provided address is the local host.
 // Input  : &netAdr - 
-// Output : true if equal, false otherwise
+// Output : true if local, false otherwise
 //-----------------------------------------------------------------------------
-bool NET_IsRemoteLocal(const CNetAdr& netAdr)
+bool NET_IsLocalHost(const CNetAdr& netAdr)
 {
-	return (g_pNetAdr->ComparePort(netAdr) && g_pNetAdr->CompareAdr(netAdr));
+	return v_NET_IsLocalHost(&netAdr);
+}
+
+typedef struct
+{
+	int		currentSequence;
+	int		splitCount;
+	int		totalSize;
+	int		nExpectedSplitSize;
+	char	buffer[NET_MAX_MESSAGE];	// This has to be big enough to hold the largest message
+} LONGPACKET;
+
+// Use this to pick apart the network stream, must be packed
+#pragma pack(1)
+typedef struct
+{
+	int		netID;
+	int		sequenceNumber;
+	int		packetID : 16;
+	int		nSplitSize : 16;
+} SPLITPACKET;
+#pragma pack()
+
+#define MIN_USER_MAXROUTABLE_SIZE	576  // ( X.25 Networks )
+#define MAX_USER_MAXROUTABLE_SIZE	MAX_ROUTABLE_PAYLOAD
+
+#define MIN_SPLIT_SIZE	(MIN_USER_MAXROUTABLE_SIZE - sizeof( SPLITPACKET ))
+#define MAX_SPLIT_SIZE	(MAX_USER_MAXROUTABLE_SIZE - sizeof( SPLITPACKET ))
+
+// Calculate MAX_SPLITPACKET_SPLITS according to the smallest split size
+#define MAX_SPLITPACKET_SPLITS ( NET_MAX_MESSAGE / MIN_SPLIT_SIZE )
+#define SPLIT_PACKET_STALE_TIME		2.0f
+#define SPLIT_PACKET_TRACKING_MAX 256  // most number of outstanding split packets to allow
+
+class CSplitPacketEntry
+{
+public:
+	CSplitPacketEntry()
+	{
+		from.Clear();
+
+		int i;
+		for (i = 0; i < MAX_SPLITPACKET_SPLITS; i++)
+		{
+			splitflags[i] = -1;
+		}
+
+		memset(&netsplit, 0, sizeof(netsplit));
+		netsplit.currentSequence = -1;
+		lastactivetime = 0.0f;
+	}
+
+public:
+	netadr_t		from;
+	int				splitflags[MAX_SPLITPACKET_SPLITS];
+	LONGPACKET		netsplit;
+	// host_time the last time any entry was received for this entry
+	float			lastactivetime;
+};
+
+typedef CUtlVector< CSplitPacketEntry > vecSplitPacketEntries_t;
+static CUtlVector< vecSplitPacketEntries_t > *net_splitpackets;
+
+static CUtlVector< vecSplitPacketEntries_t >& SplitPacketVec()
+{
+	return *net_splitpackets;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+// Input  : *from - 
+// Output : CSplitPacketEntry
+//-----------------------------------------------------------------------------
+static CSplitPacketEntry* NET_FindOrCreateSplitPacketEntry(const unsigned int sock, netadr_t* from)
+{
+	vecSplitPacketEntries_t& splitPacketEntries = SplitPacketVec()[sock];
+	const int count = splitPacketEntries.Count();
+
+	for (int i = 0; i < count; ++i)
+	{
+		CSplitPacketEntry* const entry = &splitPacketEntries[i];
+		Assert(entry);
+
+		if (from->CompareAdr(entry->from))
+			return entry;
+	}
+
+	const int index = splitPacketEntries.AddToTail();
+	CSplitPacketEntry* const entry = &splitPacketEntries[index];
+
+	Assert(entry);
+	entry->from = *from;
+
+	return entry;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: reassembles a fragmented network packet
+// Input  : sock - 
+//          *packet - 
+// Output : true on success, false otherwise
+//-----------------------------------------------------------------------------
+static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
+{
+	if (packet->size < static_cast<int>(sizeof(SPLITPACKET)))
+	{
+		DevWarning(eDLL_T::ENGINE, "Invalid split packet length %i\n", packet->size);
+		return false;
+	}
+
+	// pHeader is network endian correct
+	const SPLITPACKET* const pHeader = reinterpret_cast<const SPLITPACKET*>(packet->pData);
+
+	const int sequenceNumber = LittleLong(pHeader->sequenceNumber);
+	const unsigned short packetID = static_cast<unsigned short>(LittleShort(static_cast<short>(pHeader->packetID)));
+	const int packetNumber = packetID >> 8; 	// High byte is packet number
+	const int packetCount = packetID & 0xFF; 	// Low byte is number of total packets
+	const int splitSize = LittleShort(static_cast<short>(pHeader->nSplitSize));
+	const int fragmentSize = packet->size - static_cast<int>(sizeof(SPLITPACKET));
+
+	if (packetCount == 0)
+	{
+		DevWarning(eDLL_T::ENGINE,
+			__FUNC_PFX__"Invalid split packet number %i of %i from %s\n",
+			packetNumber + 1,
+			packetCount,
+			packet->from.ToString());
+		return false;
+	}
+
+	if (packetNumber < 0 || packetNumber >= packetCount)
+	{
+		DevWarning(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s with invalid packet number (number %i/ count %i)\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount);
+		return false;
+	}
+
+	if (splitSize < static_cast<int>(MIN_SPLIT_SIZE) || splitSize > static_cast<int>(MAX_SPLIT_SIZE))
+	{
+		DevWarning(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s with invalid split size (number %i/ count %i) where size %i is out of valid range [%zu - %zu]\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount,
+			splitSize,
+			static_cast<size_t>(MIN_SPLIT_SIZE),
+			static_cast<size_t>(MAX_SPLIT_SIZE));
+		return false;
+	}
+
+	if (fragmentSize <= 0 || fragmentSize > splitSize ||
+		(packetNumber != packetCount - 1 && fragmentSize != splitSize))
+	{
+		DevWarning(eDLL_T::ENGINE,
+			__FUNC_PFX__"Invalid split fragment size %i (number %i/ count %i, expected %i) from %s\n",
+			fragmentSize,
+			packetNumber,
+			packetCount,
+			splitSize,
+			packet->from.ToString());
+		return false;
+	}
+
+	const int offset = packetNumber * splitSize;
+	const int totalSize = offset + fragmentSize;
+	const int minimumTotalSize = (packetCount - 1) * splitSize + 1;
+
+	if (totalSize > NET_MAX_MESSAGE || minimumTotalSize > NET_MAX_MESSAGE)
+	{
+		DevWarning(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s exceeds split buffer size (number %i/ count %i) where total size %i exceeds buffer size %zu\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount,
+			totalSize > minimumTotalSize ? totalSize : minimumTotalSize,
+			static_cast<size_t>(NET_MAX_MESSAGE));
+		return false;
+	}
+
+	CSplitPacketEntry* const entry = NET_FindOrCreateSplitPacketEntry(static_cast<unsigned int>(sock), &packet->from);
+	if (!entry)
+		return false;
+
+	entry->lastactivetime = static_cast<float>(*g_pNetTime);
+	LONGPACKET& split = entry->netsplit;
+
+	if (entry->splitflags[packetNumber] == sequenceNumber)
+	{
+		DevWarning(eDLL_T::ENGINE,
+			__FUNC_PFX__"Ignoring duplicated split packet %i of %i (%i bytes) from %s\n",
+			packetNumber + 1,
+			packetCount,
+			fragmentSize,
+			packet->from.ToString());
+		return false;
+	}
+
+	// First packet in split series?
+	if (split.currentSequence == -1 || sequenceNumber != split.currentSequence)
+	{
+		split.currentSequence = sequenceNumber;
+		split.splitCount = packetCount;
+		split.nExpectedSplitSize = splitSize;
+		split.totalSize = 0;
+	}
+	else if (split.nExpectedSplitSize != splitSize)
+	{
+		DevWarning(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s with inconsistent split size (number %i/ count %i) where size %i not equal to initial size of %i\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount,
+			splitSize,
+			split.nExpectedSplitSize);
+		return false;
+	}
+	else
+	{
+		int receivedCount = 0;
+
+		for (int i = 0; i < 256; ++i)
+		{
+			if (entry->splitflags[i] == sequenceNumber)
+				++receivedCount;
+		}
+
+		if (packetCount != split.splitCount + receivedCount)
+		{
+			DevWarning(eDLL_T::ENGINE,
+				__FUNC_PFX__"Split packet from %s with inconsistent packet count (number %i/ count %i) where initial count was %i\n",
+				packet->from.ToString(),
+				packetNumber,
+				packetCount,
+				split.splitCount + receivedCount);
+			return false;
+		}
+	}
+
+	// Last packet in sequence? set size
+	if (packetNumber == (packetCount-1))
+		split.totalSize = totalSize;
+
+	if (net_showsplits->GetInt() && net_showsplits->GetInt() != 3)
+	{
+		Msg(eDLL_T::ENGINE,
+			"<-- [%u] Split packet %4i/%4i seq %5i size %4i mtu %4i from %s\n",
+			static_cast<unsigned int>(sock), packetNumber + 1, packetCount,
+			sequenceNumber, fragmentSize,
+			splitSize + static_cast<int>(sizeof(SPLITPACKET)),
+			packet->from.ToString());
+	}
+
+	--split.splitCount;
+	entry->splitflags[packetNumber] = sequenceNumber;
+
+	// Copy the incoming data to the appropriate place in the buffer
+	memcpy(split.buffer + offset, packet->pData + sizeof(SPLITPACKET), static_cast<size_t>(fragmentSize));
+
+	// Have we received all of the pieces to the packet?
+	if (split.splitCount > 0)
+		return false;
+
+	split.currentSequence = -1;	// Clear packet
+
+	if (split.totalSize <= 0 || split.totalSize > NET_MAX_MESSAGE)
+	{
+		DevWarning(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet too large! %i bytes from %s\n",
+			split.totalSize,
+			packet->from.ToString());
+		return false;
+	}
+
+	// The packet data buffer must be large enough for the reconstructed message.
+	memcpy(packet->pData, split.buffer, static_cast<size_t>(split.totalSize));
+	packet->size = split.totalSize;
+	packet->wiresize = split.totalSize;
+
+	return true;
 }
 
 #endif // !_TOOLS
@@ -406,8 +720,15 @@ void VNet::Detour(const bool bAttach) const
 	DetourSetup(&v_NET_SendDatagram, &NET_SendDatagram, bAttach);
 
 	DetourSetup(&v_NET_BufferToBufferCompress, &NET_BufferToBufferCompress, bAttach);
-	DetourSetup(&v_NET_BufferToBufferDecompress_LZSS, &NET_BufferToBufferDecompress_LZSS, bAttach);
+	DetourSetup(&v_NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP, &NET_BufferToBufferDecompress_OnlyUsedByRecvDatagram_TEMP, bAttach);
 	DetourSetup(&v_NET_PrintFunc, &NET_PrintFunc, bAttach);
+
+	DetourSetup(&v_NET_GetLongPacket, &NET_GetLongPacket, bAttach);
+}
+
+void _NET_Internal_InitStaticVars()
+{
+	net_splitpackets = CMemory(v_NET_GetLongPacket).FindPatternSelf("4C 03").ResolveRelativeAddressSelf(3, 7).RCast<CUtlVector< vecSplitPacketEntries_t > *>();
 }
 
 ///////////////////////////////////////////////////////////////////////////////

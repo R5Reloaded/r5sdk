@@ -1291,6 +1291,27 @@ const wchar_t* V_UnqualifiedFileName(const wchar_t* in)
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: strips path components from a filename
+//-----------------------------------------------------------------------------
+void V_UnqualifyFileName(char* const fileName, size_t& fileNameLen)
+{
+	Assert(fileName);
+	Assert(fileNameLen >= 0);
+
+	const char* const unqualifiedName = V_UnqualifiedFileName(fileName);
+	const size_t prefixLen = unqualifiedName - fileName;
+
+	Assert(prefixLen >= 0);
+	Assert(prefixLen <= fileNameLen);
+
+	if (prefixLen <= 0)
+		return;
+
+	fileNameLen -= prefixLen;
+	memmove(fileName, unqualifiedName, fileNameLen + 1); // Include null terminator.
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: Composes a path and filename together, inserting a path separator
 //			if need be
 // Input:	path - path to use

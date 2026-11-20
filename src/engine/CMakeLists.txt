@@ -109,8 +109,6 @@ endif()
 
 if( NOT ${PROJECT_NAME} STREQUAL "engine_cl" )
 add_sources( SOURCE_GROUP "Server"
-    "server/persistence.cpp"
-    "server/persistence.h"
     "server/server.cpp"
     "server/server.h"
     "server/sv_rcon.cpp"
@@ -124,14 +122,21 @@ add_sources( SOURCE_GROUP "Server"
 )
 endif()
 
+if( NOT ${PROJECT_NAME} STREQUAL "engine_ds" )
 add_sources( SOURCE_GROUP "Client"
     "client/cdll_engine_int.cpp"
     "client/cdll_engine_int.h"
     "client/cl_ents_parse.cpp"
     "client/cl_ents_parse.h"
+)
+endif()
+
+if( NOT ${PROJECT_NAME} STREQUAL "engine_cl" )
+add_sources( SOURCE_GROUP "Client"
     "client/client.cpp"
     "client/client.h"
 )
+endif()
 
 add_sources( SOURCE_GROUP "Shared"
     "shared/base_rcon.cpp"
@@ -140,7 +145,10 @@ add_sources( SOURCE_GROUP "Shared"
     "shared/shared_rcon.h"
     "shared/datablock.cpp"
     "shared/datablock.h"
+    "shared/datablock_events.cpp"
+    "shared/datablock_events.h"
     "shared/ents_shared.h"
+    "shared/entitlements.h"
 )
 
 if( NOT ${PROJECT_NAME} STREQUAL "engine_ds" )
@@ -157,8 +165,6 @@ add_sources( SOURCE_GROUP "Client" # Client only.
     "client/vengineclient_impl.h"
     "client/datablock_receiver.cpp"
     "client/datablock_receiver.h"
-    "client/community_party.cpp"
-    "client/community_party.h"
 )
 
 add_sources( SOURCE_GROUP "GameUI"

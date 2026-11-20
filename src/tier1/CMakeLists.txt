@@ -23,6 +23,8 @@ add_sources( SOURCE_GROUP "Utility"
     "memstack.cpp"
     "exprevaluator.cpp"
     "keyvalues.cpp"
+    "checksum_crc.cpp"
+    "checksum_md5.cpp"
 )
 
 add_sources( SOURCE_GROUP "Private"

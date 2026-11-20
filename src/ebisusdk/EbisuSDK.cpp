@@ -18,12 +18,12 @@ void HEbisuSDK_Init()
 	// every place this was called in the game's executable).
 	if (isDedicated || noOrigin)
 	{
-		*g_EbisuSDKInit = true;
-		*g_EbisuProfileInit = true;
-		*g_NucleusID = FAKE_BASE_NUCLEUD_ID;
+		g_originState->isInitialized = true;
+		g_originState->hasProfile = true;
+		g_originState->userId = FAKE_BASE_NUCLEUD_ID;
 
-		Q_snprintf(g_OriginAuthCode, 256, "%s", "INVALID_OAUTH_CODE");
-		Q_snprintf(g_NucleusToken, 1024, "%s", "INVALID_NUCLEUS_TOKEN");
+		Q_snprintf(g_originState->authCode, sizeof(g_originState->authCode), "%s", "INVALID_OAUTH_CODE");
+		Q_snprintf(g_originState->token, sizeof(g_originState->token), "%s", "INVALID_NUCLEUS_TOKEN");
 
 		if (!isDedicated)
 		{
@@ -35,7 +35,7 @@ void HEbisuSDK_Init()
 //-----------------------------------------------------------------------------
 // Purpose: runs the EbisuSDK state machine
 //-----------------------------------------------------------------------------
-void HEbisuSDK_RunFrame()
+static void HEbisuSDK_RunFrame()
 {
 	if (IsOriginDisabled())
 	{
@@ -97,20 +97,12 @@ bool IsOriginDisabled()
 //-----------------------------------------------------------------------------
 bool IsOriginInitialized()
 {
-	if (IsDedicated())
-	{
-		return true;
-	}
-	else if ((!(*g_OriginErrorLevel)
-		&& (*g_EbisuSDKInit)
-		&& (*g_NucleusID)
-		&& (*g_EbisuProfileInit)))
-	// Note(amos): checks on these are disabled because we should be able to
-	// load into the game without an origin or nucleus token. There won't be
-	// a token if the game is launched with -offline for example, these are
-	// only used for the platform system and online server authentication.
-	//	&& (*g_OriginAuthCode)
-	//	&& (g_NucleusToken[0])))
+	if (!g_originState->errorLevel
+		&& g_originState->isInitialized
+		&& g_originState->userId
+		&& g_originState->hasProfile
+		&& g_originState->authCode[0]
+		&& g_originState->token[0])
 	{
 		return true;
 	}

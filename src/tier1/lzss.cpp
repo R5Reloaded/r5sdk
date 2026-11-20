@@ -291,11 +291,16 @@ unsigned int CLZSS::Uncompress( unsigned char *pInput, CUtlBuffer &buf )
 }
 */
 
-unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutput, unsigned int unBufSize )
+unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned int inBufSize, unsigned char *pOutput, unsigned int unBufSize )
 {
 	unsigned int totalBytes = 0;
 	int cmdByte = 0;
 	int getCmdByte = 0;
+
+	if ( inBufSize < sizeof( lzss_header_t ) )
+	{
+		return 0;
+	}
 
 	unsigned int actualSize = GetActualSize( pInput );
 	if ( !actualSize )
@@ -309,18 +314,31 @@ unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutpu
 		return 0;
 	}
 
+	unsigned char *pInputEnd = pInput + inBufSize;
 	pInput += sizeof( lzss_header_t );
 
 	for ( ;; )
 	{
 		if ( !getCmdByte ) 
 		{
+			// security_audit(kawe): make sure we don't read past input buf!
+			if ( pInput >= pInputEnd )
+			{
+				return 0;
+			}
+
 			cmdByte = *pInput++;
 		}
 		getCmdByte = ( getCmdByte + 1 ) & 0x07;
 
 		if ( cmdByte & 0x01 )
 		{
+			// security_audit(kawe): make sure we don't read past input buf!
+			if ( pInputEnd - pInput < 2 )
+			{
+				return 0;
+			}
+
 			int position = *pInput++ << LZSS_LOOKSHIFT;
 			position |= ( *pInput >> LZSS_LOOKSHIFT );
 			int count = ( *pInput++ & 0x0F ) + 1;
@@ -329,7 +347,8 @@ unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutpu
 				break;
 			}
 
-			if ( (unsigned int)( position + 1 ) > totalBytes || // out of bounds
+			// security_audit(kawe): make sure we don't read past output buf!
+			if ( (unsigned int)( position + 1 ) > totalBytes ||
 				totalBytes + count > unBufSize )
 			{
 				return 0;
@@ -345,8 +364,16 @@ unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutpu
 		} 
 		else 
 		{
-			if ( totalBytes + 1 > unBufSize )
+			// security_audit(kawe): make sure we don't read past input buf!
+			if ( pInput >= pInputEnd )
+			{
 				return 0;
+			}
+
+			if ( totalBytes + 1 > unBufSize )
+			{
+				return 0;
+			}
 
 			*pOutput++ = *pInput++;
 			totalBytes++;
@@ -363,6 +390,45 @@ unsigned int CLZSS::SafeUncompress( unsigned char *pInput, unsigned char *pOutpu
 
 	return totalBytes;
 }
+
+/*
+* note(kawe): while I was auditing the reliable channel of the network stack,
+* I found an issue inside SafeUncompress() where the algorithm would read past
+* the end of the input buffer. The reason for this is because code expects a
+* count==1 sentinel at the end of the buffer. Simply omitting this sentinel
+* will have it read past it! Run this POC with skipSentinel=true on the
+* original implementation to see the buffer overrun. (Enable ASAN to see more!)
+* 
+static void LZSS_TestNoMarker( const bool skipSentinel )
+{
+	unsigned char input[ sizeof(lzss_header_t) + 1 + 8 + 3 ];
+	lzss_header_t* const hdr = (lzss_header_t*)input;
+
+	hdr->id = LZSS_ID;
+	hdr->actualSize = 16;
+
+	unsigned char* const body = input + sizeof(lzss_header_t);
+	body[ 0 ] = 0x00;
+
+	const char* const moGus = "Amos";
+
+	for ( int i = 1; i <= 8; i++ )
+		body[ i ] = ( i <= 4 ) ? (unsigned char)moGus[ i - 1 ] : 0x00;
+
+	if ( !skipSentinel )
+	{
+		body[ 9 ] = 0x01;
+		body[ 10 ] = 0x00;
+		body[ 11 ] = 0x00;
+	}
+
+	unsigned char output[ 64 ];
+	memset( output, 0xCC, sizeof(output) );
+
+	CLZSS lzss;
+	unsigned int r = lzss.SafeUncompress( input, output, sizeof(output) );
+}
+*/
 
 //-----------------------------------------------------------------------------
 // Uncompress a buffer, Returns the uncompressed size. Caller must provide an

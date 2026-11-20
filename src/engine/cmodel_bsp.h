@@ -174,6 +174,9 @@ extern void Mod_SetPrecacheLevelName(const char* const levelName);
 extern void Mod_SetPrecachePlaylistName(const char* const playlistName);
 extern KeyValues* Mod_GetLevelCoreSettings(const char* pszLevelName);
 
+extern void Mod_PrecacheLevelAssets(const char* const fullLevelFileName, const char* const levelName, const bool allowVpkLoadFail);
+extern void Mod_LoadLoadscreenPakForLevel(const char* const levelName);
+
 ///////////////////////////////////////////////////////////////////////////////
 class VModel_BSP : public IDetour
 {
