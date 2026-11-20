@@ -433,10 +433,6 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 		return false;
 	}
 
-	CSplitPacketEntry* const entry = NET_FindOrCreateSplitPacketEntry(static_cast<unsigned int>(sock), &packet->from);
-	entry->lastactivetime = static_cast<float>(*g_pNetTime);
-	LONGPACKET& split = entry->netsplit;
-
 	// pHeader is network endian correct
 	const SPLITPACKET* const pHeader = reinterpret_cast<const SPLITPACKET*>(packet->pData);
 
@@ -480,24 +476,41 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 		return false;
 	}
 
-	// First packet in split series?
-	if (split.currentSequence == -1 || sequenceNumber != split.currentSequence)
-	{
-		split.currentSequence = sequenceNumber;
-		split.splitCount = packetCount;
-		split.nExpectedSplitSize = splitSize;
-	}
-	else if (split.nExpectedSplitSize != splitSize)
+	if (fragmentSize <= 0 || fragmentSize > splitSize ||
+		(packetNumber != packetCount - 1 && fragmentSize != splitSize))
 	{
 		DevMsg(eDLL_T::ENGINE,
-			__FUNC_PFX__"Split packet from %s with inconsistent split size (number %i/ count %i) where size %i not equal to initial size of %i\n",
-			packet->from.ToString(),
+			__FUNC_PFX__"Invalid split fragment size %i (number %i/ count %i, expected %i) from %s\n",
+			fragmentSize,
 			packetNumber,
 			packetCount,
 			splitSize,
-			split.nExpectedSplitSize);
+			packet->from.ToString());
 		return false;
 	}
+
+	const int offset = packetNumber * splitSize;
+	const int totalSize = offset + fragmentSize;
+	const int minimumTotalSize = (packetCount - 1) * splitSize + 1;
+
+	if (totalSize > NET_MAX_MESSAGE || minimumTotalSize > NET_MAX_MESSAGE)
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s exceeds split buffer size (number %i/ count %i) where total size %i exceeds buffer size %zu\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount,
+			totalSize > minimumTotalSize ? totalSize : minimumTotalSize,
+			static_cast<size_t>(NET_MAX_MESSAGE));
+		return false;
+	}
+
+	CSplitPacketEntry* const entry = NET_FindOrCreateSplitPacketEntry(static_cast<unsigned int>(sock), &packet->from);
+	if (!entry)
+		return false;
+
+	entry->lastactivetime = static_cast<float>(*g_pNetTime);
+	LONGPACKET& split = entry->netsplit;
 
 	if (entry->splitflags[packetNumber] == sequenceNumber)
 	{
@@ -510,8 +523,46 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 		return false;
 	}
 
-	const int offset = packetNumber * splitSize;
-	const int totalSize = offset + fragmentSize;
+	// First packet in split series?
+	if (split.currentSequence == -1 || sequenceNumber != split.currentSequence)
+	{
+		split.currentSequence = sequenceNumber;
+		split.splitCount = packetCount;
+		split.nExpectedSplitSize = splitSize;
+		split.totalSize = 0;
+	}
+	else if (split.nExpectedSplitSize != splitSize)
+	{
+		DevMsg(eDLL_T::ENGINE,
+			__FUNC_PFX__"Split packet from %s with inconsistent split size (number %i/ count %i) where size %i not equal to initial size of %i\n",
+			packet->from.ToString(),
+			packetNumber,
+			packetCount,
+			splitSize,
+			split.nExpectedSplitSize);
+		return false;
+	}
+	else
+	{
+		int receivedCount = 0;
+
+		for (int i = 0; i < 256; ++i)
+		{
+			if (entry->splitflags[i] == sequenceNumber)
+				++receivedCount;
+		}
+
+		if (packetCount != split.splitCount + receivedCount)
+		{
+			DevMsg(eDLL_T::ENGINE,
+				__FUNC_PFX__"Split packet from %s with inconsistent packet count (number %i/ count %i) where initial count was %i\n",
+				packet->from.ToString(),
+				packetNumber,
+				packetCount,
+				split.splitCount + receivedCount);
+			return false;
+		}
+	}
 
 	// Last packet in sequence? set size
 	if (packetNumber == (packetCount-1))
@@ -527,18 +578,6 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 			packet->from.ToString());
 	}
 
-	if (totalSize > static_cast<int>(sizeof(split.buffer)))
-	{
-		DevMsg(eDLL_T::ENGINE,
-			__FUNC_PFX__"Split packet from %s exceeds split buffer size (number %i/ count %i) where total size %i exceeds buffer size %zu\n",
-			packet->from.ToString(),
-			packetNumber,
-			packetCount,
-			totalSize,
-			sizeof(split.buffer));
-		return false;
-	}
-
 	--split.splitCount;
 	entry->splitflags[packetNumber] = sequenceNumber;
 
@@ -551,7 +590,7 @@ static bool NET_GetLongPacket(const netsocket_e sock, netpacket_t* const packet)
 
 	split.currentSequence = -1;	// Clear packet
 
-	if (split.totalSize > NET_MAX_MESSAGE)
+	if (split.totalSize <= 0 || split.totalSize > NET_MAX_MESSAGE)
 	{
 		DevMsg(eDLL_T::ENGINE,
 			__FUNC_PFX__"Split packet too large! %i bytes from %s\n",
