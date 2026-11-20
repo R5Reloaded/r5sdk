@@ -614,10 +614,10 @@ void DetourRegister() // Register detour classes to be searched and hooked.
 	REGISTER(HVEngineServer); // REGISTER SERVER ONLY!
 	REGISTER(VServerDataBlockSender); // REGISTER SERVER ONLY!
 
-#endif // !CLIENT_DLL
-
 	// Engine/client
 	REGISTER(VClient);
+#endif // !CLIENT_DLL
+
 #ifndef DEDICATED
 	REGISTER(VClientState);
 	REGISTER(VCL_Main);

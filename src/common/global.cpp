@@ -15,6 +15,9 @@ ConVar curl_debug("curl_debug", "0", FCVAR_DEVELOPMENTONLY, "Determines whether 
 ConVar curl_timeout("curl_timeout", "15", FCVAR_DEVELOPMENTONLY, "Maximum time in seconds a curl transfer operation could take.");
 ConVar ssl_verify_peer("ssl_verify_peer", "1", FCVAR_DEVELOPMENTONLY, "Verify the authenticity of the peer's SSL certificate.", "1 = curl verifies; 0 (zero) = no verification");
 
+// note(kawe): put it here so client dll compiles, as this cvar is used in the networksystem lib. Maybe reconsider?
+ConVar sv_onlineAuthEnable("sv_onlineAuthEnable", "1", FCVAR_RELEASE, "Enables the server-side online authentication system");
+
 //-----------------------------------------------------------------------------
 // ENGINE                                                                     |
 ConVar* single_frame_shutdown_for_reload   = nullptr;
