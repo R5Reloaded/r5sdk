@@ -72,6 +72,7 @@ extern ConVar* match_myDatacenter;
 extern ConVar* match_myRankedDatacenter;
 extern ConVar* match_myBestDatacenter;
 extern ConVar* match_pingWaveInterval;
+extern ConVar* match_precachemap;
 
 extern ConVar* ping_qos_units;
 extern ConVar* ping_usePacketLoss;

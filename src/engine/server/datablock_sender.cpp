@@ -53,7 +53,7 @@ void ServerDataBlockSender::SendFragmentGuts(ServerDataBlockSender* const sender
 	buf.WriteLong(fragSize);
 
 	// block data
-	buf.WriteBytes(blockData, blockSize);
+	buf.WriteBytes(fragData, fragSize);
 
 	if (net_debugDataBlockSender->GetInt() >= 2)
 	{

@@ -84,6 +84,7 @@ ConVar* match_myDatacenter                 = nullptr;
 ConVar* match_myRankedDatacenter           = nullptr;
 ConVar* match_myBestDatacenter             = nullptr;
 ConVar* match_pingWaveInterval             = nullptr;
+ConVar* match_precachemap                  = nullptr;
 
 ConVar* ping_qos_units                     = nullptr;
 ConVar* ping_usePacketLoss                 = nullptr;
@@ -278,6 +279,7 @@ void ConVar_InitShipped(void)
 	match_myRankedDatacenter         = g_pCVar->FindVar("match_myRankedDatacenter");
 	match_myBestDatacenter           = g_pCVar->FindVar("match_myBestDatacenter");
 	match_pingWaveInterval           = g_pCVar->FindVar("match_pingWaveInterval");
+	match_precachemap                = g_pCVar->FindVar("match_precachemap");
 
 	ping_qos_units                   = g_pCVar->FindVar("ping_qos_units");
 	ping_usePacketLoss               = g_pCVar->FindVar("ping_usePacketLoss");

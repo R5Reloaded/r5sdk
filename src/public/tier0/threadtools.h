@@ -125,21 +125,6 @@ FORCEINLINE ThreadId_t ThreadGetCurrentId()
 #endif
 }
 
-#ifndef _TOOLS
-
-extern ThreadId_t* g_ThreadMainThreadID;
-extern ThreadId_t* g_ThreadServerFrameThreadID;
-inline JobID_t* g_CurrentServerFrameJobID;
-inline JobID_t* g_AllocatedServerFrameJobID;
-
-PLATFORM_INTERFACE bool ThreadInMainThread();
-PLATFORM_INTERFACE bool ThreadInServerFrameThread();
-PLATFORM_INTERFACE bool ThreadInMainOrServerFrameThread();
-PLATFORM_INTERFACE bool ThreadCouldDoServerWork();
-PLATFORM_INTERFACE void ThreadJoinServerJob();
-
-#endif // !_TOOLS
-
 #ifdef _WIN32
 #define NOINLINE
 #elif defined( _PS3 )

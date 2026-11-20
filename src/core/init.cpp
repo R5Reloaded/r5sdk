@@ -8,7 +8,7 @@
 #include "core/logdef.h"
 #include "core/init.h"
 #include "tier0/jobthread.h"
-#include "tier0/threadtools.h"
+#include "tier0/threadtools_iface.h"
 #include "tier0/tslist.h"
 #include "tier0/memstd.h"
 #include "tier0/fasttimer.h"

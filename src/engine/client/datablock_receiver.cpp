@@ -10,7 +10,7 @@
 
 //-----------------------------------------------------------------------------
 // Purpose: send an ack back to the server to let them know
-// we received the data block
+// we received the data block succesfully
 //-----------------------------------------------------------------------------
 void ClientDataBlockReceiver::SendFragmentAcks()
 {
@@ -84,23 +84,21 @@ void ClientDataBlockReceiver::LogState()
 
 void ClientDataBlockReceiver::LogStateGuts(ClientDataBlockReceiver* const receiver)
 {
-	const double transferTime = Plat_FloatTime() - receiver->m_timeStartTransfer;
-
 	Msg(eDLL_T::ENGINE,
 		"[DataBlock:Rx] completed block #%hu\n"
 		"\t- Cancel sequence: %hu\n"
-		"\t- Payload size:    %d bytes\n" // Excludes header!
 		"\t- Fragments:       %d/%d\n"
+		"\t- Payload size:    %d bytes\n" // Excludes header!
 		"\t- Compressed:      %s\n"
 		"\t- Transfer time:   %.3lf sec\n"
 		"*******************************************************************\n",
 		receiver->m_blockSeqNr,
 		receiver->m_cancelSeqNr,
-		receiver->m_nTransferSize,
 		receiver->m_copiedFragmentsCount,
 		receiver->m_totalFragments,
+		receiver->m_nTransferSize,
 		receiver->m_usesCompression ? "yes" : "no",
-		transferTime);
+		receiver->m_timeTotalTransfer);
 }
 
 //-----------------------------------------------------------------------------

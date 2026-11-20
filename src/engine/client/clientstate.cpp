@@ -523,6 +523,12 @@ bool CClientState::_ProcessUserMessage(CClientState* thisptr, SVC_UserMessage* m
     return true;
 }
 
+bool CClientState::_ProcessConnectionlessPacket(CClientState* const thisptr, netpacket_t* const packet)
+{
+	CClientState* const thisptr_ADJ = thisptr->GetShiftedBasePointer(0x8);
+	return thisptr_ADJ->ProcessConnectionlessPacketGuts(packet);
+}
+
 bool IsLocalHost(connectparams_t* connectParams)
 {
     return (strstr(connectParams->netAdr, "localhost") || strstr(connectParams->netAdr, "127.0.0.1"));

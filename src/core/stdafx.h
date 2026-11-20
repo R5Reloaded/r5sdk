@@ -91,6 +91,7 @@ namespace rapidjson { typedef ::std::size_t SizeType; }
 #include "tier0/commonmacros.h"
 #include "tier0/memalloc.h"
 #include "tier0/tier0_iface.h"
+#include "tier0/threadtools_iface.h"
 #include "tier0/dbg.h"
 
 // Tier1 includes.

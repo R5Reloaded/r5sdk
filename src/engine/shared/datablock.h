@@ -10,7 +10,7 @@
 #define DATABLOCK_DEFAULT_TRANSFER_BUDGET 4096
 
 #define DATABLOCK_DEBUG_NAME_LEN 64
-#define DATABLOCK_INVALID_BLOCK_NR -1
+#define DATABLOCK_INVALID_FRAGMENT_NR (-1)
 
 #define DATABLOCK_INITIAL_TRANSFER_WINDOW_DBG 4
 
@@ -70,6 +70,9 @@ public:
 	inline bool IsTransfering() const { return m_transferInProgress; }
 	inline int GetFragmentCount() const { return m_totalFragments; }
 
+	inline u16 GetBlockSeqNr() const { return m_blockSeqNr; }
+	inline u16 GetCancelSeqNr() const { return m_cancelSeqNr; }
+
 private:
 	struct Header_s
 	{
@@ -87,21 +90,20 @@ protected:
 	// see [r5apex_ds + 0x262C08] 
 	bool m_slowMode;
 
-	char m_bMultiplayer;
-	char field_8B;
+	// Rate limit is only in place for multiplayer game modes, see [r5apex_ds + 0x30784D]
+	bool m_rateLimited;
+	char field_8B; // Never used? Probably debug only.
 
 	unsigned short m_blockSeqNr;
 	unsigned short m_cancelSeqNr;
 
-	// the total transfer size for the data, and the number of blocks this data
-	// has been carved up to
+	// the total transfer size for the data, and the number of fragments this
+	// data has been carved up to
 	int m_nTransferSize;
-	int m_nTotalBlocks;
+	int m_totalFragments;
 
-	// last block that has been ack'd, and the current block that is pending to
-	// be sent to the receiver
-	int m_nBlockAckTick;
-	int m_nCurrentBlock;
+	int m_ackedFragmentsCount;
+	int m_lastTransferedFragmentId;
 
 	int m_transferBudget;
 	int m_transferedFragments;
@@ -109,17 +111,16 @@ protected:
 	// the resend rate for this connection, which depends of the stability/loss
 	// and other factors computed from the netchan
 	float m_flResendRate;
-	char pad_00AC[4]; // padding, in case we want to stuff our own vars in here
 
 	// times used to determine when a data block has been sent, and how long it
 	// took to get this out and acknowledged
-	double m_TimeCurrentSend;
-	double m_TimeFirstSend;
-	double m_TimeLastSend;
+	double m_timeCurrentTransfer;
+	double m_timeStartTransfer;
+	double m_timeLastAck;
 
 	// the last time we attempted to send this block, this gets updated when
-	// a data block hasn't been acknowledged in time and is being resent
-	double m_flBlockSendTimes[MAX_DATABLOCK_FRAGMENTS];
+	// a fragment hasn't been acknowledged in time and is being resent
+	double m_lastFragmentTransferTimes[MAX_DATABLOCK_FRAGMENTS];
 
 	// the debug name used when details get dumped to the console
 	char m_szDebugName[DATABLOCK_DEBUG_NAME_LEN];
@@ -131,13 +132,13 @@ protected:
 
 	// this member is true when:
 	// net_debugDataBlockSender.GetBool() == true, or:
-	// m_bStartedTransfer == true, or:
-	// ( m_TimeCurrentSend - m_TimeFirstSend ) > net_datablock_longSendTime.GetFloat(), or:
-	// m_nTransferId < 4
+	// m_slowMode == true, or:
+	// ( m_timeCurrentTransfer - m_timeStartTransfer ) > net_datablock_longSendTime.GetFloat(), or:
+	// m_blockSeqNr < 4. See [r5apex_ds + 0x262D95]
 	//
 	// if the above condition is true, function ServerDataBlockSender::SendPendingDataBlocks()
 	// also returns true, else this function always returns false
-	bool m_bAbnormalSend;
+	bool m_abnormalTransfer;
 };
 
 class NetDataBlockReceiver
@@ -150,8 +151,10 @@ public:
 	virtual void SendFragmentAcks() = 0;
 
 	bool StartBlockReceiver(const int transferSize, const double startTime);
-	void ResetState();
 	void CancelTransfer(const unsigned short cancelSeqNr);
+
+	void ResetState();
+	void ResetDebugState();
 
 	struct FragInfo_s
 	{
@@ -185,6 +188,9 @@ public:
 
 	inline bool TransferFinished() const { return m_transferFinished; }
 
+	inline u16 GetBlockSeqNr() const { return m_blockSeqNr; }
+	inline u16 GetCancelSeqNr() const { return m_cancelSeqNr; }
+
 	inline u8* GetPayloadBuffer() { return m_scratchBuffer + sizeof(Header_s); }
 	inline int GetPayloadSize() const { return m_nTransferSize; }
 
@@ -200,10 +206,16 @@ private:
 protected:
 	void* m_pUserData;
 
-	// whether the transfer has been started and completed
-	bool m_bStartedRecv;
-	bool m_bCompletedRecv;
+	bool m_copyingFragments;
+	bool m_transferFinished;
 
+	// note(kawe): I moved this member here, because we had 2 bytes padding
+	// and the engine always resets the first byte exactly where we want it
+	// which implies this was once a debug var. This change buys us 4 bytes
+	// padding between m_cancelSeqNr and m_nTransferSize in which I placed
+	// m_timeTotalTransfer (which we use to properly debug transfer times!).
+	// Anyways do not move these around; this is final for ABI compatibility!
+	bool m_transferAckPending;
 	bool m_usesCompression; // DBG padding var!
 
 	// These get incremented each time we start a new datablock transfer,
@@ -211,17 +223,17 @@ protected:
 	unsigned short m_blockSeqNr;
 	unsigned short m_cancelSeqNr;
 
-	bool m_transferAckPending;
+	float m_timeTotalTransfer; // DBG padding var!
 
-	// the total transfer size, and the # amount of blocks the data has been
-	// carved into
+	// the total transfer size, and the # amount of fragments the data has
+	// been carved into
 	int m_nTransferSize;
-	int m_nTotalBlocks;
+	int m_totalFragments;
 
-	int m_nBlockAckTick;
+	int m_copiedFragmentsCount;
 
 	// the time the data block receiver was started for this transfer
-	double m_flStartTime;
+	double m_timeStartTransfer;
 
 	// Marked if fragment copy was successfull.
 	bool m_copiedFragments[MAX_DATABLOCK_FRAGMENTS];

@@ -15,6 +15,7 @@ inline void(*v_Playlists_Download_f)(void);
 
 extern KeyValues** g_pPlaylistKeyValues;
 extern char* g_pPlaylistMapToLoad;
+extern u64* g_pPlaylistCRC;
 
 extern CUtlVector<CUtlString> g_vecAllPlaylists;
 

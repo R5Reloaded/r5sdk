@@ -110,7 +110,8 @@ private:
 	char                          m_nGap0[520];
 	int                           m_nSpawnCount;
 	int                           m_nMaxClients;
-	char                          gap_3C0[8];                    // Unknown count (something for teams), see '[r5apex_ds.exe + 0x2777E9]'
+	int                           m_nMaxPlayers;
+	char                          gap_3C0[4];
 	int64_t                       m_iMaxTeams;
 	float                         m_flTickInterval;              // Time for 1 tick in seconds
 	float                         m_flTimescale;                 // The game time scale (multiplied in conjunction with host_timescale)
