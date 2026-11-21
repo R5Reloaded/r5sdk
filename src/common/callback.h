@@ -33,6 +33,7 @@ void GFX_NVN_Changed_f(IConVar* pConVar, const char* pOldString, float flOldValu
 #endif // !DEDICATED
 void LanguageChanged_f(IConVar* pConVar, const char* pOldString, float flOldValue, ChangeUserData_t pUserData);
 #ifndef DEDICATED
+void origin_friendlist_dump_f( const CCommand &args );
 void Set_f(const CCommand& args);
 void Mat_CrossHair_f(const CCommand& args);
 void Line_f(const CCommand& args);

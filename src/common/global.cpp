@@ -462,6 +462,7 @@ void ConCommand_InitShipped(void)
 	// CLIENT DLL                                                             |
 	ConCommand* give = g_pCVar->FindCommand("give");
 	ConCommand* set = g_pCVar->FindCommand("set");
+	ConCommand *origin_friendlist_dump = g_pCVar->FindCommand( "origin_friendlist_dump" );
 #endif // !DEDICATED
 
 	help->m_fnCommandCallback = CVHelp_f;
@@ -491,6 +492,7 @@ void ConCommand_InitShipped(void)
 	mat_crosshair->m_fnCommandCallback = Mat_CrossHair_f;
 	give->m_fnCompletionCallback = Game_Give_f_CompletionFunc;
 	set->m_fnCommandCallback = Set_f;
+	origin_friendlist_dump->m_fnCommandCallback = origin_friendlist_dump_f;
 #endif // !DEDICATED
 
 	/// ------------------------------------------------------ [ FLAG REMOVAL ]
