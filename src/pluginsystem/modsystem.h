@@ -92,8 +92,13 @@ public:
 	const CUtlString& GetNormalizedModID(const ModInstance_t* const mod) const;
 
 private:
+	static unsigned int ModSystem_HashModId( const CUtlString &s )
+	{
+		return HashStringCaseless( s.String() );
+	}
+
 	CUtlVector<ModInstance_t*> m_ModList;
-	CUtlHash<CUtlString> m_ModIdHashMap;
+	CUtlHash<CUtlString, &UtlStringCompareFunc, &CModSystem::ModSystem_HashModId> m_ModIdHashMap;
 	CThreadMutex m_ModListMutex;
 };
 

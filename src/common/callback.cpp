@@ -343,6 +343,31 @@ void Mat_CrossHair_f(const CCommand& args)
 	Msg(eDLL_T::MS, "--------------------------------------------------------------\n");
 }
 
+void origin_friendlist_dump_f(const CCommand& args)
+{
+	AUTO_LOCK(*g_pOriginFriendsCacheLock);
+	FriendCacheUtlHash *pFriendCache = ( *g_ppCachedFriendsList );
+
+    if ( !pFriendCache )
+		return;
+
+    Msg( eDLL_T::CLIENT, "%20s | %-24s | %-32s | %-6s | %-12s | %-4s\n",
+		 "UID", "Name", "Game Title", "Online", "Playing Apex", "Idle" );
+
+	FOR_EACH_HASH( *pFriendCache, itr )
+	{
+		const auto &entry = pFriendCache->Element( itr );
+		Msg( eDLL_T::CLIENT,
+			 "%20llu | %-24.24s | %-32.32s | %-6s | %-12s | %-4s\n",
+			 static_cast<unsigned long long>( entry.m_UserId ),
+			 entry.m_szPersonaName,
+			 entry.m_szGameTitle,
+			 entry.m_bIsOnline ? "yes" : "no",
+			 entry.m_bIsPlayingApex ? "yes" : "no",
+			 entry.m_bIsIdle ? "yes" : "no" );
+	}
+}
+
 /*
 =====================
 Line_f
