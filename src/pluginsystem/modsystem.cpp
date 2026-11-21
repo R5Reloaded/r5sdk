@@ -97,16 +97,12 @@ static void ModSystem_List_f()
 static ConCommand modsystem_reload("modsystem_reload", ModSystem_Reload_f, "Reload the modsystem", FCVAR_DEVELOPMENTONLY);
 static ConCommand modsystem_list("modsystem_list", ModSystem_List_f, "Show list of mods", FCVAR_RELEASE);
 
-static unsigned int ModSystem_HashModId(const CUtlString& s)
-{
-	return HashStringCaseless(s.String());
-}
 
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 CModSystem::CModSystem()
-	: m_ModIdHashMap(MAX_MODS_TO_LOAD, 0, 0, UtlStringCompareFunc, ModSystem_HashModId)
+	: m_ModIdHashMap(MAX_MODS_TO_LOAD, 0, 0)
 {
 }
 
