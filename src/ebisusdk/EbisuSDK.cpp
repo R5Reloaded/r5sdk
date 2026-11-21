@@ -280,9 +280,11 @@ static bool GetFriendsListFromCache(CUtlVector<CUtlString>& vPersonaNames, CUtlV
     if ( pFriendsCache == nullptr )
 		return false;
 	
-    vPersonaNames.EnsureCapacity( pFriendsCache->Count() );
-	vUserIDs.EnsureCapacity( pFriendsCache->Count() );
-	vPlatformTags.EnsureCapacity( pFriendsCache->Count() );
+    const int nFriendsInCache = pFriendsCache->Count();
+
+    vPersonaNames.EnsureCapacity( nFriendsInCache );
+	vUserIDs.EnsureCapacity( nFriendsInCache );
+	vPlatformTags.EnsureCapacity( nFriendsInCache );
 
     FOR_EACH_HASH(*pFriendsCache, itr)
     {
@@ -335,13 +337,15 @@ static bool GetFriendsListFromCacheWithPresence( CUtlVector<CUtlString>& vPerson
 	if ( pFriendsCache == nullptr )
 		return false;
 
-    vPersonaNames.EnsureCapacity( pFriendsCache->Count() );
-	vUserIDs.EnsureCapacity( pFriendsCache->Count() );
-	vPlatformTags.EnsureCapacity( pFriendsCache->Count() );
-	vOnlineState.EnsureCapacity( pFriendsCache->Count() );
-	vIsPlayingApexStates.EnsureCapacity( pFriendsCache->Count() );
-	vGameTitles.EnsureCapacity( pFriendsCache->Count() );
-	vIdleStates.EnsureCapacity( pFriendsCache->Count() );
+    const int nFriendsInCache = pFriendsCache->Count();
+
+    vPersonaNames.EnsureCapacity( nFriendsInCache );
+	vUserIDs.EnsureCapacity( nFriendsInCache );
+	vPlatformTags.EnsureCapacity( nFriendsInCache );
+	vOnlineState.EnsureCapacity( nFriendsInCache );
+	vIsPlayingApexStates.EnsureCapacity( nFriendsInCache );
+	vGameTitles.EnsureCapacity( nFriendsInCache );
+	vIdleStates.EnsureCapacity( nFriendsInCache );
 
     FOR_EACH_HASH( *pFriendsCache, itr )
 	{
