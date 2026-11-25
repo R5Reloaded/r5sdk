@@ -47,6 +47,7 @@ add_sources( SOURCE_GROUP "Player"
 
 add_sources( SOURCE_GROUP "Weapon"
     "shared/r1/weapon_playerdata.h"
+    "shared/r1/weapon_inventory.h"
     "shared/r1/weapon_parse.h"
     "shared/r1/weapon_bolt.cpp"
     "shared/r1/weapon_bolt.h"

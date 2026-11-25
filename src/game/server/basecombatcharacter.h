@@ -9,6 +9,7 @@
 #define BASECOMBATCHARACTER_H
 #include "baseanimatingoverlay.h"
 #include "game/server/ai_hull.h"
+#include "game/shared/r1/weapon_inventory.h"
 
 struct WeaponDropInfo
 {
@@ -18,15 +19,6 @@ struct WeaponDropInfo
 	char gap_e[2];
 	Vector3D weaponAngles;
 	float weaponPositionTime;
-};
-
-/* 1410 */
-struct WeaponInventory
-{
-	void* __vftable;
-	EHANDLE weapons[9];
-	EHANDLE offhandWeapons[6];
-	EHANDLE activeWeapons[3];
 };
 
 struct CTether

@@ -8,14 +8,8 @@
 #define C_BASECOMBATCHARACTER_H
 
 #include "c_baseanimatingoverlay.h"
+#include "game/shared/r1/weapon_inventory.h"
 
-struct WeaponInventory_Client
-{
-	void* _vftable;
-	EHANDLE weapons[9];
-	EHANDLE offhandWeapons[6];
-	EHANDLE activeWeapons[3];
-};
 
 class C_BaseCombatCharacter : public C_BaseAnimatingOverlay
 {
