@@ -125,21 +125,6 @@ FORCEINLINE ThreadId_t ThreadGetCurrentId()
 #endif
 }
 
-#ifndef _TOOLS
-
-extern ThreadId_t* g_ThreadMainThreadID;
-extern ThreadId_t* g_ThreadServerFrameThreadID;
-inline JobID_t* g_CurrentServerFrameJobID;
-inline JobID_t* g_AllocatedServerFrameJobID;
-
-PLATFORM_INTERFACE bool ThreadInMainThread();
-PLATFORM_INTERFACE bool ThreadInServerFrameThread();
-PLATFORM_INTERFACE bool ThreadInMainOrServerFrameThread();
-PLATFORM_INTERFACE bool ThreadCouldDoServerWork();
-PLATFORM_INTERFACE void ThreadJoinServerJob();
-
-#endif // !_TOOLS
-
 #ifdef _WIN32
 #define NOINLINE
 #elif defined( _PS3 )
@@ -284,7 +269,7 @@ typedef CInterlockedIntT<unsigned> CInterlockedUInt;
 //
 //-----------------------------------------------------------------------------
 
-struct CThreadMutex
+class CThreadMutex
 {
 public:
 	CThreadMutex();
@@ -616,10 +601,80 @@ private:
 	CAutoLockT<MUTEX_TYPE>& operator=(const CAutoLockT<MUTEX_TYPE>&);
 };
 
+//-----------------------------------------------------------------------------
+//
+// CThreadRWLock inline functions
+//
+//-----------------------------------------------------------------------------
+
+class CThreadRWLockUnaligned
+{
+public:
+	CThreadRWLockUnaligned()
+	{
+		InitializeSRWLock(&m_lock);
+	}
+
+	FORCEINLINE void Lock()
+	{
+		AcquireSRWLockExclusive(&m_lock);
+	}
+
+	FORCEINLINE void Unlock()
+	{
+		ReleaseSRWLockExclusive(&m_lock);
+	}
+
+	FORCEINLINE void LockForRead()
+	{
+		AcquireSRWLockShared(&m_lock);
+	}
+
+	FORCEINLINE void UnlockRead()
+	{
+		ReleaseSRWLockShared(&m_lock);
+	}
+
+	FORCEINLINE void LockForWrite()
+	{
+		AcquireSRWLockExclusive(&m_lock);
+	}
+
+	FORCEINLINE void UnlockWrite()
+	{
+		ReleaseSRWLockExclusive(&m_lock);
+	}
+
+	FORCEINLINE bool TryLockForRead()
+	{
+		return TryAcquireSRWLockShared(&m_lock) != FALSE;
+	}
+
+	FORCEINLINE bool TryLockForWrite()
+	{
+		return TryAcquireSRWLockExclusive(&m_lock) != FALSE;
+	}
+
+private:
+	// Disallow copying
+	CThreadRWLockUnaligned(const CThreadRWLockUnaligned&);
+	CThreadRWLockUnaligned& operator=(const CThreadRWLockUnaligned&);
+
+	SRWLOCK			m_lock;
+};
+
+class CThreadRWLock : public CThreadRWLockUnaligned
+{
+private:
+	unsigned int	m_pad[14];
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 template <size_t size>	struct CAutoLockTypeDeducer {};
 template <> struct CAutoLockTypeDeducer<sizeof(CThreadMutex)> { typedef CThreadMutex Type_t; };
 template <> struct CAutoLockTypeDeducer<sizeof(CThreadFastMutex)> { typedef CThreadFastMutex Type_t; };
+template <> struct CAutoLockTypeDeducer<sizeof(CThreadRWLockUnaligned)> { typedef CThreadRWLockUnaligned Type_t; };
+template <> struct CAutoLockTypeDeducer<sizeof(CThreadRWLock)> { typedef CThreadRWLock Type_t; };
 
 #define AUTO_LOCK_( type, mutex ) \
 	CAutoLockT< type > UNIQUE_ID( static_cast<const type &>( mutex ) )
@@ -855,38 +910,5 @@ void CThreadSpinRWLock::UnlockRead()
 	}
 #endif
 }
-
-#ifndef _TOOLS
-///////////////////////////////////////////////////////////////////////////////
-class VThreadTools : public IDetour
-{
-	virtual void GetAdr(void) const
-	{
-		LogVarAdr("g_ThreadMainThreadID", g_ThreadMainThreadID);
-		LogVarAdr("g_ThreadServerFrameThreadID", g_ThreadServerFrameThreadID);
-		LogVarAdr("g_CurrentServerFrameJobID", g_CurrentServerFrameJobID);
-		LogVarAdr("g_AllocatedServerFrameJobID", g_AllocatedServerFrameJobID);
-	}
-	virtual void GetFun(void) const { }
-	virtual void GetVar(void) const
-	{
-		Module_FindPattern(g_GameDll, "66 89 54 24 ?? 53 55 56 57 41 54 48 81 EC ?? ?? ?? ??")
-			.FindPatternSelf("39 05").ResolveRelativeAddressSelf(2, 6).GetPtr(g_CurrentServerFrameJobID);
-
-		Module_FindPattern(g_GameDll, "48 83 EC 28 FF 15 ?? ?? ?? ?? 8B 0D ?? ?? ?? ??")
-			.FindPatternSelf("8B 0D").ResolveRelativeAddressSelf(2, 6).GetPtr(g_AllocatedServerFrameJobID);
-	}
-	virtual void GetCon(void) const { }
-	virtual void Detour(const bool /*bAttach*/) const { }
-};
-///////////////////////////////////////////////////////////////////////////////
-
-#endif // !_TOOLS
-
-struct CThreadMutexRW
-{
-	SRWLOCK m_lock;
-	unsigned int m_pad[14];
-};
 
 #endif // THREADTOOLS_H

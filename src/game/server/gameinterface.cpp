@@ -369,7 +369,7 @@ void MessageWriteByte(int iValue)
 	if (!*g_ppUsrMessageBuffer)
 		Error(eDLL_T::ENGINE, EXIT_FAILURE, "WRITE_BYTE called with no active message\n");
 
-	(*g_ppUsrMessageBuffer)->WriteByte(iValue);
+	(*g_ppUsrMessageBuffer)->WriteByte((unsigned char)iValue);
 }
 
 void MessageWriteString(const char* pszString)

@@ -33,6 +33,27 @@ public:
 	bool		CompareAdr(const CNetAdr& other) const;
 	inline bool	ComparePort(const CNetAdr& other) const { return port == other.port; }
 	inline bool	IsLoopback(void) const { return type == netadrtype_t::NA_LOOPBACK; } // true if engine loopback buffers are used.
+	inline bool IsReliable() const { return reliable; }
+
+	inline bool operator==(const CNetAdr& other) const
+	{
+		if (type != other.type || reliable != other.reliable)
+			return false;
+
+		if (type == netadrtype_t::NA_LOOPBACK)
+			return true;
+
+		if (type != netadrtype_t::NA_IP)
+			return false;
+
+		return port == other.port &&
+			IN6_ADDR_EQUAL(&adr, &other.adr);
+	}
+
+	inline bool operator!=(const CNetAdr& other) const
+	{
+		return !(*this == other);
+	}
 
 	const char*	ToString(const bool onlyBase = false) const;
 	size_t		ToString(char* const pchBuffer, const size_t unBufferSize, const bool onlyBase = false) const;

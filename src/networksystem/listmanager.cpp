@@ -167,8 +167,8 @@ void CServerListManager::ConnectToServerById(string svId) const
         string message;
         MSConnectionInfo_t connInfo;
 
-        const string authCode = cl_onlineAuthEnable.GetBool() ? g_OriginAuthCode : "";
-        const bool bSuccess = g_MasterServer.AuthForConnection(*g_NucleusID, svId, authCode.c_str(), msToken, connInfo, message);
+        const string authCode = cl_onlineAuthEnable.GetBool() ? g_originState->authCode : "";
+        const bool bSuccess = g_MasterServer.AuthForConnection(g_originState->userId, svId, authCode.c_str(), msToken, connInfo, message);
 
         g_TaskQueue.Dispatch([this, bSuccess, message = std::move(message), connInfo = std::move(connInfo), msToken = std::move(msToken)] {
             

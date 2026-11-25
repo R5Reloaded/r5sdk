@@ -54,6 +54,25 @@ public:
 
 	virtual void			SetStringUserData( int stringNumber, int length, const void *userdata ) = 0;
 	virtual const void*		GetStringUserData( int stringNumber, int* length ) = 0;
+
+	virtual void			WriteStringTable( bf_write& buf ) = 0;
+	virtual bool			ReadStringTable( bf_read& buf ) = 0;
+	virtual void			ParseUpdate( bf_read& buf, int numEntries ) = 0;
+
+	virtual pfnStringChanged GetCallback(void) = 0;
+
+	virtual int				WriteUpdate(CClient* const client, bf_write& buf, int tickAck) = 0;
+	virtual bool			WriteBaselines(SVC_CreateStringTable& msg, char* msgBuffer, int msgBufferSize) = 0;
+
+	virtual void			PurgeAllClientSide(void) = 0;
+	virtual void			EnableRollback(bool bState) = 0;
+};
+
+enum ENetworkStringtableFlags
+{
+	NSF_NONE               = 0,
+	NSF_DICTIONARY_ENABLED = (1<<0), // Uses pre-calculated per map dictionaries to reduce bandwidth
+	NSF_USE_U64_TABLE      = (1<<1)  // Uses a uint64-backed network table instead of a string table
 };
 
 class INetworkStringTableContainer

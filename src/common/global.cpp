@@ -15,6 +15,9 @@ ConVar curl_debug("curl_debug", "0", FCVAR_DEVELOPMENTONLY, "Determines whether 
 ConVar curl_timeout("curl_timeout", "15", FCVAR_DEVELOPMENTONLY, "Maximum time in seconds a curl transfer operation could take.");
 ConVar ssl_verify_peer("ssl_verify_peer", "1", FCVAR_DEVELOPMENTONLY, "Verify the authenticity of the peer's SSL certificate.", "1 = curl verifies; 0 (zero) = no verification");
 
+// note(kawe): put it here so client dll compiles, as this cvar is used in the networksystem lib. Maybe reconsider?
+ConVar sv_onlineAuthEnable("sv_onlineAuthEnable", "1", FCVAR_RELEASE, "Enables the server-side online authentication system");
+
 //-----------------------------------------------------------------------------
 // ENGINE                                                                     |
 ConVar* single_frame_shutdown_for_reload   = nullptr;
@@ -41,10 +44,14 @@ ConVar* staticProp_gather_size_weight      = nullptr;
 ConVar* model_defaultFadeDistScale         = nullptr;
 ConVar* model_defaultFadeDistMin           = nullptr;
 
+ConVar* rate_cvar                          = nullptr;
+
 ConVar* ip_cvar                            = nullptr;
 ConVar* hostname                           = nullptr;
 ConVar* hostip                             = nullptr;
 ConVar* hostport                           = nullptr;
+
+ConVar* serverFilter_cvar                  = nullptr;
 
 ConVar* host_hasIrreversibleShutdown       = nullptr;
 ConVar* host_timescale                     = nullptr;
@@ -70,10 +77,21 @@ ConVar* language_cvar                      = nullptr;
 ConVar* voice_noxplat                      = nullptr;
 
 ConVar* platform_user_id                   = nullptr;
+ConVar* nucleus_id                         = nullptr;
 
 #ifndef DEDICATED
 ConVar* name_cvar                          = nullptr;
 #endif // !DEDICATED
+
+ConVar* match_myDatacenter                 = nullptr;
+ConVar* match_myRankedDatacenter           = nullptr;
+ConVar* match_myBestDatacenter             = nullptr;
+ConVar* match_pingWaveInterval             = nullptr;
+ConVar* match_precachemap                  = nullptr;
+
+ConVar* ping_qos_units                     = nullptr;
+ConVar* ping_usePacketLoss                 = nullptr;
+ConVar* ping_minSentForChoice              = nullptr;
 
 //-----------------------------------------------------------------------------
 // SERVER                                                                     |
@@ -100,6 +118,7 @@ ConVar* sv_voiceenable                     = nullptr;
 ConVar* sv_alltalk                         = nullptr;
 
 ConVar* sv_clampPlayerFrameTime            = nullptr;
+ConVar* sv_allowSpectatorClients           = nullptr;
 
 ConVar* playerframetimekick_margin         = nullptr;
 ConVar* playerframetimekick_decayrate      = nullptr;
@@ -121,12 +140,14 @@ ConVar* bhit_enable                        = nullptr;
 ConVar* cl_updaterate_mp                   = nullptr;
 
 ConVar* cl_threaded_bone_setup             = nullptr;
+ConVar* cl_failremoteconnections           = nullptr;
 
 ConVar* pvs_start_early                    = nullptr;
 ConVar* pvs_frustumCullOnly                = nullptr;
 
 ConVar* origin_disconnectWhenOffline       = nullptr;
-ConVar* discord_updatePresence = nullptr;
+ConVar* discord_updatePresence             = nullptr;
+ConVar* force_EAAccess                     = nullptr;
 
 ConVar* match_playlist                     = nullptr;
 
@@ -150,13 +171,24 @@ ConVar* fs_showAllReads                    = nullptr;
 //-----------------------------------------------------------------------------
 // NETCHANNEL                                                                 |
 ConVar* net_usesocketsforloopback;
+ConVar* net_showfragments;
+
 ConVar* net_data_block_enabled             = nullptr;
+ConVar* net_debugDataBlockSender           = nullptr;
+ConVar* net_debugDataBlockReceiver         = nullptr;
+ConVar* net_datablockPrintSummaries        = nullptr;
+ConVar* net_datablock_longSendTime         = nullptr;
+ConVar* net_datablock_minResendInterval    = nullptr;
 ConVar* net_datablock_networkLossForSlowSpeed = nullptr;
+ConVar* net_datablock_resendRateForSlowSpeed = nullptr;
+ConVar* net_datablock_slowRate             = nullptr;
+ConVar* net_datablock_fastRate             = nullptr;
 ConVar* net_compressDataBlock              = nullptr;
 
 ConVar* net_showmsg                        = nullptr;
 ConVar* net_blockmsg                       = nullptr;
 ConVar* net_showpeaks                      = nullptr;
+ConVar* net_showsplits                     = nullptr;
 //-----------------------------------------------------------------------------
 // RUI                                                                        |
 #ifndef DEDICATED
@@ -192,10 +224,12 @@ void ConVar_InitShipped(void)
 	language_cvar                    = g_pCVar->FindVar("language");
 	voice_noxplat                    = g_pCVar->FindVar("voice_noxplat");
 	platform_user_id                 = g_pCVar->FindVar("platform_user_id");
+	nucleus_id                       = g_pCVar->FindVar("nucleus_id");
 #ifndef DEDICATED
 	name_cvar                        = g_pCVar->FindVar("name");
 	cl_updaterate_mp                 = g_pCVar->FindVar("cl_updaterate_mp");
 	cl_threaded_bone_setup           = g_pCVar->FindVar("cl_threaded_bone_setup");
+	cl_failremoteconnections         = g_pCVar->FindVar("cl_failremoteconnections");
 	pvs_start_early                  = g_pCVar->FindVar("pvs_start_early");
 	pvs_frustumCullOnly              = g_pCVar->FindVar("pvs_frustumCullOnly");
 #endif // !DEDICATED
@@ -227,6 +261,7 @@ void ConVar_InitShipped(void)
 #ifndef DEDICATED
 	origin_disconnectWhenOffline     = g_pCVar->FindVar("origin_disconnectWhenOffline");
 	discord_updatePresence           = g_pCVar->FindVar("discord_updatePresence");
+	force_EAAccess                   = g_pCVar->FindVar("force_EAAccess");
 	match_playlist                   = g_pCVar->FindVar("match_playlist");
 
 	gamepad_custom_enabled           = g_pCVar->FindVar("gamepad_custom_enabled");
@@ -243,23 +278,46 @@ void ConVar_InitShipped(void)
 
 	mat_letterbox_aspect_threshold   = g_pCVar->FindVar("mat_letterbox_aspect_threshold");
 #endif // !DEDICATED
+
+	match_myDatacenter               = g_pCVar->FindVar("match_myDatacenter");
+	match_myRankedDatacenter         = g_pCVar->FindVar("match_myRankedDatacenter");
+	match_myBestDatacenter           = g_pCVar->FindVar("match_myBestDatacenter");
+	match_pingWaveInterval           = g_pCVar->FindVar("match_pingWaveInterval");
+	match_precachemap                = g_pCVar->FindVar("match_precachemap");
+
+	ping_qos_units                   = g_pCVar->FindVar("ping_qos_units");
+	ping_usePacketLoss               = g_pCVar->FindVar("ping_usePacketLoss");
+	ping_minSentForChoice            = g_pCVar->FindVar("ping_minSentForChoice");
+
 	mp_gamemode                      = g_pCVar->FindVar("mp_gamemode");
+	rate_cvar                        = g_pCVar->FindVar("rate");
 	ip_cvar                          = g_pCVar->FindVar("ip");
 	hostname                         = g_pCVar->FindVar("hostname");
 	hostip                           = g_pCVar->FindVar("hostip");
 	hostport                         = g_pCVar->FindVar("hostport");
+	serverFilter_cvar                = g_pCVar->FindVar("serverFilter");
 	host_hasIrreversibleShutdown     = g_pCVar->FindVar("host_hasIrreversibleShutdown");
 	host_timescale                   = g_pCVar->FindVar("host_timescale");
 
 	net_data_block_enabled           = g_pCVar->FindVar("net_data_block_enabled");
 	net_compressDataBlock            = g_pCVar->FindVar("net_compressDataBlock");
+	net_debugDataBlockSender         = g_pCVar->FindVar("net_debugDataBlockSender");
+	net_debugDataBlockReceiver        = g_pCVar->FindVar("net_debugDataBlockReceiver");
+	net_datablockPrintSummaries      = g_pCVar->FindVar("net_datablockPrintSummaries");
+	net_datablock_longSendTime       = g_pCVar->FindVar("net_datablock_longSendTime");
+	net_datablock_minResendInterval  = g_pCVar->FindVar("net_datablock_minResendInterval");
 	net_datablock_networkLossForSlowSpeed = g_pCVar->FindVar("net_datablock_networkLossForSlowSpeed");
+	net_datablock_resendRateForSlowSpeed = g_pCVar->FindVar("net_datablock_resendRateForSlowSpeed");
+	net_datablock_slowRate           = g_pCVar->FindVar("net_datablock_slowRate");
+	net_datablock_fastRate           = g_pCVar->FindVar("net_datablock_fastRate");
 
 	net_usesocketsforloopback        = g_pCVar->FindVar("net_usesocketsforloopback");
+	net_showfragments                = g_pCVar->FindVar("net_showfragments");
 
 	net_showmsg = g_pCVar->FindVar("net_showmsg");
 	net_blockmsg = g_pCVar->FindVar("net_blockmsg");
 	net_showpeaks = g_pCVar->FindVar("net_showpeaks");
+	net_showsplits = g_pCVar->FindVar("net_showsplits");
 #ifndef CLIENT_DLL
 	sv_stats = g_pCVar->FindVar("sv_stats");
 
@@ -280,6 +338,7 @@ void ConVar_InitShipped(void)
 	sv_alltalk = g_pCVar->FindVar("sv_alltalk");
 
 	sv_clampPlayerFrameTime = g_pCVar->FindVar("sv_clampPlayerFrameTime");
+	sv_allowSpectatorClients = g_pCVar->FindVar("sv_allowSpectatorClients");
 
 	playerframetimekick_margin = g_pCVar->FindVar("playerframetimekick_margin");
 	playerframetimekick_decayrate = g_pCVar->FindVar("playerframetimekick_decayrate");

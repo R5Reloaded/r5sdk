@@ -140,6 +140,18 @@
 #define IsX360()	IsPlatformX360()
 #define IsPS3()		IsPlatformPS3()
 
+enum HardwareType_e : unsigned char
+{
+  PLAT_XB1,
+  PLAT_PS4,
+  PLAT_PC,
+  PLAT_IPHONE,
+  PLAT_ANDROID,
+  PLAT_SERVER,
+  PLAT_PC_ORIGIN,
+  PLAT_PC_STEAM,
+  PLAT_UNSPECIFIED
+};
 // Setup platform defines.
 #ifdef COMPILER_MSVC
 #define MSVC 1
@@ -244,6 +256,7 @@
 #define ALIGN8 DECL_ALIGN(8)
 #define ALIGN16 DECL_ALIGN(16)
 #define ALIGN32 DECL_ALIGN(32)
+#define ALIGN64 DECL_ALIGN(64)
 #define ALIGN128 DECL_ALIGN(128)
 #define ALIGN_N( _align_ ) DECL_ALIGN( _align_ )
 

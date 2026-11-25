@@ -15,6 +15,9 @@
 
 #include "pingcmd.h"
 
+#include "r1/weapon_playerdata.h"
+#include "r1/smartammo.h"
+
 //-------------------------------------------------------------------------------------
 // Console variables
 //-------------------------------------------------------------------------------------
@@ -73,7 +76,7 @@ public:
 	bool fixangles;
 	bool setlastcycleslot;
 	char pad_0x0034[5];
-	char unkData[144];
+	SmartAmmo_UnlagData smartAmmoUnlag[MAX_ACTIVE_WEAPONS];
 
 	// Zipline vars (see [r5apex_ds+8A6573] for read).
 	bool placedZiplineStation;

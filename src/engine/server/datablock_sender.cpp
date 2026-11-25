@@ -4,22 +4,27 @@
 // 
 //===========================================================================//
 #include "engine/client/client.h"
+#include "engine/host_cmd.h"
 #include "common/proto_oob.h"
 #include "datablock_sender.h"
-
-static ConVar net_compressDataBlockLzAcceleration("net_compressDataBlockLzAcceleration", "1", FCVAR_DEVELOPMENTONLY, "The acceleration value for LZ4 data block compression");
 
 //-----------------------------------------------------------------------------
 // Purpose: sends the data block
 //-----------------------------------------------------------------------------
-void ServerDataBlockSender::SendDataBlock(const short transferId, const int transferSize,
-	const short transferNr, const short blockNr, const uint8_t* const blockData, const int blockSize)
+void ServerDataBlockSender::SendFragment(const unsigned short blockSeqNr, const int transferSize,
+	const unsigned short cancelSeqNr, const unsigned short fragId, const void* const fragData, const int fragSize)
 {
-	const CClient* const cl = m_pClient;
+	SendFragmentGuts(this, blockSeqNr, transferSize, cancelSeqNr, fragId, fragData, fragSize);
+}
+
+void ServerDataBlockSender::SendFragmentGuts(ServerDataBlockSender* const sender, const unsigned short blockSeqNr, const int transferSize,
+	const unsigned short cancelSeqNr, const unsigned short fragId, const void* const fragData, const int fragSize)
+{
+	const CClient* const cl = sender->GetClient();
 
 	if (!cl)
 	{
-		Assert(0, "ServerDataBlockSender::SendDataBlock() called without a valid client handle!");
+		Assert(0, __FUNC_PFX__"Null client handle!");
 		return;
 	}
 
@@ -27,7 +32,7 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 
 	if (!chan)
 	{
-		Assert(0, "ServerDataBlockSender::SendDataBlock() called without a valid net channel!");
+		Assert(0, __FUNC_PFX__"Null net channel!");
 		return;
 	}
 
@@ -35,20 +40,33 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 	bf_write buf(&dataBuf, sizeof(dataBuf));
 
 	// msg data (gets processed on client's out of band packet handler)
-	buf.WriteLong(CONNECTIONLESS_HEADER);
+	buf.WriteULong(CONNECTIONLESS_HEADER);
 	buf.WriteByte(S2C_DATABLOCK_FRAGMENT);
 
 	// transfer info
-	buf.WriteByte(transferId);
+	buf.WriteWord(blockSeqNr);
 	buf.WriteLong(transferSize);
-	buf.WriteByte(transferNr);
+	buf.WriteWord(cancelSeqNr);
 
 	// block info
-	buf.WriteByte(blockNr);
-	buf.WriteLong(blockSize);
+	buf.WriteWord(fragId);
+	buf.WriteLong(fragSize);
 
 	// block data
-	buf.WriteBytes(blockData, blockSize);
+	buf.WriteBytes(fragData, fragSize);
+
+	if (net_debugDataBlockSender->GetInt() >= 2)
+	{
+		Msg(eDLL_T::ENGINE,
+			"[DataBlock:Tx] sending fragment #%hu of block #%hu to \"%s\": %d bytes "
+			"(transfer %d bytes, cancel sequence %hu)\n",
+			fragId,
+			blockSeqNr,
+			sender->GetReceiverName(),
+			fragSize,
+			transferSize,
+			cancelSeqNr);
+	}
 
 	// send the data block packet
 	v_NET_SendPacket(NULL, 
@@ -62,27 +80,38 @@ void ServerDataBlockSender::SendDataBlock(const short transferId, const int tran
 //-----------------------------------------------------------------------------
 // Purpose: gets the resend rate
 //-----------------------------------------------------------------------------
-float ServerDataBlockSender::GetResendRate() const
+int ServerDataBlockSender::GetTransmissionRate() const
 {
-    const CClient* const pClient = m_pClient;
+	return GetTransmissionRateGuts(this);
+}
 
-    if (!pClient)
-        return 0.0f;
+int ServerDataBlockSender::GetTransmissionRateGuts(const ServerDataBlockSender* const sender)
+{
+	const CClient* const cl = sender->GetClient();
 
-    const CNetChan* const pChan = pClient->GetNetChan();
+	if (!cl)
+		return net_datablock_fastRate->GetInt();
 
-    if (!pChan)
-        return 0.0f;
+	const CNetChan* const chan = cl->GetNetChan();
 
-    if (m_bStartedTransfer)
-        return 0.0f;
+	if (!chan)
+	{
+		Assert(0, __FUNC_PFX__"Called without a valid net channel!");
+		return net_datablock_fastRate->GetInt();
+	}
 
-    const float netResendRate = pChan->GetResendRate();
+	if (sender->m_slowMode)
+		return net_datablock_slowRate->GetInt();
 
-    if (netResendRate < net_datablock_networkLossForSlowSpeed->GetFloat())
-        return m_flResendRate;
+	const float networkLoss = chan->GetTotalNetworkLoss();
 
-    return netResendRate;
+	if (networkLoss >= net_datablock_networkLossForSlowSpeed->GetFloat())
+		return net_datablock_slowRate->GetInt();
+
+	if (sender->m_flResendRate > net_datablock_resendRateForSlowSpeed->GetFloat())
+		return net_datablock_slowRate->GetInt();
+
+	return net_datablock_fastRate->GetInt();
 }
 
 //-----------------------------------------------------------------------------
@@ -90,59 +119,33 @@ float ServerDataBlockSender::GetResendRate() const
 //-----------------------------------------------------------------------------
 const char* ServerDataBlockSender::GetReceiverName() const
 {
-    return m_pClient->m_szServerName;
+	const CClient* const cl = GetClient();
+
+	if (!cl)
+		return "<<null>>";
+
+	return cl->GetServerName();
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: write the whole data in the data block scratch buffer
+// 
 //-----------------------------------------------------------------------------
-void ServerDataBlockSender::WriteDataBlock(const uint8_t* const sourceData, const int dataSize,
-	const bool isMultiplayer, const char* const debugName)
+static bool NetDataBlockSender_SendPendingFragments(NetDataBlockSender* sender, const double currTime)
 {
-	AcquireSRWLockExclusive(&m_Lock);
+	return sender->SendPendingFragments(currTime);
+}
 
-	ServerDataBlockHeader_s* const pHeader = reinterpret_cast<ServerDataBlockHeader_s*>(m_pScratchBuffer);
-	bool copyRaw = true;
+static void NetDataBlockSender_CancelTransfer(NetDataBlockSender* sender)
+{
+	sender->CancelTransfer();
+}
 
-	int actualDataSize = dataSize;
+void VServerDataBlockSender::Detour(const bool bAttach) const
+{
+	void* null;
 
-	if (net_compressDataBlock->GetBool())
-	{
-		const int encodedSize = LZ4_compress_fast((const char*)sourceData, (char*)m_pScratchBuffer + sizeof(ServerDataBlockHeader_s),
-			dataSize, SNAPSHOT_SCRATCH_BUFFER_SIZE, net_compressDataBlockLzAcceleration.GetInt());
-
-		// this shouldn't happen at all
-		if (!encodedSize)
-		{
-			Assert(0);
-			Error(eDLL_T::SERVER, 0, "LZ4 error compressing data block for client.\n");
-		}
-
-		// make sure the encoded data is smaller than the raw data, in some cases
-		// this might turn larger which means we should just send raw data
-		else if (encodedSize < dataSize)
-		{
-			actualDataSize = encodedSize;
-
-			pHeader->isCompressed = true;
-			copyRaw = false;
-		}
-	}
-
-	// in case no compression was performed, we send the raw data
-	if (copyRaw)
-	{
-		// this should equal the dataSize at this point, even if compression failed
-		Assert(actualDataSize == dataSize);
-
-		pHeader->isCompressed = false;
-		memcpy(m_pScratchBuffer + sizeof(ServerDataBlockHeader_s), sourceData, actualDataSize);
-	}
-
-	// NOTE: we copy data in the scratch buffer with an offset of
-	// sizeof(ServerDataBlockHeader_s), the header gets send up as well so we
-	// have to take this into account !!!
-	StartBlockSender(actualDataSize + sizeof(ServerDataBlockHeader_s), isMultiplayer, debugName);
-
-	ReleaseSRWLockExclusive(&m_Lock);
+	DetourSetup(&NetDataBlockSender__SendPendingFragments, NetDataBlockSender_SendPendingFragments, bAttach);
+	DetourSetup(&NetDataBlockSender__CancelTransfer, NetDataBlockSender_CancelTransfer, bAttach);
+	CMemory::HookVirtualMethod((uintptr_t)g_pServerDataBlockSender_VFTable, ServerDataBlockSender::SendFragmentGuts, 1, &null);
+	CMemory::HookVirtualMethod((uintptr_t)g_pServerDataBlockSender_VFTable, ServerDataBlockSender::GetTransmissionRateGuts, 2, &null);
 }

@@ -47,11 +47,17 @@ add_sources( SOURCE_GROUP "Player"
 
 add_sources( SOURCE_GROUP "Weapon"
     "shared/r1/weapon_playerdata.h"
+    "shared/r1/weapon_inventory.h"
     "shared/r1/weapon_parse.h"
     "shared/r1/weapon_bolt.cpp"
     "shared/r1/weapon_bolt.h"
     "shared/r1/grapple.h"
     "shared/r1/smartammo.h"
+)
+
+add_sources( SOURCE_GROUP "Pickups"
+    "shared/r1/clientside_pickups.cpp"
+    "shared/r1/clientside_pickups.h"
 )
 
 add_sources( SOURCE_GROUP "Network"

@@ -16,6 +16,29 @@ ConVar usercmd_frametime_min("usercmd_frametime_min", "0.002857", FCVAR_REPLICAT
 
 ConVar usercmd_dualwield_enable("usercmd_dualwield_enable", "0", FCVAR_REPLICATED | FCVAR_RELEASE, "Allows setting dual wield cycle slots, and activating multiple inventory weapons from UserCmd.");
 
+static void UserCmd_ClampSmartAmmoTargets(CUserCmd* const ucmd)
+{
+	for (int i = 0; i < V_ARRAYSIZE(ucmd->smartAmmoUnlag); i++)
+	{
+		SmartAmmo_UnlagData& data = ucmd->smartAmmoUnlag[i];
+
+		// Smart ammo can lock up to SMART_AMMO_TRACKER_MAX_TARGETS targets at
+		// a time, the server will iterate targetCount times over the networked
+		// array to calculate lag compensation for all targeted entities. But
+		// since this was never clamped, a client sending an INT_MAX targetCount
+		// value will cause the server to implode!
+		if (data.targetCount < 0 ||
+			data.targetCount > V_ARRAYSIZE(data.targetEntHandles))
+		{
+			data.Reset();
+			continue;
+		}
+
+		// note(kawe): no need to check ehandles as these are always clamped
+		// to MAX_EDICTS anyways.
+	}
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: Clamp untrusted usercommand.
 // Input  : *ucmd - 
@@ -49,6 +72,10 @@ void ClampUserCmd(CUserCmd* ucmd)
 		ucmd->frametime = Clamp(ucmd->frametime,
 			usercmd_frametime_min.GetFloat(),
 			usercmd_frametime_max.GetFloat());
+
+	// security_audit(kawe): the server never validates any of the client's
+	// smart ammo inputs after this stage, so we need to do it here!
+	UserCmd_ClampSmartAmmoTargets(ucmd);
 
 	// Checks are only required if cycleslot is valid; see 'CPlayer::UpdateWeaponSlots'.
 	if (ucmd->cycleslot != WEAPON_INVENTORY_SLOT_INVALID)

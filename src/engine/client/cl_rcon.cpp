@@ -228,7 +228,7 @@ bool CRConClient::ShouldReceive(void)
 //-----------------------------------------------------------------------------
 bool CRConClient::IsRemoteLocal(void)
 {
-	return NET_IsRemoteLocal(m_Address);
+	return NET_IsLocalHost(m_Address);
 }
 
 //-----------------------------------------------------------------------------

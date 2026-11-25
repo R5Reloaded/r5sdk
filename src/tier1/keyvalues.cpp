@@ -16,7 +16,7 @@
 #include "tier1/kvtokenreader.h"
 #include "vstdlib/keyvaluessystem.h"
 #include "filesystem/ifilesystem.h"
-#include "rtech/stryder/stryder.h"
+#include "networksystem/stryder.h"
 #include "engine/sys_dll2.h"
 #include "engine/cmodel_bsp.h"
 

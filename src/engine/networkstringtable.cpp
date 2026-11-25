@@ -92,27 +92,6 @@ bool CNetworkStringTable::Lock(bool bLock)
 //-----------------------------------------------------------------------------
 void CNetworkStringTableContainer::WriteUpdateMessage(CNetworkStringTableContainer* thisp, CClient* pClient, unsigned int nTickAck, bf_write* pMsg)
 {
-#ifndef CLIENT_DLL
-	if (sv_stats->GetBool())
-	{
-		const uint8_t nCPUPercentage = static_cast<uint8_t>(g_pServer->GetCPUUsage() * 100.0f);
-		SVC_ServerTick serverTick(g_pServer->GetTick(), *host_frametime_unbounded, *host_frametime_stddeviation, nCPUPercentage);
-
-		serverTick.m_nGroup = 0;
-		serverTick.m_bReliable = true;
-
-		// -1 means we update statistics only; see 'CClientState::VProcessServerTick()'.
-		serverTick.m_NetTick.m_nCommandTick = -1;
-
-		pMsg->WriteUBitLong(serverTick.GetType(), NETMSG_TYPE_BITS);
-
-		if (!pMsg->IsOverflowed())
-		{
-			serverTick.WriteToBuffer(pMsg);
-		}
-	}
-#endif // !CLIENT_DLL
-
 	Assert(!pMsg->IsOverflowed(), "Snapshot buffer overflowed before string table update!");
 	CNetworkStringTableContainer__WriteUpdateMessage(thisp, pClient, nTickAck, pMsg);
 }

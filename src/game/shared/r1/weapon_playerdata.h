@@ -1,5 +1,9 @@
 #ifndef SHARED_WEAPON_PLAYERDATA_H
 #define SHARED_WEAPON_PLAYERDATA_H
+#include "../predictioncopy.h"
+
+#define MAX_ACTIVE_WEAPONS 2
+#define MAX_OFFHAND_WEAPONS 6
 
 class WeaponPlayerData
 {

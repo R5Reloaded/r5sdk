@@ -14,23 +14,23 @@
 #include "public/networkstringtabledefs.h"
 #include "client/client.h"
 
+// security_audit(kawe): currently, the game never uses more than 8192 string
+// table entries, so I put this here to make sure nothing externally (or bad)
+// sends more as that ultimately just burns CPU. NOTE that this is not a hard
+// cap!! If you increase the number of entries inside the existing tables, or
+// create a new one that requires more, increase this value to the next pow2.
+#define MAX_STRINGTABLE_ENTRIES ( 1<<13 )
+
+// security_audit(kawe): this used to be hardcoded everywhere, this has now
+// been placed here so if you need to send string/int tables up, use this as
+// the actual maximum for the bitbuf as the receiver will reject everything
+// exceeding it! NOTE that this being twice the max reliable payload size is
+// fine as this is nearly always send over the data blocks protocol anyways.
+#define MAX_STRINGTABLE_PAYLOAD ( 2 * NET_MAX_PAYLOAD )
+
 class CNetworkStringTable : public INetworkStringTable
 {
 public:
-	// Updating/Writing
-	virtual bool			WriteStringTable(bf_write& buf) = 0;
-	virtual bool			ReadStringTable(bf_read& buf) = 0;
-
-	virtual void			ParseUpdate(bf_read& buf, int numStrings) = 0;
-
-	virtual pfnStringChanged GetCallback(void) = 0;
-
-	virtual int				WriteUpdate(CClient* const client, bf_write& buf, int tickAck) = 0;
-	virtual bool			WriteBaselines(SVC_CreateStringTable& msg, char* msgBuffer, int msgBufferSize) = 0;
-
-	virtual void			PurgeAllClientSide(void) = 0;
-	virtual void			EnableRollback(bool bState) = 0;
-
 	// TODO[ AMOS ]: there are a few more entries below in the vftable that
 	// need to be mapped out, most of them set/get bit fields;
 	// see [ r5apex_ds + 0x1329888 ]
@@ -45,7 +45,7 @@ public:
 private:
 	TABLEID         m_id;
 	bool            m_bLocked; // Might be wrong!
-	char*           m_pszTableName;
+	char* m_pszTableName;
 	int             m_nMaxEntries;
 	int             m_nEntryBits;
 	int             m_nTickCount;

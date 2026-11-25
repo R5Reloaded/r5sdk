@@ -13,6 +13,7 @@
 
 KeyValues** g_pPlaylistKeyValues = nullptr; // The KeyValue for the playlist file.
 char* g_pPlaylistMapToLoad = nullptr;
+u64* g_pPlaylistCRC = nullptr;
 
 CUtlVector<CUtlString> g_vecAllPlaylists;   // Cached playlists entries.
 

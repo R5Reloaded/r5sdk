@@ -1,0 +1,45 @@
+#ifndef GAME_WEAPON_INVENTORY_H
+#define GAME_WEAPON_INVENTORY_H
+
+struct WeaponInventory
+{
+	void* __vftable;
+	EHANDLE weapons[9];
+	EHANDLE offhandWeapons[6];
+	EHANDLE activeWeapons[3];
+};
+
+// Client's class is identical.
+typedef WeaponInventory WeaponInventory_Client;
+
+enum eActiveInventorySlot
+{
+    mainHand = 0,
+    altHand = 1,
+    utility = 2,
+
+	AIS_LAST_ITEM = utility
+};
+
+enum WeaponInventorySlot_t : i8
+{
+	WEAPON_INVENTORY_SLOT_EMPTY = -3,
+	WEAPON_INVENTORY_SLOT_ANY = -2,
+	WEAPON_INVENTORY_SLOT_INVALID = -1,
+
+	WEAPON_INVENTORY_SLOT_PRIMARY_0 = 0,
+	WEAPON_INVENTORY_SLOT_PRIMARY_1 = 1,
+	WEAPON_INVENTORY_SLOT_PRIMARY_2 = 2,
+	WEAPON_INVENTORY_SLOT_PRIMARY_3 = 3,
+
+	WEAPON_INVENTORY_SLOT_ANTI_TITAN = 4,
+
+	WEAPON_INVENTORY_SLOT_DUALPRIMARY_0 = 5,
+	WEAPON_INVENTORY_SLOT_DUALPRIMARY_1 = 6,
+	WEAPON_INVENTORY_SLOT_DUALPRIMARY_2 = 7,
+	WEAPON_INVENTORY_SLOT_DUALPRIMARY_3 = 8,
+
+	MAX_INVENTORY_WEAPONS = 9,
+};
+
+#endif // GAME_WEAPON_INVENTORY_H

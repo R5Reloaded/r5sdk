@@ -42,7 +42,7 @@ public:
 	virtual bool ShouldPause() = 0;
 
 	virtual void			Unknown13() = 0;
-	virtual void			Unknown14() = 0;
+	virtual void			SetProgressLevelName(const char* levelName, const char* gameModeName) = 0;
 	virtual void			Unknown15() = 0;
 	virtual void			Unknown16() = 0;
 	virtual void			Unknown17() = 0;

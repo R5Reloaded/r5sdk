@@ -160,6 +160,189 @@ void Host_ReparseAllScripts()
 	Cbuf_Execute();
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: counts ConVars matching the specified flags
+//-----------------------------------------------------------------------------
+int Host_CountVariablesWithFlags(const int flags, const bool nonDefault)
+{
+	int count = 0;
+
+	ICvar::Iterator iter(g_pCVar);
+
+	for (iter.SetFirst(); iter.IsValid(); iter.Next())
+	{
+		ConCommandBase* const commandBase = iter.Get();
+
+		if (commandBase->IsCommand())
+			continue;
+
+		const ConVar* const var = static_cast<const ConVar*>(commandBase);
+
+		if (!var->IsFlagSet(flags))
+			continue;
+
+		if (nonDefault && !V_stricmp(var->GetDefault(), var->GetString()))
+			continue;
+
+		++count;
+	}
+
+	return count;
+}
+
+static bool AppearsNumeric(char const* in)
+{
+	char const* p = in;
+	int special[3];
+	memset(special, 0, sizeof(special));
+
+	for (; *p; p++)
+	{
+		if (*p == '-')
+		{
+			special[0]++;
+			continue;
+		}
+
+		if (*p == '+')
+		{
+			special[1]++;
+			continue;
+		}
+
+		if (*p >= '0' && *p <= '9')
+		{
+			continue;
+		}
+
+		if (*p == '.')
+		{
+			special[2]++;
+			continue;
+		}
+
+		return false;
+	}
+
+	// Can't have multiple +, -, or decimals
+	for (int i = 0; i < 3; i++)
+	{
+		if (special[i] > 1)
+			return false;
+	}
+
+	// can't be + and - at same time
+	if (special[0] && special[1])
+		return false;
+
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: if the value is numeric, remove unnecessary trailing zeros
+// Input  : *inValue -
+// Output : const char*
+//-----------------------------------------------------------------------------
+const char* Host_CleanupConVarStringValue(const char* const inValue)
+{
+	static char clean[256];
+	V_snprintf(clean, sizeof(clean), "%s", inValue);
+
+	// Don't mess with empty string
+	// Otherwise, if it appears numeric and has a decimal, try to strip all zeroes after decimal
+	if (V_strlen(clean) >= 1 && AppearsNumeric(clean) && V_strstr(clean, "."))
+	{
+		char* end = clean + V_strlen(clean) - 1;
+
+		while (*end && end >= clean)
+		{
+			// Removing trailing zeros
+			if (*end != '0')
+			{
+				// Remove decimal, zoo
+				if (*end == '.')
+					*end = end == clean ? '0' : '\0';
+
+				break;
+			}
+
+			*end-- = '\0';
+		}
+	}
+
+	return clean;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: builds a list of userinfo or platform ConVars
+// Input  : splitScreenSlot - 
+//          *cvars          - 
+//          nonDefault      - 
+//          platformSystem  - build platform ConVars instead of userinfo
+//-----------------------------------------------------------------------------
+void Host_BuildUserInfoUpdateMessage(const int splitScreenSlot,
+									 NET_SetConVar::Vec_t* const cvars,
+									 const bool nonDefault,
+									 const bool platformSystem)
+{
+	// Slot 0 does the easy version, all userinfo/platform system, except _ADDED ones
+	int requiredFlags = platformSystem ? FCVAR_PLATFORM_SYSTEM : FCVAR_USERINFO;
+	int disallowFlag = FCVAR_SS_ADDED;
+
+	if (splitScreenSlot != 0)
+	{
+		// Slot one only looks at added ones
+		disallowFlag = FCVAR_SS;
+		requiredFlags = FCVAR_USERINFO | FCVAR_SS_ADDED;
+	}
+
+	// Nothing to send.
+	if (Host_CountVariablesWithFlags(requiredFlags, nonDefault) <= 0)
+		return;
+
+	ICvar::Iterator iter(g_pCVar);
+
+	for (iter.SetFirst(); iter.IsValid(); iter.Next())
+	{
+		ConCommandBase* const commandBase = iter.Get();
+
+		if (commandBase->IsCommand())
+			continue;
+
+		const ConVar* const var = static_cast<const ConVar*>(commandBase);
+
+		if (!var->IsFlagSet(requiredFlags))
+			continue;
+
+		if (var->IsFlagSet(disallowFlag))
+			continue;
+
+		// It's == to the default value, don't count
+		if (nonDefault && !Q_strcasecmp(var->GetDefault(), var->GetString()))
+			continue;
+
+		if (var->GetSplitScreenPlayerSlot() != splitScreenSlot)
+			continue;
+
+		const int idx = cvars->AddToTail();
+		NET_SetConVar::Cvar_s& entry = cvars->Element(idx);
+
+		V_strncpy(entry.name, var->GetBaseName(), sizeof(entry.name));
+		entry.name[sizeof(entry.name) - 1] = '\0';
+
+		const char* const value = Host_CleanupConVarStringValue(var->GetString());
+
+		V_strncpy(entry.value, value, sizeof(entry.value));
+		entry.value[sizeof(entry.value) - 1] = '\0';
+	}
+
+	// Too many to send, error out and have mod author get a clue.
+	if (cvars->Count() > 255)
+	{
+		Error(eDLL_T::ENGINE, EXIT_FAILURE, "Engine only supports 255 ConVars marked %i\n", FCVAR_USERINFO);
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 void VHost::Detour(const bool bAttach) const
 {

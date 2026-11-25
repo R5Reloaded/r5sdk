@@ -8,14 +8,8 @@
 #define C_BASECOMBATCHARACTER_H
 
 #include "c_baseanimatingoverlay.h"
+#include "game/shared/r1/weapon_inventory.h"
 
-struct WeaponInventory_Client
-{
-	void* _vftable;
-	EHANDLE weapons[9];
-	EHANDLE offhandWeapons[6];
-	EHANDLE activeWeapons[3];
-};
 
 class C_BaseCombatCharacter : public C_BaseAnimatingOverlay
 {
@@ -33,11 +27,11 @@ protected:
 	float m_lastSharedEnergyTakeTime;
 	char gap_16ac[4];
 	WeaponInventory_Client m_inventory;
-	char m_selectedWeapons[2];
+	char m_selectedWeapons[MAX_ACTIVE_WEAPONS];
 	char gap_1702[2];
-	int m_latestPrimaryWeapons[2];
-	int m_latestPrimaryWeaponsIndexZeroOrOne[2];
-	char m_latestNonOffhandWeapons[2];
+	int m_latestPrimaryWeapons[MAX_ACTIVE_WEAPONS];
+	int m_latestPrimaryWeaponsIndexZeroOrOne[MAX_ACTIVE_WEAPONS];
+	char m_latestNonOffhandWeapons[MAX_ACTIVE_WEAPONS];
 	char m_selectedOffhands[3];
 	char m_selectedOffhandsPendingHybridAction[3];
 	char m_lastCycleSlot;

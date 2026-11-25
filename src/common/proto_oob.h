@@ -42,4 +42,7 @@
 // All OOB packet start with this sequence
 #define CONNECTIONLESS_HEADER 0xFFFFFFFF
 
+// Markers to put inside messages to verify sync
+#define CONNECTIONLESS_SENTINEL 0x12345
+
 #endif

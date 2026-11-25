@@ -1,4 +1,5 @@
 #pragma once
+#include "tier0/annotations.h"
 
 #ifdef _WIN32
 #define CORRECT_PATH_SEPARATOR '\\'
@@ -159,6 +160,8 @@ size_t V_StripLastDir(char* dirName, size_t maxLen);
 // Returns a pointer to the unqualified file name (no path) of a file name
 const char* V_UnqualifiedFileName(const char* in);
 const wchar_t* V_UnqualifiedFileName(const wchar_t* in);
+
+void V_UnqualifyFileName(char* const fileName, size_t& fileNameLen);
 
 // Given a path and a filename, composes "path\filename", inserting the (OS correct) separator if necessary
 void V_ComposeFileName(const char* path, const char* filename, char* dest, size_t destSize);

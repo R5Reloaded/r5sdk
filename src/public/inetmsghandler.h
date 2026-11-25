@@ -19,7 +19,7 @@ abstract_class IConnectionlessPacketHandler
 {
 public:
 	virtual ~IConnectionlessPacketHandler(void) = 0;
-	virtual bool ProcessConnectionlessPacket(netpacket_t* packet) = 0;
+	virtual bool ProcessConnectionlessPacket(netpacket_t* const packet) = 0;
 };
 
 abstract_class INetMessageHandler
