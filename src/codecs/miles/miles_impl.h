@@ -10,6 +10,30 @@
 struct PakAsset_s;
 struct PakFile_s;
 
+constexpr size_t AUDIO_SCRIPT_NAME_MAX = 260;
+constexpr uint32_t AUDIO_SCRIPT_RANDOM_SOURCE = UINT32_MAX;
+// A single RPak type binding must reserve enough storage for both flat v4
+// (360-byte) and grouped v5 (384-byte) event headers, regardless of load order.
+constexpr uint32_t RPAK_WAV_EVENT_HEADER_STORAGE_SIZE = 384;
+
+struct AudioScriptEventInfo_s
+{
+	uint64_t eventGuid;
+	uint32_t generation;
+	uint32_t sourceCount;
+	char name[AUDIO_SCRIPT_NAME_MAX];
+};
+
+struct AudioScriptSourceInfo_s
+{
+	uint64_t eventGuid;
+	uint64_t sourceGuid;
+	uint32_t generation;
+	uint32_t sourceIndex;
+	float duration;
+	char name[AUDIO_SCRIPT_NAME_MAX];
+};
+
 struct CSOM_AsyncFile_s
 {
 	u64 asyncRequestId;
@@ -28,7 +52,14 @@ struct CSOM_BankList_s
 
 /* ==== WASAPI THREAD SERVICE =========================================================================================================================================== */
 inline void*(*v_MilesAllocEx)(const size_t size, const u8 flags, void* const driver, const char* const allocSrcFileName, const int allocSrcFileLine);
-inline void(*v_MilesQueueEventRun)(Miles::Queue*, const char*);
+inline void*(*v_MilesQueueEventRun)(Miles::Queue*, const char*);
+inline int(*v_MilesQueueEventVolume)(Miles::Queue*, float);
+inline int(*v_MilesQueueEventRateFactor)(Miles::Queue*, float);
+inline int(*v_MilesQueueUpdateEventVolume)(Miles::Queue*, void*, float);
+inline int(*v_MilesQueueUpdateEventRateFactor)(Miles::Queue*, void*, float);
+inline int(*v_MilesQueueEventSignal)(Miles::Queue*, void*, const char*);
+inline int(*v_MilesBankGetEventCount)(Miles::Bank*);
+inline const char*(*v_MilesBankGetEventName)(Miles::Bank*, int);
 inline void(*v_MilesBankPatch)(Miles::Bank*, char*, char*);
 inline unsigned int (*v_MilesSampleSetSourceRaw)(__int64 a1, __int64 a2, unsigned int a3, int a4, unsigned __int16 a5, bool a6);
 inline unsigned int (*v_MilesEventGetDetails)(__int64 a1, __int64 a2, __int64 a3, __int64 a4, __int64 a5, __int64 a6, void* const releaseList);
@@ -51,11 +82,27 @@ void RPakWav_BeginManualMilesPlay();
 void RPakWav_EndManualMilesPlay();
 void RPakWav_RegisterPakAsset(PakFile_s* pak, const PakAsset_s* asset);
 
+uint32_t AudioScript_GetGeneration();
+size_t AudioScript_ListCustomEvents(AudioScriptEventInfo_s* events, size_t capacity);
+size_t AudioScript_ListCustomSources(uint64_t eventGuid, AudioScriptSourceInfo_s* sources, size_t capacity);
+bool AudioScript_FindCustomEvent(const char* eventName, AudioScriptEventInfo_s& event);
+bool AudioScript_FindCustomSource(const char* sourceName, AudioScriptSourceInfo_s& source);
+bool AudioScript_IsNativeEvent(const char* eventName);
+int AudioScript_PlayNative(const char* eventName, float volume, float pitch, bool forceLoop = false);
+int AudioScript_PlayCustom(uint64_t eventGuid, uint32_t sourceIndex, uint64_t sourceGuid, float volume, float pitch, bool forceLoop = false);
+bool AudioScript_SetPitch(int voiceId, float pitch);
+bool AudioScript_SetVolume(int voiceId, float volume);
+bool AudioScript_Stop(int voiceId);
+
 struct CSOM_GlobalState_s
 {
 	char gap0[24];
 	bool mismatchedBuildTag;
-	char gap19[63];
+	char gap19[43];
+	// Engine request kind: 1 = position, 2 = non-spatial, 3 = entity,
+	// 4 = position/direction. Entity requests reuse the position's first word.
+	uint32_t queuedSoundPositionType;
+	char gap48[16];
 	uintptr_t queuedEventHash;
 	char gap60[4];
 	Vector3D queuedSoundPosition;
@@ -83,6 +130,10 @@ struct CSOM_GlobalState_s
 	char unk[96];
 };
 
+static_assert(offsetof(CSOM_GlobalState_s, queuedSoundPositionType) == 0x44);
+static_assert(offsetof(CSOM_GlobalState_s, queuedEventHash) == 0x58);
+static_assert(offsetof(CSOM_GlobalState_s, queuedSoundPosition) == 0x64);
+
 inline CSOM_GlobalState_s* g_milesGlobals;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -92,6 +143,13 @@ class MilesCore : public IDetour
 	{
 		LogFunAdr("MilesAllocEx", v_MilesAllocEx);
 		LogFunAdr("MilesQueueEventRun", v_MilesQueueEventRun);
+		LogFunAdr("MilesQueueEventVolume", v_MilesQueueEventVolume);
+		LogFunAdr("MilesQueueEventRateFactor", v_MilesQueueEventRateFactor);
+		LogFunAdr("MilesQueueUpdateEventVolume", v_MilesQueueUpdateEventVolume);
+		LogFunAdr("MilesQueueUpdateEventRateFactor", v_MilesQueueUpdateEventRateFactor);
+		LogFunAdr("MilesQueueEventSignal", v_MilesQueueEventSignal);
+		LogFunAdr("MilesBankGetEventCount", v_MilesBankGetEventCount);
+		LogFunAdr("MilesBankGetEventName", v_MilesBankGetEventName);
 		LogFunAdr("MilesBankPatch", v_MilesBankPatch);
 		LogFunAdr("MilesSampleSetSourceRaw", v_MilesSampleSetSourceRaw);
 		LogFunAdr("MilesEventGetDetails", v_MilesEventGetDetails);
@@ -118,6 +176,13 @@ class MilesCore : public IDetour
 		
 		g_RadAudioSystemDll.GetExportedSymbol("MilesAllocEx").GetPtr(v_MilesAllocEx);
 		g_RadAudioSystemDll.GetExportedSymbol("MilesQueueEventRun").GetPtr(v_MilesQueueEventRun);
+		g_RadAudioSystemDll.GetExportedSymbol("MilesQueueEventVolume").GetPtr(v_MilesQueueEventVolume);
+		g_RadAudioSystemDll.GetExportedSymbol("MilesQueueEventRateFactor").GetPtr(v_MilesQueueEventRateFactor);
+		g_RadAudioSystemDll.GetExportedSymbol("MilesQueueUpdateEventVolume").GetPtr(v_MilesQueueUpdateEventVolume);
+		g_RadAudioSystemDll.GetExportedSymbol("MilesQueueUpdateEventRateFactor").GetPtr(v_MilesQueueUpdateEventRateFactor);
+		g_RadAudioSystemDll.GetExportedSymbol("MilesQueueEventSignal").GetPtr(v_MilesQueueEventSignal);
+		g_RadAudioSystemDll.GetExportedSymbol("MilesBankGetEventCount").GetPtr(v_MilesBankGetEventCount);
+		g_RadAudioSystemDll.GetExportedSymbol("MilesBankGetEventName").GetPtr(v_MilesBankGetEventName);
 		g_RadAudioSystemDll.GetExportedSymbol("MilesBankPatch").GetPtr(v_MilesBankPatch);
 		g_RadAudioSystemDll.GetExportedSymbol("MilesSampleSetSourceRaw").GetPtr(v_MilesSampleSetSourceRaw);
 		g_RadAudioSystemDll.GetExportedSymbol("MilesEventGetDetails").GetPtr(v_MilesEventGetDetails);

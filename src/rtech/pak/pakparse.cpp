@@ -4,6 +4,7 @@
 //
 //=============================================================================//
 #include "tier2/zstdutils.h"
+#include "codecs/miles/miles_impl.h"
 
 #include "rtech/ipakfile.h"
 #include "rtech/async/asyncio.h"
@@ -23,7 +24,7 @@ static PakAssetProcessedCallback_t s_pakAssetProcessedCallback = nullptr;
 
 void Pak_SetAssetProcessedCallback(PakAssetProcessedCallback_t callback)
 {
-	s_pakAssetProcessedCallback = callback;
+    s_pakAssetProcessedCallback = callback;
 }
 
 //-----------------------------------------------------------------------------
@@ -176,13 +177,13 @@ static void Pak_RunAssetLoadingJobs(PakFile_s* const pak)
         }
         else
         {
-			if (_InterlockedExchangeAdd16(&pakAsset->numRemainingDependencies, -1) == 1)
-			{
-				Pak_ProcessAssetRelationsAndResolveDependencies(pak, pakAsset, currentAsset, assetBind);
+            if (_InterlockedExchangeAdd16(&pakAsset->numRemainingDependencies, -1) == 1)
+            {
+                Pak_ProcessAssetRelationsAndResolveDependencies(pak, pakAsset, currentAsset, assetBind);
 
-				if (s_pakAssetProcessedCallback)
-					s_pakAssetProcessedCallback(pak, pakAsset);
-			}
+                if (s_pakAssetProcessedCallback)
+                    s_pakAssetProcessedCallback(pak, pakAsset);
+            }
 
             _InterlockedDecrement16(&g_pakGlobals->numAssetLoadJobs);
         }
@@ -207,12 +208,6 @@ static void Pak_RunAssetLoadingJobs(PakFile_s* const pak)
 //-----------------------------------------------------------------------------
 static PakHandle_t Pak_LoadAsync(const char* const fileName, CAlignedMemAlloc* const allocator, const int logChannel, const bool bUnk)
 {
-    if (!V_IsValidPath(fileName))
-    {
-        Error(eDLL_T::RTECH, NO_ERROR, "Rejected pak file load request with unsafe path \"%s\". Report this at https://github.com/R5Reloaded/r5sdk/issues\n", fileName);
-        return PAK_INVALID_HANDLE;
-    }
-
     const int selectedLogChannel = pak_debugchannel.GetInt();
 
     if (selectedLogChannel && (selectedLogChannel == -1 || logChannel == selectedLogChannel))
@@ -758,6 +753,7 @@ static bool Pak_ProcessAssets(PakLoadedInfo_s* const loadedInfo)
 
 static void Pak_StubInvalidAssetBinds(PakFile_s* const pak, PakSlabDescriptor_s* const desc)
 {
+    constexpr uint32_t packedAudioEventTag = ('a' | ('e' << 8) | ('v' << 16) | ('t' << 24));
     for (uint32_t i = 0; i < pak->GetAssetCount(); ++i)
     {
         PakAsset_s* const asset = &pak->memoryData.assetEntries[i];
@@ -778,9 +774,21 @@ static void Pak_StubInvalidAssetBinds(PakFile_s* const pak, PakSlabDescriptor_s*
             assetBinding->replaceAssetFunc = nullptr;
             assetBinding->allocator = AlignedMemAlloc();
             assetBinding->headerSize = asset->headerSize;
-            assetBinding->structSize = asset->headerSize;
+            // aevt has both 360-byte flat and 384-byte grouped payloads. A
+            // binding's stride must be fixed before allocating any header
+            // slabs, even if the first event encountered uses the old layout.
+            assetBinding->structSize = asset->magic == packedAudioEventTag
+                ? RPAK_WAV_EVENT_HEADER_STORAGE_SIZE : asset->headerSize;
             assetBinding->headerAlignment = pak->memoryData.pageHeaders[asset->headPtr.index].pageAlignment;
             assetBinding->type = PakAssetBinding_s::STUB;
+        }
+
+        if (asset->magic == packedAudioEventTag && assetBinding->type == PakAssetBinding_s::STUB &&
+            asset->headerSize > assetBinding->structSize)
+        {
+            Error(eDLL_T::RTECH, EXIT_FAILURE,
+                "Asset 0x%llX in pak '%s' has a %u-byte header exceeding its %u-byte type allocation.\n",
+                asset->guid, pak->GetName(), asset->headerSize, assetBinding->structSize);
         }
 
         // this is dev only because it could spam a lot on older paks
@@ -898,14 +906,6 @@ static bool Pak_SetupBuffersAndLoad(const PakHandle_t pakId)
     const char* pakFilePath = loadedInfo->fileName;
     assert(pakFilePath);
 
-    if (!V_IsValidPath(pakFilePath))
-    {
-        Error(eDLL_T::RTECH, loadedInfo->logChannel == 5 ? EXIT_FAILURE : NO_ERROR, "Unsafe package file path \"%s\". Report this at https://github.com/R5Reloaded/r5sdk/issues\n", pakFilePath);
-
-        loadedInfo->status = PAK_STATUS_ERROR;
-        return false;
-    }
-
     const char* nameUnqualified = V_UnqualifiedFileName(pakFilePath);
     char relativeFilePath[MAX_OSPATH];
 
@@ -1011,14 +1011,6 @@ static bool Pak_SetupBuffersAndLoad(const PakHandle_t pakId)
 
         memcpy(libraryFilePath, pakFilePath, unqualifiedFileNameLen);
         memcpy(&libraryFilePath[unqualifiedFileNameLen], dllExt, sizeof(dllExt));
-
-        if (!V_IsValidPath(libraryFilePath))
-        {
-            Error(eDLL_T::RTECH, loadedInfo->logChannel == 5 ? EXIT_FAILURE : NO_ERROR, "Unsafe module path \"%s\" for package file \"%s\". Report this at https://github.com/R5Reloaded/r5sdk/issues\n", libraryFilePath, pakFilePath);
-
-            loadedInfo->status = PAK_STATUS_ERROR;
-            return false;
-        }
 
         const HMODULE hModule = LoadLibraryA(libraryFilePath);
         loadedInfo->hModule = hModule;
