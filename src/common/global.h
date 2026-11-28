@@ -13,6 +13,8 @@ extern ConVar* developer;
 extern ConVar* fps_max;
 extern ConVar* fps_max_vsync;
 
+extern ConVar* playlist_debug;
+
 #ifndef DEDICATED
 extern ConVar* in_syncRT;
 #endif // !DEDICATED
