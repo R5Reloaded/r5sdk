@@ -7,7 +7,7 @@
 #include "game/shared/vscript_gamedll_defs.h"
 #include "game/shared/vscript_shared.h"
 
-static SQRESULT SharedScript_ModSystem_RunCallbacks(HSQUIRRELVM v)
+static SQRESULT RunModCallbacks(HSQUIRRELVM v, const char* callbackSuffix, bool optional)
 {
 	if (!ModSystem()->IsEnabled())
 		SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
@@ -28,12 +28,13 @@ static SQRESULT SharedScript_ModSystem_RunCallbacks(HSQUIRRELVM v)
 		const CUtlString& modIdNormalized = ModSystem()->GetNormalizedModID(mod);
 		CUtlString modCodeCBName;
 
-		modCodeCBName.Format("%s_%s_ModInit", Script_GetCodeCallbackPrefixForContext(v->GetContext()), modIdNormalized.String());
+		modCodeCBName.Format("%s_%s_%s", Script_GetCodeCallbackPrefixForContext(v->GetContext()), modIdNormalized.String(), callbackSuffix);
 		HSCRIPT modCodeCB = s->FindFunction(modCodeCBName.String(), "void functionref()", NULL);
 
 		if (!modCodeCB)
 		{
-			Warning(v->GetNativeContext(), "Mod '%s'(\"%s\") has precompiled scripts, but entry point \"%s()\" was not found!\n",
+			if (!optional)
+				Warning(v->GetNativeContext(), "Mod '%s'(\"%s\") has precompiled scripts, but entry point \"%s()\" was not found!\n",
 				mod->name.String(), mod->id.String(), modCodeCBName.String());
 
 			continue;
@@ -47,7 +48,18 @@ static SQRESULT SharedScript_ModSystem_RunCallbacks(HSQUIRRELVM v)
 	SCRIPT_CHECK_AND_RETURN(v, SQ_OK);
 }
 
+static SQRESULT SharedScript_ModSystem_RunCallbacks(HSQUIRRELVM v)
+{
+	return RunModCallbacks(v, "ModInit", false);
+}
+
+static SQRESULT SharedScript_ModSystem_RunPreInitCallbacks(HSQUIRRELVM v)
+{
+	return RunModCallbacks(v, "ModPreInit", true);
+}
+
 void Script_RegisterModSystemFunctions(CSquirrelVM* const s)
 {
 	DEFINE_SHARED_SCRIPTFUNC_NAMED(s, ModSystem_RunCallbacks, "Initiates the code callbacks for all mods registered by the modsystem", "void", "", false);
+	DEFINE_SHARED_SCRIPTFUNC_NAMED(s, ModSystem_RunPreInitCallbacks, "Runs optional early mod initialization callbacks", "void", "", false);
 }
